@@ -1,0 +1,19 @@
+clusterName: homelab-cluster
+talosVersion: v1.12.0
+kubernetesVersion: v1.35.0
+endpoint: https://192.168.0.10:6443
+
+# Disable Talos default CNI (Flannel) to use Cilium
+cniConfig:
+  name: none
+
+# Allow scheduling workloads on control plane nodes for single node cluster
+allowSchedulingOnControlPlanes: true
+
+nodes:
+  - hostname: homelab-node-01
+    ipAddress: 192.168.0.10
+    controlPlane: true
+    installDisk: /dev/nvme0n1
+    # Image Factory Schematic ID (includes Tailscale)
+    schematic: 4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b
