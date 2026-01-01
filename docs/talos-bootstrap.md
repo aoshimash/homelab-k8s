@@ -171,15 +171,11 @@ talosctl bootstrap
 
 > **Important**: Run `talosctl bootstrap` only ONCE on a SINGLE control plane node.
 
-### 6. Get Kubeconfig
+### 6. Get Kubernetes Access
 
 ```bash
-# Generate kubeconfig
-talosctl kubeconfig ./kubeconfig
-
-# Verify cluster access
-export KUBECONFIG=$(pwd)/kubeconfig
-kubectl get nodes
+# Merge your new cluster into your local Kubernetes configuration
+talosctl kubeconfig --nodes 192.168.0.10 --talosconfig=./clusterconfig/talosconfig
 ```
 
 ## Post-Bootstrap: Install Cilium CNI
