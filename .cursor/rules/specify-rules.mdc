@@ -1,0 +1,29 @@
+# homelab-k8s Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-01-02
+
+## Active Technologies
+
+- N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+# Add commands for N/A (YAML manifests; Kubernetes CRDs)
+
+## Code Style
+
+N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
+
+## Recent Changes
+
+- 001-cilium-flux: Added N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium)
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
