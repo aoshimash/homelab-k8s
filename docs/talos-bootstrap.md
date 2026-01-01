@@ -200,63 +200,31 @@ talosctl bootstrap
 talosctl kubeconfig --nodes 192.168.0.10 --talosconfig=./clusterconfig/talosconfig
 ```
 
-## Post-Bootstrap: Install Cilium CNI
+## Post-Bootstrap: Install Cilium CNI via Flux
 
 Since we disabled the default CNI (`cniConfig.name: none`), we need to install Cilium.
 The cluster node will remain in `NotReady` state until a CNI is installed.
 
-> **Note**: We use Helm for installation to facilitate future GitOps management with Flux or ArgoCD.
+> **Note**: Cilium is now managed via Flux GitOps. The configuration is defined in `k8s/infrastructure/cilium/` and automatically reconciled by Flux.
 
-References:
-- [Talos Kubernetes Guides - Deploy Cilium CNI](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium)
-- [Cilium Installation using Helm](https://docs.cilium.io/en/stable/installation/k8s-install-helm/)
+### Bootstrap Flux (if not already done)
 
-### 1. Add Cilium Helm Repository
+If Flux is not yet bootstrapped, follow the [Flux Bootstrap Guide](./flux-bootstrap.md) first.
 
-```bash
-helm repo add cilium https://helm.cilium.io/
-helm repo update
-```
+### Verify Cilium Installation via Flux
 
-### 2. Install Cilium
-
-Install Cilium with Talos-specific configuration and kube-proxy replacement:
+After Flux is bootstrapped and reconciling, Cilium will be automatically installed. Verify the installation:
 
 ```bash
-helm install cilium cilium/cilium --version 1.18.5 \
-  --namespace kube-system \
-  --set ipam.mode=kubernetes \
-  --set kubeProxyReplacement=true \
-  --set securityContext.capabilities.ciliumAgent="{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}" \
-  --set securityContext.capabilities.cleanCiliumState="{NET_ADMIN,SYS_ADMIN,SYS_RESOURCE}" \
-  --set cgroup.autoMount.enabled=false \
-  --set cgroup.hostRoot=/sys/fs/cgroup \
-  --set k8sServiceHost=localhost \
-  --set k8sServicePort=7445 \
-  --set operator.replicas=1
-```
+# Verify Flux is healthy
+kubectl -n flux-system get pods
+kubectl -n flux-system get kustomizations
 
-> **Note**: `operator.replicas=1` is set for single-node clusters. The default value is 2, but with pod anti-affinity rules, the second replica cannot be scheduled on the same node.
+# Check Flux sources and releases
+kubectl -n flux-system get helmrepositories
+kubectl -n kube-system get helmreleases
 
-**Configuration explained:**
-
-| Setting | Description |
-|---------|-------------|
-| `ipam.mode=kubernetes` | Use Kubernetes-native IPAM for pod IP allocation |
-| `kubeProxyReplacement=true` | Replace kube-proxy with Cilium's eBPF-based implementation |
-| `securityContext.capabilities.*` | Talos-specific: Drop `SYS_MODULE` capability (Talos doesn't allow kernel module loading) |
-| `cgroup.autoMount.enabled=false` | Talos already mounts cgroupv2 |
-| `cgroup.hostRoot=/sys/fs/cgroup` | Talos cgroupv2 mount path |
-| `k8sServiceHost=localhost` | Use KubePrism (Talos local Kubernetes API proxy) |
-| `k8sServicePort=7445` | KubePrism default port |
-| `operator.replicas=1` | Single replica for single-node cluster (default is 2) |
-
-### 3. Verify Installation
-
-Wait for Cilium to be ready:
-
-```bash
-# Check Cilium pods
+# Verify Cilium pods are running
 kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium
 
 # Verify node becomes Ready
@@ -267,19 +235,12 @@ kubectl get pods -A
 ```
 
 Expected output after successful installation:
+- Flux `HelmRepository` and `HelmRelease` show Ready status
 - Node status changes from `NotReady` to `Ready`
 - CoreDNS pods transition from `Pending` to `Running`
 - Cilium agent and operator pods are `Running`
 
-### 4. (Optional) Delete kube-proxy
-
-Since we enabled `kubeProxyReplacement=true`, kube-proxy is no longer needed:
-
-```bash
-kubectl -n kube-system delete daemonset kube-proxy
-```
-
-### 5. (Optional) Install Cilium CLI for Troubleshooting
+### (Optional) Install Cilium CLI for Troubleshooting
 
 ```bash
 brew install cilium-cli
@@ -290,6 +251,28 @@ cilium status
 # Run connectivity test (optional)
 cilium connectivity test
 ```
+
+### Rollback Procedure
+
+If you need to rollback a Cilium configuration change:
+
+1. Revert the Git commit that changed Cilium configuration:
+   ```bash
+   git revert <commit-hash>
+   git push
+   ```
+
+2. Let Flux reconcile (or trigger reconciliation):
+   ```bash
+   flux reconcile kustomization infrastructure
+   ```
+
+3. Verify Cilium and node readiness:
+   ```bash
+   kubectl -n kube-system get helmreleases cilium
+   kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium
+   kubectl get nodes
+   ```
 
 ## Verify Tailscale Connection
 
