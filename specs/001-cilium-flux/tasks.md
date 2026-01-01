@@ -52,6 +52,7 @@
 
 - [x] T003 [P] [US1] Create HelmRepository resource for Cilium chart source in `k8s/infrastructure/cilium/helmrepository.yaml`
 - [x] T004 [US1] Create HelmRelease resource for Cilium in `k8s/infrastructure/cilium/helmrelease.yaml` with pinned version matching current manual installation
+  - **NOTE**: Values are based on documentation and are provisional. T009/T010 must verify and update values from the actual running cluster before deployment to ensure zero-downtime migration.
 - [x] T005 [US1] Create kustomization.yaml in `k8s/infrastructure/cilium/kustomization.yaml` to include HelmRepository and HelmRelease
 - [x] T006 [US1] Create Flux Kustomization resource in `k8s/flux/infrastructure/kustomization.yaml` to reconcile `k8s/infrastructure/` path
 - [x] T007 [US1] Create kustomization.yaml in `k8s/flux/infrastructure/kustomization.yaml` (Kustomize) to include the Flux Kustomization resource
@@ -69,8 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Capture current Helm release details (version and values) from running cluster using `helm get values cilium -n kube-system` and `helm list -n kube-system`
-- [ ] T010 [US2] Encode captured Helm values into HelmRelease spec.values in `k8s/infrastructure/cilium/helmrelease.yaml` to match current configuration
+- [ ] T009 [US2] **CRITICAL**: Capture current Helm release details (version and values) from running cluster using `helm get values cilium -n kube-system` and `helm list -n kube-system`
+  - **REQUIRED BEFORE DEPLOYMENT**: This task must be completed to verify the HelmRelease values match the actual cluster state, preventing version mismatches or configuration drift that could cause networking disruption.
+- [ ] T010 [US2] **CRITICAL**: Encode captured Helm values into HelmRelease spec.values in `k8s/infrastructure/cilium/helmrelease.yaml` to match current configuration
+  - **REQUIRED BEFORE DEPLOYMENT**: Update the HelmRelease with verified values from T009 to ensure zero-downtime migration.
 - [ ] T011 [US2] Set HelmRelease spec.releaseName to match existing manual Helm release name (`cilium`) in `k8s/infrastructure/cilium/helmrelease.yaml`
 - [ ] T012 [US2] Verify HelmRelease adopts existing release by checking Flux reconciliation status: `kubectl -n kube-system get helmreleases cilium`
 - [ ] T013 [US2] Verify Cilium pods remain Ready during cutover: `kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium`
