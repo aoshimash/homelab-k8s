@@ -17,12 +17,16 @@ nodes:
     installDisk: /dev/nvme0n1
     # Image Factory Schematic: https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0
     talosImageURL: factory.talos.dev/installer/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b
-    # Tailscale auth key configuration via machine.files
     patches:
+      # Wipe disk on install
       - |-
         machine:
-          files:
-            - content: |
-                TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
-              path: /var/etc/tailscale/auth.env
-              permissions: 0600
+          install:
+            wipe: true
+      # Tailscale extension service configuration
+      - |-
+        apiVersion: v1alpha1
+        kind: ExtensionServiceConfig
+        name: tailscale
+        environment:
+          - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
