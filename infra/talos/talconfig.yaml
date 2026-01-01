@@ -15,13 +15,18 @@ nodes:
     ipAddress: 192.168.0.10
     controlPlane: true
     installDisk: /dev/nvme0n1
-    # Image Factory Schematic ID (includes Tailscale)
-    schematic: 4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b
-    # Patch to configure Tailscale Auth Key using ExtensionServiceConfig
+    # Image Factory Schematic (includes Tailscale)
+    schematic:
+      customization:
+        systemExtensions:
+          officialExtensions:
+            - siderolabs/tailscale
+    # Tailscale auth key configuration via machine.files
     patches:
       - |-
         machine:
-          extensionServiceConfig:
-            - name: tailscale
-              environment:
-                - TS_AUTHKEY=${talsecret.secrets.tailscale.authKey}
+          files:
+            - content: |
+                TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
+              path: /var/etc/tailscale/auth.env
+              permissions: 0600
