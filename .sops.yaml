@@ -1,5 +1,5 @@
 creation_rules:
-  - path_regex: infra/talos/talsecret.yaml
+  - path_regex: infra/talos/talenv.sops.yaml
     encrypted_regex: ^(cluster|certs|secrets|trustdinfo)$
     key_groups:
       - age:
