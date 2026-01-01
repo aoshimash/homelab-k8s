@@ -25,8 +25,8 @@
 
 **Purpose**: Create directory structure for Flux-managed infrastructure
 
-- [ ] T001 Create directory structure `k8s/infrastructure/cilium/` for Cilium manifests
-- [ ] T002 Create directory structure `k8s/flux/infrastructure/` for Flux Kustomization
+- [x] T001 Create directory structure `k8s/infrastructure/cilium/` for Cilium manifests
+- [x] T002 Create directory structure `k8s/flux/infrastructure/` for Flux Kustomization
 
 ---
 
@@ -50,12 +50,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [P] [US1] Create HelmRepository resource for Cilium chart source in `k8s/infrastructure/cilium/helmrepository.yaml`
-- [ ] T004 [US1] Create HelmRelease resource for Cilium in `k8s/infrastructure/cilium/helmrelease.yaml` with pinned version matching current manual installation
-- [ ] T005 [US1] Create kustomization.yaml in `k8s/infrastructure/cilium/kustomization.yaml` to include HelmRepository and HelmRelease
-- [ ] T006 [US1] Create Flux Kustomization resource in `k8s/flux/infrastructure/kustomization.yaml` to reconcile `k8s/infrastructure/` path
-- [ ] T007 [US1] Create kustomization.yaml in `k8s/flux/infrastructure/kustomization.yaml` (Kustomize) to include the Flux Kustomization resource
-- [ ] T008 [US1] Update `k8s/flux/flux-system/kustomization.yaml` to include `k8s/flux/infrastructure/` in resources
+- [x] T003 [P] [US1] Create HelmRepository resource for Cilium chart source in `k8s/infrastructure/cilium/helmrepository.yaml`
+- [x] T004 [US1] Create HelmRelease resource for Cilium in `k8s/infrastructure/cilium/helmrelease.yaml` with pinned version matching current manual installation
+- [x] T005 [US1] Create kustomization.yaml in `k8s/infrastructure/cilium/kustomization.yaml` to include HelmRepository and HelmRelease
+- [x] T006 [US1] Create Flux Kustomization resource in `k8s/flux/infrastructure/kustomization.yaml` to reconcile `k8s/infrastructure/` path
+- [x] T007 [US1] Create kustomization.yaml in `k8s/flux/infrastructure/kustomization.yaml` (Kustomize) to include the Flux Kustomization resource
+- [x] T008 [US1] Update `k8s/flux/flux-system/kustomization.yaml` to include `k8s/flux/infrastructure/` in resources
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Flux should reconcile the HelmRepository and HelmRelease, and Cilium should be managed declaratively.
 
@@ -101,9 +101,9 @@
 
 **Purpose**: Documentation updates and validation
 
-- [ ] T019 [P] Update `docs/talos-bootstrap.md` to remove manual Helm install steps (sections "Post-Bootstrap: Install Cilium CNI" and related)
-- [ ] T020 [P] Add Flux-managed Cilium installation workflow to `docs/talos-bootstrap.md` referencing the GitOps path
-- [ ] T021 [P] Add verification commands from quickstart.md to `docs/talos-bootstrap.md` for post-bootstrap validation
+- [x] T019 [P] Update `docs/talos-bootstrap.md` to remove manual Helm install steps (sections "Post-Bootstrap: Install Cilium CNI" and related)
+- [x] T020 [P] Add Flux-managed Cilium installation workflow to `docs/talos-bootstrap.md` referencing the GitOps path
+- [x] T021 [P] Add verification commands from quickstart.md to `docs/talos-bootstrap.md` for post-bootstrap validation
 - [ ] T022 Run quickstart.md validation: execute all validation commands and confirm Cilium is Flux-managed and healthy
 
 ---
