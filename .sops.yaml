@@ -1,0 +1,6 @@
+creation_rules:
+  - path_regex: infra/talos/talsecret.yaml
+    encrypted_regex: ^(cluster|certs|secrets|trustdinfo)$
+    key_groups:
+      - age:
+          - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa
