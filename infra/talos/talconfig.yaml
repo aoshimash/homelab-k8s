@@ -10,6 +10,14 @@ cniConfig:
 # Allow scheduling workloads on control plane nodes for single node cluster
 allowSchedulingOnControlPlanes: true
 
+# Cluster-wide patches
+patches:
+  # Disable kube-proxy (Cilium handles this with kubeProxyReplacement=true)
+  - |-
+    cluster:
+      proxy:
+        disabled: true
+
 nodes:
   - hostname: homelab-node-01
     ipAddress: 192.168.0.10
