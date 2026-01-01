@@ -17,3 +17,11 @@ nodes:
     installDisk: /dev/nvme0n1
     # Image Factory Schematic ID (includes Tailscale)
     schematic: 4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b
+    # Patch to configure Tailscale Auth Key using ExtensionServiceConfig
+    patches:
+      - |-
+        machine:
+          extensionServiceConfig:
+            - name: tailscale
+              environment:
+                - TS_AUTHKEY=${talsecret.secrets.tailscale.authKey}
