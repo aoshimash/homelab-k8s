@@ -176,7 +176,7 @@ resources: []
 Create the Flux Kustomization to deploy infrastructure:
 
 ```yaml
-# k8s/flux/infrastructure.yaml
+# k8s/flux/infrastructure-kustomization.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
