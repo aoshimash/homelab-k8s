@@ -16,7 +16,7 @@
 ## Path Conventions
 
 - Infrastructure manifests: `k8s/infrastructure/`
-- Flux Kustomizations: `k8s/flux/infrastructure/`
+- Flux Kustomizations: `k8s/flux/infrastructure-kustomization.yaml` (and future siblings)
 - Documentation: `docs/`
 
 ---
@@ -26,7 +26,7 @@
 **Purpose**: Create directory structure for Flux-managed infrastructure
 
 - [x] T001 Create directory structure `k8s/infrastructure/cilium/` for Cilium manifests
-- [x] T002 Create directory structure `k8s/flux/infrastructure/` for Flux Kustomization
+- [x] T002 Create `k8s/flux/infrastructure-kustomization.yaml` for Flux-managed infrastructure reconciliation
 
 ---
 
@@ -54,9 +54,9 @@
 - [x] T004 [US1] Create HelmRelease resource for Cilium in `k8s/infrastructure/cilium/helmrelease.yaml` with pinned version matching current manual installation
   - **NOTE**: Values are based on documentation and are provisional. T009/T010 must verify and update values from the actual running cluster before deployment to ensure zero-downtime migration.
 - [x] T005 [US1] Create kustomization.yaml in `k8s/infrastructure/cilium/kustomization.yaml` to include HelmRepository and HelmRelease
-- [x] T006 [US1] Create Flux Kustomization resource in `k8s/flux/infrastructure/kustomization.yaml` to reconcile `k8s/infrastructure/` path
-- [x] T007 [US1] Create kustomization.yaml in `k8s/flux/infrastructure/kustomization.yaml` (Kustomize) to include the Flux Kustomization resource
-- [x] T008 [US1] Update `k8s/flux/flux-system/kustomization.yaml` to include `k8s/flux/infrastructure/` in resources
+- [x] T006 [US1] Create Flux Kustomization resource in `k8s/flux/infrastructure-kustomization.yaml` to reconcile `k8s/infrastructure/` path
+- [x] T007 [US1] (Removed) Extra Kustomize wrapper is not needed; reference the Flux Kustomization YAML directly from `k8s/flux/kustomization.yaml`
+- [x] T008 [US1] Update `k8s/flux/kustomization.yaml` to include `k8s/flux/infrastructure-kustomization.yaml` in resources
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Flux should reconcile the HelmRepository and HelmRelease, and Cilium should be managed declaratively.
 
