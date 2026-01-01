@@ -1,1 +1,4 @@
 *.agekey
+
+# Generated Talos configs (contain secrets)
+infra/talos/clusterconfig/
