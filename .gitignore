@@ -1,4 +1,9 @@
 *.agekey
 
-# Generated Talos configs (contain secrets)
-infra/talos/clusterconfig/
+# Generated Talos node configs (contain secrets, regenerated from talsecret.sops.yaml)
+infra/talos/clusterconfig/*.yaml
+
+# Generated talhelper schema (can be regenerated with `talhelper genschema`)
+infra/talos/talconfig.json
+
+# Keep talosconfig tracked (needed for cluster access, safe to commit)
