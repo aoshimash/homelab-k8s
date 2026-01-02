@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 ## Active Technologies
 - Kubernetes manifests (YAML) + Kustomize + Flux CD + Flux CD (Kustomize controller + Helm controller), Kustomize, HelmRelease/HelmRepository CRDs, Longhorn Helm chart, SOPS + age (002-longhorn-r2-backup)
 - Longhorn volumes (in-cluster) + Cloudflare R2 object storage (backup target) (002-longhorn-r2-backup)
+- Flux CD, Helm, SOPS, Tailscale Operator Helm Char (003-tailscale-k8s-operator)
+- N/A (operator is stateless) (003-tailscale-k8s-operator)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -24,6 +26,7 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 003-tailscale-k8s-operator: Added Flux CD, Helm, SOPS, Tailscale Operator Helm Char
 - 002-longhorn-r2-backup: Added Kubernetes manifests (YAML) + Kustomize + Flux CD + Flux CD (Kustomize controller + Helm controller), Kustomize, HelmRelease/HelmRepository CRDs, Longhorn Helm chart, SOPS + age
 
 - 001-cilium-flux: Added N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium)
