@@ -23,8 +23,9 @@ nodes:
     ipAddress: 192.168.0.10
     controlPlane: true
     installDisk: /dev/nvme0n1
-    # Image Factory Schematic: https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0
-    talosImageURL: factory.talos.dev/installer/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b
+    # Image Factory Schematic: https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0
+    # Extensions: siderolabs/iscsi-tools (for Longhorn), siderolabs/tailscale
+    talosImageURL: factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b
     patches:
       # Wipe disk on install
       - |-

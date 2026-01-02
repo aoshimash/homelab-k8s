@@ -35,12 +35,17 @@ homelab-k8s/
 ├── age.agekey                    # Age private key (git-ignored)
 └── infra/
     └── talos/
-        ├── talconfig.yaml        # Talhelper configuration
-        ├── talenv.sops.yaml      # Encrypted environment variables
+        ├── talconfig.yaml        # Talhelper configuration (git-tracked)
+        ├── talsecret.sops.yaml   # Encrypted cluster secrets (git-tracked)
+        ├── talenv.sops.yaml      # Encrypted environment variables (git-tracked)
         └── clusterconfig/        # Generated configs (git-ignored)
-            ├── homelab-cluster-homelab-node-01.yaml
-            └── talosconfig
+            ├── homelab-cluster-homelab-node-01.yaml  # Node config
+            └── talosconfig                           # Client credentials
 ```
+
+> **Note**: The `clusterconfig/` directory is git-ignored because:
+> - Node configs contain sensitive data and can be regenerated from `talsecret.sops.yaml`
+> - `talosconfig` contains a private key and is regenerated each time by `talhelper genconfig`
 
 ## Initial Setup
 
@@ -116,32 +121,27 @@ export SOPS_AGE_KEY_FILE=/path/to/age.agekey
 # Verify talsecret.sops.yaml exists
 ls talsecret.sops.yaml || echo "ERROR: talsecret.sops.yaml not found!"
 
-# Generate Talos configs (--no-gitignore to allow tracking talosconfig)
-talhelper genconfig --no-gitignore
+# Generate Talos configs
+talhelper genconfig
 ```
 
 This generates:
-- `clusterconfig/homelab-cluster-homelab-node-01.yaml` - Node configuration (git-ignored via root .gitignore)
-- `clusterconfig/talosconfig` - Talosctl client configuration (tracked in Git)
+- `clusterconfig/homelab-cluster-homelab-node-01.yaml` - Node configuration
+- `clusterconfig/talosconfig` - Talosctl client credentials
 
-After generation, commit the `talosconfig`:
-
-```bash
-git add clusterconfig/talosconfig
-git commit -m "chore: add talosconfig for cluster access"
-```
+> **Note**: Both files are git-ignored. They can be regenerated anytime from `talsecret.sops.yaml`.
 
 ## Boot and Install Talos
 
 ### 1. Download Talos ISO
 
-Download the ISO from Image Factory with Tailscale extension:
+Download the ISO from Image Factory with required extensions:
 
 ```
-https://factory.talos.dev/image/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b/v1.12.0/metal-amd64.iso
+https://factory.talos.dev/image/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b/v1.12.0/metal-amd64.iso
 ```
 
-Or use the [Image Factory UI](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0) to customize.
+Or use the [Image Factory UI](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0) to customize.
 
 ### 2. Boot from ISO
 
@@ -341,6 +341,10 @@ talosctl reset --graceful=false --reboot
 
 ### Image Factory Schematic
 
-- **Schematic ID**: `4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b`
-- **Extensions**: `siderolabs/tailscale`
-- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0)
+- **Schematic ID**: `e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b`
+- **Extensions**:
+  - `siderolabs/iscsi-tools` (for Longhorn storage)
+  - `siderolabs/tailscale`
+- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0)
+
+> **Note**: For Day 2 operations such as upgrades and adding extensions, see [Talos Operations Guide](./talos-operations.md).
