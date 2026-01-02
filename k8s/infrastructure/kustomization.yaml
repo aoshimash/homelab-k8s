@@ -4,4 +4,5 @@ resources:
   - gateway-api/
   - cilium/
   - longhorn/
-  - tailscale/
+  # tailscale/ temporarily excluded until gateway-api-crds is ready
+  # - tailscale/
