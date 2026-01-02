@@ -10,3 +10,9 @@ creation_rules:
     key_groups:
       - age:
           - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa
+  # Kubernetes secrets (GitOps) - encrypted with SOPS + age
+  - path_regex: k8s/.*\.sops\.yaml$
+    encrypted_regex: "^(data|stringData)$"
+    key_groups:
+      - age:
+          - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa
