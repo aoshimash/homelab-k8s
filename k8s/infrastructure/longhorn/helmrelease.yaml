@@ -26,4 +26,17 @@ spec:
     defaultSettings:
       # Single-node cluster default (clarified in spec): replicas must be 1.
       defaultReplicaCount: 1
-
+      # Cloudflare R2 (S3-compatible) backup target.
+      # NOTE: Replace placeholders before relying on backups.
+      backupTarget: s3://example-bucket@auto/longhorn
+      backupTargetCredentialSecret: longhorn-r2-credentials
+    # Default recurring jobs applied by Longhorn.
+    # NOTE: Validate the exact behavior in your Longhorn version/UI (e.g., group assignment).
+    defaultRecurringJobs:
+      - name: backup-daily
+        task: backup
+        cron: "0 2 * * *"
+        retain: 30
+        concurrency: 1
+        groups:
+          - default
