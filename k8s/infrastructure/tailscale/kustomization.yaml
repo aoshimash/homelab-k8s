@@ -5,5 +5,4 @@ resources:
   - helmrepository.yaml
   - secret-oauth.sops.yaml
   - helmrelease.yaml
-  # ingress-longhorn.yaml will be added in Phase 6 (T024-T025)
-
+  # gateway.yaml and httproute-longhorn.yaml will be added in Phase 6 (T024-T027)

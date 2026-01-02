@@ -71,24 +71,44 @@
 - `client_secret` must be non-empty
 - Both must match credentials created in Tailscale admin console
 
-### 5. Ingress (Longhorn UI)
+### 5. Gateway (Tailscale Gateway)
 
 | Field | Value | Description |
 |-------|-------|-------------|
-| name | `longhorn-ui` | Ingress identifier |
-| namespace | `longhorn-system` | Longhorn namespace |
-| spec.ingressClassName | `tailscale` | Tailscale Ingress controller |
+| name | `tailscale-gateway` | Gateway identifier |
+| namespace | `tailscale` | Tailscale namespace |
+| spec.gatewayClassName | `tailscale` | Tailscale Gateway controller |
 
-**Rules**:
+**Listeners**:
 
-| Host | Path | Backend Service | Backend Port |
-|------|------|-----------------|--------------|
-| `longhorn` | `/` | `longhorn-frontend` | `80` |
+| Name | Protocol | Port | Description |
+|------|----------|------|-------------|
+| `https` | HTTPS | 443 | HTTPS listener with auto TLS |
 
 **State Transitions**:
 - `Unknown` → `Pending` (waiting for operator)
-- `Pending` → `Ready` (proxy deployed, device registered)
-- `Ready` → `Failed` (operator error)
+- `Pending` → `Accepted` → `Programmed` (gateway ready)
+- `*` → `Failed` (operator error)
+
+### 6. HTTPRoute (Longhorn UI)
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| name | `longhorn-ui` | HTTPRoute identifier |
+| namespace | `longhorn-system` | Longhorn namespace |
+| spec.parentRefs | `tailscale-gateway` in `tailscale` ns | Reference to Gateway |
+
+**Rules**:
+
+| Hostname | Path | Backend Service | Backend Port |
+|----------|------|-----------------|--------------|
+| `longhorn` | `/` (PathPrefix) | `longhorn-frontend` | `80` |
+
+**State Transitions**:
+- `Unknown` → `Pending` (waiting for gateway)
+- `Pending` → `Accepted` (route accepted by gateway)
+- `Accepted` → `Programmed` (proxy deployed, device registered)
+- `*` → `Failed` (operator error)
 
 ## Entity Relationships
 
@@ -119,20 +139,33 @@
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│                   longhorn-system namespace                  │
-│  ┌─────────────────┐      ┌─────────────────────────────┐   │
-│  │     Ingress     │─────►│        Service              │   │
-│  │  (longhorn-ui)  │      │   (longhorn-frontend)       │   │
-│  └─────────────────┘      └─────────────────────────────┘   │
-│         │                                                    │
-│         │ ingressClassName: tailscale                        │
-│         │ (watched by Tailscale Operator)                    │
-│         ▼                                                    │
+│                      tailscale namespace                     │
+│                                                              │
+│  ┌─────────────────────────────────────┐                    │
+│  │           Gateway                   │                    │
+│  │    (tailscale-gateway)              │                    │
+│  │    gatewayClassName: tailscale      │                    │
+│  └──────────────┬──────────────────────┘                    │
+│                 │                                            │
+│                 │ parentRef                                  │
+│                 ▼                                            │
 │  ┌─────────────────────────────────────┐                    │
 │  │  Tailscale Proxy (auto-created)     │                    │
 │  │  - StatefulSet in tailscale ns      │                    │
 │  │  - Device in Tailscale admin        │                    │
 │  └─────────────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   longhorn-system namespace                  │
+│  ┌─────────────────┐      ┌─────────────────────────────┐   │
+│  │    HTTPRoute    │─────►│        Service              │   │
+│  │  (longhorn-ui)  │      │   (longhorn-frontend)       │   │
+│  └─────────────────┘      └─────────────────────────────┘   │
+│         │                                                    │
+│         │ parentRef: tailscale-gateway (tailscale ns)        │
+│         │ (watched by Tailscale Operator)                    │
+│         │                                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -150,7 +183,7 @@
 | Device | Description |
 |--------|-------------|
 | `tailscale-operator` | Main operator device |
-| `longhorn-<suffix>` | Ingress proxy for Longhorn UI |
+| `longhorn-<suffix>` | Gateway proxy for Longhorn UI HTTPRoute |
 
 ## File Mapping
 
@@ -160,4 +193,5 @@
 | HelmRepository | `k8s/infrastructure/tailscale/helmrepository.yaml` |
 | HelmRelease | `k8s/infrastructure/tailscale/helmrelease.yaml` |
 | Secret | `k8s/infrastructure/tailscale/secret-oauth.sops.yaml` |
-| Ingress | `k8s/infrastructure/tailscale/ingress-longhorn.yaml` |
+| Gateway | `k8s/infrastructure/tailscale/gateway.yaml` |
+| HTTPRoute | `k8s/infrastructure/tailscale/httproute-longhorn.yaml` |

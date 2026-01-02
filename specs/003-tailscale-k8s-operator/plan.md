@@ -5,7 +5,7 @@
 
 ## Summary
 
-Install the Tailscale Kubernetes Operator via Helm using Flux GitOps workflow. The operator will be deployed with SOPS-encrypted OAuth credentials and configured to work with Cilium in kube-proxy replacement mode. Longhorn Web UI will be exposed via Tailscale Ingress as a validation target.
+Install the Tailscale Kubernetes Operator via Helm using Flux GitOps workflow. The operator will be deployed with SOPS-encrypted OAuth credentials. Longhorn Web UI will be exposed via Tailscale Gateway API (Gateway + HTTPRoute) as a validation target.
 
 ## Technical Context
 
@@ -16,7 +16,7 @@ Install the Tailscale Kubernetes Operator via Helm using Flux GitOps workflow. T
 **Target Platform**: Talos Linux Kubernetes cluster
 **Project Type**: Infrastructure configuration (Kubernetes manifests)
 **Performance Goals**: Operator Pod running within 5 minutes of reconciliation
-**Constraints**: Cilium kube-proxy replacement mode requires socket LB bypass
+**Constraints**: None (Gateway API does not require Cilium socket LB bypass)
 **Scale/Scope**: Single-node homelab cluster
 
 ## Constitution Check
@@ -57,7 +57,8 @@ k8s/infrastructure/tailscale/
 ├── helmrepository.yaml          # Tailscale Helm chart source
 ├── helmrelease.yaml             # Tailscale Operator deployment
 ├── secret-oauth.sops.yaml       # SOPS-encrypted OAuth credentials
-└── ingress-longhorn.yaml        # Tailscale Ingress for Longhorn UI
+├── gateway.yaml                 # Gateway API - Tailscale gateway
+└── httproute-longhorn.yaml      # Gateway API - HTTPRoute for Longhorn UI
 
 k8s/infrastructure/kustomization.yaml  # Updated to include tailscale/
 ```

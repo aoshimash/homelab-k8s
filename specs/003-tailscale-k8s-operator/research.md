@@ -72,78 +72,94 @@ values:
 ## 3. Cilium Compatibility (kube-proxy replacement mode)
 
 ### Decision
-Configure Cilium to bypass socket load balancing for the `tailscale` namespace.
+**No special configuration required** for Gateway API / HTTPRoute usage.
 
 ### Rationale
 Per [Tailscale documentation](https://tailscale.com/kb/1236/kubernetes-operator):
 > You must enable bypassing socket load balancer in Pods' namespaces if you run Cilium in kube-proxy replacement mode
 
-This is required for:
+This is **only required for**:
 - Tailscale LoadBalancer Services
 - Services exposed via `tailscale.com/expose` annotation
 - Service CIDR ranges via Connector
 
+**Gateway API / HTTPRoute does NOT require this configuration** because:
+- The Tailscale proxy runs inside the cluster and connects to ClusterIP services
+- No external LoadBalancer IP allocation is needed
+- Traffic flows: Tailnet → Tailscale Proxy Pod → ClusterIP Service
+
 ### Implementation
-Add annotation to the tailscale namespace:
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: tailscale
-  labels:
-    pod-security.kubernetes.io/enforce: privileged
-  annotations:
-    # Bypass Cilium socket LB for Tailscale proxy compatibility
-    io.cilium.proxy-visibility: "<Egress/53/UDP/DNS>"
-```
-
-Or configure via Cilium CiliumNetworkPolicy or Helm values.
-
-**Note**: The exact Cilium configuration may need to be determined based on Cilium version. Common approaches:
-1. Namespace annotation: `cilium.io/global-service: "false"`
-2. CiliumClusterwideNetworkPolicy for socket LB bypass
-3. Cilium Helm values: `socketLB.hostNamespaceOnly: true`
+No additional Cilium configuration needed. Standard namespace with privileged PSS is sufficient.
 
 ### Alternatives Considered
-- **Disable kube-proxy replacement entirely**: Rejected as it would require cluster reconfiguration
-- **Use Tailscale without Ingress/LoadBalancer**: Rejected as Ingress is a primary use case
+- **Configure socket LB bypass anyway**: Rejected as unnecessary complexity for Gateway API use case
+- **Use LoadBalancer Service**: Rejected - Gateway API is preferred for HTTP services
 
-## 4. Tailscale Ingress Configuration
+## 4. Tailscale Gateway API Configuration
 
 ### Decision
-Use Kubernetes Ingress resource with `ingressClassName: tailscale` to expose Longhorn UI.
+Use Kubernetes Gateway API (Gateway + HTTPRoute) instead of legacy Ingress API to expose Longhorn UI.
 
 ### Rationale
-- Native Kubernetes Ingress API
-- Tailscale Operator watches for Ingress resources with `ingressClassName: tailscale`
-- Automatic TLS certificate provisioning
-- Device appears in Tailscale admin console
+- **Future-proof**: Gateway API is the successor to Ingress API with active development
+- **Ingress API status**: Stable (GA) but no new features; new functionality goes to Gateway API
+- **Tailscale support**: Operator supports both `ingressClassName: tailscale` and `gatewayClassName: tailscale`
+- **Better separation**: Gateway (infra) and HTTPRoute (app) are separate concerns
+- **Richer features**: More expressive routing, traffic management capabilities
 
 ### Implementation
+
+**Gateway (created once, in tailscale namespace)**:
 ```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tailscale-gateway
+  namespace: tailscale
+spec:
+  gatewayClassName: tailscale
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+```
+
+**HTTPRoute (per service, in service's namespace)**:
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: longhorn-ui
   namespace: longhorn-system
 spec:
-  ingressClassName: tailscale
+  parentRefs:
+    - name: tailscale-gateway
+      namespace: tailscale
+  hostnames:
+    - "longhorn"  # becomes longhorn.<tailnet>.ts.net
   rules:
-    - host: longhorn  # becomes longhorn.<tailnet>.ts.net
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: longhorn-frontend
-                port:
-                  number: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: longhorn-frontend
+          port: 80
 ```
 
+### Comparison: Ingress vs Gateway API
+
+| Aspect | Ingress | Gateway API |
+|--------|---------|-------------|
+| Resources | 1 (Ingress) | 2 (Gateway + HTTPRoute) |
+| Future | Maintenance mode | Active development |
+| Complexity | Simple | Slightly more complex |
+| Tailscale support | ✅ | ✅ |
+| Recommended | For simple cases | For new deployments |
+
 ### Alternatives Considered
-- **Tailscale Service annotation**: `tailscale.com/expose: "true"` - Simpler but less control
-- **API Server Proxy**: Not applicable for web UI access
+- **Kubernetes Ingress API**: Rejected - Gateway API is more future-proof
+- **Tailscale Service annotation**: `tailscale.com/expose: "true"` - Rejected, less control and L4 only
 
 ## 5. Namespace Configuration
 
@@ -185,7 +201,8 @@ k8s/infrastructure/tailscale/
 ├── helmrepository.yaml
 ├── helmrelease.yaml
 ├── secret-oauth.sops.yaml
-└── ingress-longhorn.yaml
+├── gateway.yaml              # Gateway API - Tailscale gateway
+└── httproute-longhorn.yaml   # Gateway API - HTTPRoute for Longhorn UI
 ```
 
 ### Integration Points
@@ -200,7 +217,7 @@ k8s/infrastructure/tailscale/
 | Helm Chart Source | Official Tailscale chart from pkgs.tailscale.com |
 | Version Strategy | Pin specific version for reproducibility |
 | OAuth Credentials | SOPS-encrypted Secret |
-| Cilium Compatibility | Configure socket LB bypass for tailscale namespace |
-| Ingress Method | Kubernetes Ingress with ingressClassName: tailscale |
+| Cilium Compatibility | No special config needed for Gateway API |
+| Routing Method | Kubernetes Gateway API (Gateway + HTTPRoute) |
 | Namespace | Dedicated `tailscale` namespace with privileged PSS |
 | GitOps Pattern | Follow existing cilium/longhorn directory structure |

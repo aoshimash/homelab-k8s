@@ -111,28 +111,31 @@
 
 ---
 
-## Phase 6: Ingress Validation (Longhorn UI)
+## Phase 6: Gateway API Validation (Longhorn UI)
 
-**Goal**: Expose Longhorn Web UI via Tailscale Ingress as validation
+**Goal**: Expose Longhorn Web UI via Tailscale Gateway API as validation
 
 **Independent Test**:
-- Ingress has hostname assigned
+- Gateway shows `Programmed=True`
+- HTTPRoute shows `Accepted=True`
 - Longhorn UI accessible via `https://longhorn.<tailnet>.ts.net`
 
-### Implementation for Ingress Validation
+### Implementation for Gateway API Validation
 
-- [ ] T024 [P] Create Ingress manifest at `k8s/infrastructure/tailscale/ingress-longhorn.yaml`
-- [ ] T025 Update Kustomization to include `ingress-longhorn.yaml`
-- [ ] T026 Commit and push changes
+- [ ] T024 [P] Create Gateway manifest at `k8s/infrastructure/tailscale/gateway.yaml`
+- [ ] T025 [P] Create HTTPRoute manifest at `k8s/infrastructure/tailscale/httproute-longhorn.yaml`
+- [ ] T026 Update Kustomization to include `gateway.yaml` and `httproute-longhorn.yaml`
+- [ ] T027 Commit and push changes
 
-### Verification for Ingress
+### Verification for Gateway API
 
-- [ ] T027 Verify Ingress status: `kubectl get ingress longhorn-ui -n longhorn-system`
-- [ ] T028 Verify Tailscale proxy created: `kubectl get statefulset -n tailscale`
-- [ ] T029 Verify device in Tailscale admin console for Longhorn Ingress
-- [ ] T030 Access Longhorn UI via tailnet hostname from a device on the tailnet
+- [ ] T028 Verify Gateway status: `kubectl get gateway tailscale-gateway -n tailscale`
+- [ ] T029 Verify HTTPRoute status: `kubectl get httproute longhorn-ui -n longhorn-system`
+- [ ] T030 Verify Tailscale proxy created: `kubectl get statefulset -n tailscale`
+- [ ] T031 Verify device in Tailscale admin console for Longhorn HTTPRoute
+- [ ] T032 Access Longhorn UI via tailnet hostname from a device on the tailnet
 
-**Checkpoint**: Longhorn UI accessible via Tailscale - full feature validation complete
+**Checkpoint**: Longhorn UI accessible via Tailscale Gateway API - full feature validation complete
 
 ---
 
@@ -140,10 +143,10 @@
 
 **Purpose**: Final cleanup and documentation updates
 
-- [ ] T031 [P] Update `specs/003-tailscale-k8s-operator/quickstart.md` with actual version numbers used
-- [ ] T032 [P] Verify all manifests follow existing patterns (compare with `cilium/` and `longhorn/`)
-- [ ] T033 Run full validation per `contracts/reconciliation.md` success criteria mapping
-- [ ] T034 Create summary commit with all changes
+- [ ] T033 [P] Update `specs/003-tailscale-k8s-operator/quickstart.md` with actual version numbers used
+- [ ] T034 [P] Verify all manifests follow existing patterns (compare with `cilium/` and `longhorn/`)
+- [ ] T035 Run full validation per `contracts/reconciliation.md` success criteria mapping
+- [ ] T036 Create summary commit with all changes
 
 ---
 
@@ -156,7 +159,7 @@
 - **User Story 1 (Phase 3)**: Depends on Foundational - Core operator installation
 - **User Story 2 (Phase 4)**: Depends on User Story 1 - GitOps verification
 - **User Story 3 (Phase 5)**: Depends on User Story 1 - Credential verification
-- **Ingress Validation (Phase 6)**: Depends on User Story 1 - Ingress feature
+- **Gateway API Validation (Phase 6)**: Depends on User Story 1 - Gateway API feature
 - **Polish (Phase 7)**: Depends on all phases complete
 
 ### User Story Dependencies
@@ -174,7 +177,7 @@ Phase 3: User Story 1 (Install Operator) ─── MVP COMPLETE
     │
     ├──▶ Phase 5: User Story 3 (Credentials)
     │
-    └──▶ Phase 6: Ingress Validation
+    └──▶ Phase 6: Gateway API Validation
               │
               ▼
          Phase 7: Polish
@@ -188,8 +191,9 @@ Phase 3: User Story 1 (Install Operator) ─── MVP COMPLETE
 **Phase 3 (User Story 1)**:
 - T008-T012 are sequential (file dependencies within Kustomization)
 
-**Phase 6 (Ingress)**:
-- T024 can start while T025-T026 wait
+**Phase 6 (Gateway API)**:
+- T024 and T025 can run in parallel (different files)
+- T026-T027 wait for T024-T025
 
 **Post-MVP (after Phase 3)**:
 - Phases 4, 5, and 6 can run in parallel (independent verification paths)
@@ -222,7 +226,7 @@ Task T003: "Create HelmRepository manifest at k8s/infrastructure/tailscale/helmr
 2. User Story 1 → Operator running → **MVP!**
 3. User Story 2 → GitOps verified
 4. User Story 3 → Security verified
-5. Ingress Validation → Longhorn UI accessible
+5. Gateway API Validation → Longhorn UI accessible
 6. Polish → Documentation complete
 
 ### Single Developer Strategy

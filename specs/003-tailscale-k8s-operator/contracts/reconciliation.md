@@ -79,30 +79,64 @@ status:
 | Decryption failed | DecryptionFailed | Check age key |
 | Invalid YAML | BuildFailed | Fix encrypted file |
 
-### 4. Ingress Processing (Tailscale Operator)
+### 4. Gateway Processing (Tailscale Operator)
 
-**Trigger**: Ingress resource created/updated
+**Trigger**: Gateway resource created/updated
 
 **Input**:
-- Ingress with `ingressClassName: tailscale`
-- Backend service reference
+- Gateway with `gatewayClassName: tailscale`
+- Listener configuration
 
 **Expected Output**:
-- StatefulSet created in `tailscale` namespace
-- Device registered in Tailscale admin console
-- Ingress status updated with hostname
+- Gateway status shows `Accepted` and `Programmed` conditions
+- Tailscale proxy infrastructure prepared
 
 ```yaml
 status:
-  loadBalancer:
-    ingress:
-      - hostname: longhorn.<tailnet>.ts.net
+  conditions:
+    - type: Accepted
+      status: "True"
+    - type: Programmed
+      status: "True"
 ```
 
 **Failure Modes**:
 | Condition | Reason | Recovery |
 |-----------|--------|----------|
 | OAuth invalid | AuthenticationFailed | Fix credentials |
+| Invalid listener | InvalidListener | Fix Gateway spec |
+| Tailscale API error | APIError | Check Tailscale status |
+
+### 5. HTTPRoute Processing (Tailscale Operator)
+
+**Trigger**: HTTPRoute resource created/updated
+
+**Input**:
+- HTTPRoute with `parentRef` to Tailscale Gateway
+- Backend service reference
+
+**Expected Output**:
+- StatefulSet created in `tailscale` namespace
+- Device registered in Tailscale admin console
+- HTTPRoute status shows `Accepted` condition
+
+```yaml
+status:
+  parents:
+    - parentRef:
+        name: tailscale-gateway
+        namespace: tailscale
+      conditions:
+        - type: Accepted
+          status: "True"
+        - type: ResolvedRefs
+          status: "True"
+```
+
+**Failure Modes**:
+| Condition | Reason | Recovery |
+|-----------|--------|----------|
+| Gateway not found | InvalidParentRef | Check Gateway exists |
 | Backend not found | BackendNotFound | Check service exists |
 | Tailscale API error | APIError | Check Tailscale status |
 
@@ -126,9 +160,16 @@ kubectl get pods -n tailscale -l app.kubernetes.io/name=tailscale-operator
 kubectl logs -n tailscale -l app.kubernetes.io/name=tailscale-operator
 ```
 
-### Check Ingress Status
+### Check Gateway Status
 ```bash
-kubectl get ingress longhorn-ui -n longhorn-system -o yaml
+kubectl get gateway tailscale-gateway -n tailscale -o yaml
+kubectl describe gateway tailscale-gateway -n tailscale
+```
+
+### Check HTTPRoute Status
+```bash
+kubectl get httproute longhorn-ui -n longhorn-system -o yaml
+kubectl describe httproute longhorn-ui -n longhorn-system
 ```
 
 ### Check Tailscale Proxy
@@ -154,8 +195,9 @@ kubectl get pods -n tailscale
 1. Namespace (tailscale)
    └── 2. Secret (tailscale-operator-oauth)
        └── 3. HelmRelease (tailscale-operator)
-           └── 4. Ingress (longhorn-ui) [in longhorn-system]
-               └── 5. Tailscale Proxy (auto-created)
+           └── 4. Gateway (tailscale-gateway) [in tailscale]
+               └── 5. HTTPRoute (longhorn-ui) [in longhorn-system]
+                   └── 6. Tailscale Proxy (auto-created)
 ```
 
 **Note**: HelmRepository is in `flux-system` namespace and can be created independently.

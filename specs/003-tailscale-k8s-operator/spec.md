@@ -9,18 +9,18 @@
 
 ### User Story 1 - Install Tailscale Operator via Helm (Priority: P1)
 
-As a cluster administrator, I want to install the Tailscale Kubernetes Operator using Helm so that I can manage Tailscale resources within my Kubernetes cluster and expose services to my tailnet via Ingress.
+As a cluster administrator, I want to install the Tailscale Kubernetes Operator using Helm so that I can manage Tailscale resources within my Kubernetes cluster and expose services to my tailnet via Gateway API.
 
-**Why this priority**: This is the core functionality - without the operator installed, no Tailscale integration features can be used. It enables Ingress functionality to expose cluster services to the tailnet.
+**Why this priority**: This is the core functionality - without the operator installed, no Tailscale integration features can be used. It enables Gateway API functionality to expose cluster services to the tailnet.
 
-**Independent Test**: Can be fully tested by verifying the operator Pod is running and the operator has joined the tailnet. Delivers the foundation for Tailscale Ingress functionality.
+**Independent Test**: Can be fully tested by verifying the operator Pod is running and the operator has joined the tailnet. Delivers the foundation for Tailscale Gateway API functionality.
 
 **Acceptance Scenarios**:
 
 1. **Given** a Kubernetes cluster with Helm installed and valid Tailscale OAuth credentials, **When** the Tailscale Operator Helm chart is installed, **Then** the operator Pod should be running in the `tailscale` namespace
 2. **Given** the Tailscale Operator is installed, **When** checking the Tailscale admin console, **Then** a device named `tailscale-operator` should appear with the `tag:k8s-operator` tag
 3. **Given** the Tailscale Operator is installed, **When** running `kubectl get pods -n tailscale`, **Then** the operator Pod should show `Running` status with `1/1` ready containers
-4. **Given** the Tailscale Operator is installed with Ingress configured for Longhorn UI, **When** accessing the Longhorn UI via tailnet hostname, **Then** the Longhorn dashboard should be accessible from any device on the tailnet
+4. **Given** the Tailscale Operator is installed with Gateway API configured for Longhorn UI, **When** accessing the Longhorn UI via tailnet hostname, **Then** the Longhorn dashboard should be accessible from any device on the tailnet
 
 ---
 
@@ -74,9 +74,10 @@ As a cluster administrator, I want the Tailscale OAuth credentials to be securel
 - **FR-005**: System MUST integrate with the existing Flux GitOps workflow for deployment and reconciliation
 - **FR-006**: System MUST tag the operator device with `tag:k8s-operator` in the Tailscale admin console
 - **FR-007**: System MUST allow configuration of the operator hostname (default: `tailscale-operator`)
-- **FR-008**: System MUST configure Cilium socket load balancer bypass for Tailscale proxy Pods' namespaces (required because Cilium runs in kube-proxy replacement mode)
+- **FR-008**: [REMOVED - Not required for Gateway API / HTTPRoute usage]
 - **FR-009**: System MUST pin the Helm chart to a specific version for reproducibility and planned upgrades
-- **FR-010**: System MUST configure Tailscale Ingress for Longhorn Web UI as a validation target
+- **FR-010**: System MUST configure Tailscale Gateway API (Gateway + HTTPRoute) for Longhorn Web UI as a validation target
+- **FR-011**: System MUST use Kubernetes Gateway API instead of legacy Ingress API for future compatibility
 
 ### Key Entities
 
@@ -85,6 +86,8 @@ As a cluster administrator, I want the Tailscale OAuth credentials to be securel
 - **Secret**: Contains the encrypted OAuth client credentials (client ID and client secret)
 - **Namespace**: The `tailscale` namespace where all Tailscale resources are deployed
 - **Kustomization**: Flux Kustomization resource that manages the Tailscale infrastructure components
+- **Gateway**: Gateway API resource that defines the Tailscale gateway entry point
+- **HTTPRoute**: Gateway API resource that defines routing rules to backend services
 
 ## Success Criteria *(mandatory)*
 
@@ -103,8 +106,10 @@ As a cluster administrator, I want the Tailscale OAuth credentials to be securel
 
 - Q: CiliumはKube-proxy置換モードで動作していますか？ → A: Yes - kube-proxyは動作していない（Ciliumがkube-proxy置換モードで動作）
 - Q: Helmチャートのバージョン管理方針は？ → A: 特定バージョンを固定（計画的アップグレード）
-- Q: 初期段階で使用予定の主な機能は？ → A: Ingress - クラスター内サービスをtailnetに公開
-- Q: Ingress検証用のテストサービスは？ → A: Longhorn Web UIを使用して検証（既存リソースを活用）
+- Q: 初期段階で使用予定の主な機能は？ → A: Gateway API - クラスター内サービスをtailnetに公開（Ingressではなく将来性のあるGateway APIを採用）
+- Q: Gateway API検証用のテストサービスは？ → A: Longhorn Web UIを使用して検証（既存リソースを活用）
+- Q: Ingress APIとGateway APIどちらを使うか？ → A: Gateway API - 将来性があり、Tailscale Operatorが両方サポートしているため新しいAPIを採用
+- Q: Cilium socket LB bypassは必要か？ → A: Gateway API / HTTPRoute使用時は不要（LoadBalancer Service使用時のみ必要）
 
 ## Assumptions
 

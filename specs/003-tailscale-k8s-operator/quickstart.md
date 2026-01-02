@@ -124,32 +124,51 @@ spec:
 EOF
 ```
 
-### Step 6: Create Longhorn Ingress
+### Step 6: Create Gateway
 
 ```bash
-cat > k8s/infrastructure/tailscale/ingress-longhorn.yaml << 'EOF'
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+cat > k8s/infrastructure/tailscale/gateway.yaml << 'EOF'
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tailscale-gateway
+  namespace: tailscale
+spec:
+  gatewayClassName: tailscale
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+EOF
+```
+
+### Step 7: Create HTTPRoute for Longhorn
+
+```bash
+cat > k8s/infrastructure/tailscale/httproute-longhorn.yaml << 'EOF'
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: longhorn-ui
   namespace: longhorn-system
 spec:
-  ingressClassName: tailscale
+  parentRefs:
+    - name: tailscale-gateway
+      namespace: tailscale
+  hostnames:
+    - "longhorn"
   rules:
-    - host: longhorn
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: longhorn-frontend
-                port:
-                  number: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: longhorn-frontend
+          port: 80
 EOF
 ```
 
-### Step 7: Create Kustomization
+### Step 8: Create Kustomization
 
 ```bash
 cat > k8s/infrastructure/tailscale/kustomization.yaml << 'EOF'
@@ -160,11 +179,12 @@ resources:
   - helmrepository.yaml
   - secret-oauth.sops.yaml
   - helmrelease.yaml
-  - ingress-longhorn.yaml
+  - gateway.yaml
+  - httproute-longhorn.yaml
 EOF
 ```
 
-### Step 8: Update Infrastructure Kustomization
+### Step 9: Update Infrastructure Kustomization
 
 Add `tailscale/` to `k8s/infrastructure/kustomization.yaml`:
 
@@ -177,15 +197,15 @@ resources:
   - tailscale/  # Add this line
 ```
 
-### Step 9: Commit and Push
+### Step 10: Commit and Push
 
 ```bash
 git add k8s/infrastructure/tailscale/ k8s/infrastructure/kustomization.yaml
-git commit -m "feat: add Tailscale Kubernetes Operator installation"
+git commit -m "feat: add Tailscale Kubernetes Operator installation with Gateway API"
 git push
 ```
 
-### Step 10: Verify Deployment
+### Step 11: Verify Deployment
 
 ```bash
 # Wait for Flux to reconcile (or trigger manually)
@@ -200,8 +220,11 @@ kubectl get pods -n tailscale
 # Check operator logs
 kubectl logs -n tailscale -l app.kubernetes.io/name=tailscale-operator
 
-# Check Ingress status
-kubectl get ingress -n longhorn-system
+# Check Gateway status
+kubectl get gateway -n tailscale
+
+# Check HTTPRoute status
+kubectl get httproute -n longhorn-system
 ```
 
 ## Verification Checklist
@@ -210,7 +233,8 @@ kubectl get ingress -n longhorn-system
 - [ ] HelmRelease shows `Ready=True`
 - [ ] Device `tailscale-operator` appears in Tailscale admin console
 - [ ] Device has `tag:k8s-operator` tag
-- [ ] Longhorn Ingress has hostname assigned
+- [ ] Gateway shows `Programmed=True`
+- [ ] HTTPRoute shows `Accepted=True`
 - [ ] Longhorn UI accessible via `https://longhorn.<tailnet>.ts.net`
 
 ## Troubleshooting
@@ -235,11 +259,14 @@ kubectl get secret tailscale-operator-oauth -n tailscale -o yaml
 kubectl logs -n tailscale -l app.kubernetes.io/name=tailscale-operator | grep -i auth
 ```
 
-### Ingress Not Working
+### Gateway/HTTPRoute Not Working
 
 ```bash
-# Check Ingress status
-kubectl describe ingress longhorn-ui -n longhorn-system
+# Check Gateway status
+kubectl describe gateway tailscale-gateway -n tailscale
+
+# Check HTTPRoute status
+kubectl describe httproute longhorn-ui -n longhorn-system
 
 # Check for proxy StatefulSet
 kubectl get statefulset -n tailscale
@@ -253,6 +280,6 @@ kubectl logs -n tailscale -l tailscale.com/parent-resource=longhorn-ui
 After successful deployment:
 
 1. **Configure ACLs** in Tailscale admin console to control access to Longhorn UI
-2. **Add more Ingresses** for other services you want to expose
+2. **Add more HTTPRoutes** for other services you want to expose (referencing the same Gateway)
 3. **Set up MagicDNS** for easier hostname resolution
 4. **Enable HTTPS** (automatic with Tailscale certificates)
