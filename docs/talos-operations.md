@@ -57,14 +57,28 @@ talhelper genconfig --no-gitignore
 
 #### 4. Perform the Upgrade
 
+> ⚠️ **Single Node Cluster Warning**: By default, `talosctl upgrade` stops all pods
+> before upgrading, which can cause issues on single-node clusters. The control plane
+> components (kube-apiserver, etcd) will also be stopped, potentially causing the
+> upgrade to hang waiting for kubelet lifecycle finalizers.
+> See [GitHub Issue #11775](https://github.com/siderolabs/talos/issues/11775) for details.
+
+**For single-node clusters, always use the `--preserve` flag:**
+
 ```bash
-# Upgrade the node with new image
+# Upgrade the node with new image (single-node cluster)
 talosctl upgrade --nodes 192.168.0.10 \
-  --image factory.talos.dev/installer/<schematic-id>:v1.12.0
+  --image factory.talos.dev/installer/<schematic-id>:v1.12.0 \
+  --preserve
 
 # Monitor the upgrade progress
 talosctl dmesg -f --nodes 192.168.0.10
 ```
+
+The `--preserve` flag:
+- Skips the cordon/drain process
+- Does not stop pods before upgrade
+- Allows the upgrade to proceed without waiting for pod termination
 
 The node will:
 1. Download the new image
