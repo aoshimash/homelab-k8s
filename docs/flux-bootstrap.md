@@ -190,6 +190,12 @@ spec:
   path: ./k8s/infrastructure
   prune: true
   wait: true
+  # If you use SOPS-encrypted secrets (*.sops.yaml), enable decryption and
+  # provide the age private key via the `sops-age` Secret in `flux-system`.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
 ```
 
 ### 2. Create Apps Kustomization
@@ -251,16 +257,21 @@ flux get kustomizations
 flux get kustomizations --watch
 ```
 
-## SOPS Integration (Optional)
+## SOPS Integration (Required if you use `*.sops.yaml`)
 
 To manage secrets with SOPS and Age encryption:
 
-### 1. Create SOPS Secret
+### 1. Create the age private key Secret (out-of-band)
+
+This Secret contains the **age private key** used by Flux to decrypt SOPS files during reconciliation.
+It **must not** be committed to Git.
+
+Create or update it in an idempotent way:
 
 ```bash
-kubectl create secret generic sops-age \
-  --namespace=flux-system \
-  --from-file=age.agekey=./age.agekey
+kubectl -n flux-system create secret generic sops-age \
+  --from-file=age.agekey=./age.agekey \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### 2. Configure Flux Kustomization for SOPS
@@ -279,6 +290,13 @@ spec:
     provider: sops
     secretRef:
       name: sops-age
+```
+
+### 3. Verify decryption is wired
+
+```bash
+kubectl -n flux-system get secret sops-age
+kubectl -n flux-system get kustomization infrastructure -o yaml | sed -n '1,120p'
 ```
 
 ## Useful Commands
