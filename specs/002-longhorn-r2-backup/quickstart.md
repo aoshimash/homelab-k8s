@@ -28,8 +28,21 @@ kubectl -n flux-system create secret generic sops-age --from-file=age.agekey=age
 2. Encrypt it with SOPS (age), and commit only the encrypted `*.sops.yaml` file.
 
 Notes:
-- This repository already has `.sops.yaml` rules for Talos secrets. The Longhorn work will extend the rules to also cover Kubernetes secrets under `k8s/`.
+- This repository already has `.sops.yaml` rules for Talos secrets and Kubernetes secrets under `k8s/` (SOPS + age).
 - Flux must be configured to decrypt SOPS secrets during reconciliation (Kustomization decryption config + `sops-age` Secret in-cluster).
+
+## Validate manifests render (local)
+
+Before pushing, validate that the manifests render cleanly:
+
+```bash
+kustomize build k8s/flux >/dev/null
+kustomize build k8s/infrastructure >/dev/null
+echo "ok"
+```
+
+Expected outcome:
+- Both commands exit with code 0 (no missing files, syntax errors, or invalid kustomizations).
 
 ## Reconcile
 
@@ -38,14 +51,33 @@ Notes:
 
 ## Validate provisioning
 
-- Create a small test workload that requests a persistent volume, writes data, restarts, and reads the same data.
-- Confirm the volume is healthy and not degraded by default in the single-node topology.
+- Option A (GitOps smoke): temporarily enable `k8s/infrastructure/longhorn/smoke/` by uncommenting it in `k8s/infrastructure/longhorn/kustomization.yaml`.
+- Option B (manual apply for validation only): apply the smoke kustomization:
+  - `kubectl apply -k k8s/infrastructure/longhorn/smoke`
+- Confirm:
+  - The PVC is Bound and the pod mounts it.
+  - Restarting the pod does not lose the written value.
+  - Longhorn volume health is not “degraded-by-design” on a single-node cluster (replicas default to 1).
 
 ## Validate backup & restore
 
 - Create or select a test volume with known test data.
-- Confirm the daily backup schedule executes successfully.
-- Trigger a restore into a new volume and verify the restored data matches.
+- Confirm the daily backup schedule executes successfully and a backup artifact becomes available.
+- Restore into a new volume and verify:
+  - The restored volume is attachable/mountable.
+  - The restored content matches the original.
+
+## Verify no plaintext secrets are committed
+
+Run a quick guardrail check before opening a PR:
+
+```bash
+git grep -nE 'AWS_SECRET_ACCESS_KEY|secretAccessKey|BEGIN (RSA|OPENSSH) PRIVATE KEY' -- k8s || true
+git grep -nE 'kind:\\s*Secret' -- 'k8s/**/*.yaml' ':!k8s/**/*.sops.yaml' || true
+```
+
+Expected outcome:
+- No plaintext credential values are present in Git (only SOPS-encrypted `*.sops.yaml` secrets).
 
 ## Troubleshooting
 
