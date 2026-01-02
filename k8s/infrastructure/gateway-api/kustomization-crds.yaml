@@ -7,6 +7,8 @@ spec:
   interval: 10m0s
   path: ./config/crd/standard
   prune: false
+  wait: true
+  timeout: 5m0s
   sourceRef:
     kind: GitRepository
     name: gateway-api
