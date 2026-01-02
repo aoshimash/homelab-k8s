@@ -23,6 +23,8 @@ spec:
     ipam:
       mode: kubernetes
     kubeProxyReplacement: true
+    socketLB:
+      hostNamespaceOnly: true
     securityContext:
       capabilities:
         ciliumAgent:

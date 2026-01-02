@@ -16,3 +16,7 @@ infra/talos/talconfig.json
 kubeconfig*
 secrets/
 *.secret.yaml
+# SOPS-encrypted secrets: ignore plaintext versions (keep only .sops.yaml files)
+*-credentials.yaml
+*-oauth*.yaml
+!*.sops.yaml
