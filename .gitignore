@@ -7,3 +7,12 @@ infra/talos/clusterconfig/*.yaml
 infra/talos/talconfig.json
 
 # Keep talosconfig tracked (needed for cluster access, safe to commit)
+
+# macOS
+.DS_Store
+
+# Kubernetes / kubectl
+.kube/
+kubeconfig*
+secrets/
+*.secret.yaml
