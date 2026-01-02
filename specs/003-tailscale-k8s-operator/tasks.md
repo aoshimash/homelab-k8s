@@ -25,9 +25,9 @@
 
 **Purpose**: Create directory structure and base manifests for Tailscale Operator
 
-- [ ] T001 Create tailscale directory structure in `k8s/infrastructure/tailscale/`
-- [ ] T002 [P] Create namespace manifest in `k8s/infrastructure/tailscale/namespace.yaml`
-- [ ] T003 [P] Create HelmRepository for Tailscale charts in `k8s/infrastructure/tailscale/helmrepository.yaml`
+- [x] T001 Create tailscale directory structure in `k8s/infrastructure/tailscale/`
+- [x] T002 [P] Create namespace manifest in `k8s/infrastructure/tailscale/namespace.yaml`
+- [x] T003 [P] Create HelmRepository for Tailscale charts in `k8s/infrastructure/tailscale/helmrepository.yaml`
 
 ---
 
@@ -38,8 +38,8 @@
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [ ] T004 Create OAuth client in Tailscale Admin Console with scopes: `Devices Core` (write), `Auth Keys` (write), `Services` (write) and tags: `tag:k8s-operator`, `tag:k8s`
-- [ ] T005 Create SOPS-encrypted OAuth secret in `k8s/infrastructure/tailscale/secret-oauth-credentials.sops.yaml`
-- [ ] T006 [US4] Update Cilium HelmRelease with `socketLB.hostNamespaceOnly: true` in `k8s/infrastructure/cilium/helmrelease.yaml`
+- [x] T005 Create SOPS-encrypted OAuth secret in `k8s/infrastructure/tailscale/secret-oauth-credentials.sops.yaml`
+- [x] T006 [US4] Update Cilium HelmRelease with `socketLB.hostNamespaceOnly: true` in `k8s/infrastructure/cilium/helmrelease.yaml`
 - [ ] T007 Verify Cilium reconciliation succeeds after socketLB configuration change
 
 **Checkpoint**: Foundation ready - Tailscale Operator can now be deployed
@@ -56,9 +56,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] Create HelmRelease for Tailscale Operator in `k8s/infrastructure/tailscale/helmrelease.yaml`
-- [ ] T009 [US2] Create Kustomization entry point in `k8s/infrastructure/tailscale/kustomization.yaml`
-- [ ] T010 [US2] Add tailscale to infrastructure kustomization in `k8s/infrastructure/kustomization.yaml`
+- [x] T008 [US2] Create HelmRelease for Tailscale Operator in `k8s/infrastructure/tailscale/helmrelease.yaml`
+- [x] T009 [US2] Create Kustomization entry point in `k8s/infrastructure/tailscale/kustomization.yaml`
+- [x] T010 [US2] Add tailscale to infrastructure kustomization in `k8s/infrastructure/kustomization.yaml`
 - [ ] T011 [US2] Commit and push changes to trigger Flux reconciliation
 - [ ] T012 [US2] Verify operator pod is running: `kubectl get pods -n tailscale`
 - [ ] T013 [US2] Verify operator registered in Tailscale Admin Console with `tag:k8s-operator`
@@ -92,8 +92,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Create ProxyGroup manifest in `k8s/infrastructure/tailscale/proxygroup.yaml`
-- [ ] T017 [US3] Add proxygroup.yaml to kustomization in `k8s/infrastructure/tailscale/kustomization.yaml`
+- [x] T016 [US3] Create ProxyGroup manifest in `k8s/infrastructure/tailscale/proxygroup.yaml`
+- [x] T017 [US3] Add proxygroup.yaml to kustomization in `k8s/infrastructure/tailscale/kustomization.yaml`
 - [ ] T018 [US3] Commit and push changes to trigger Flux reconciliation
 - [ ] T019 [US3] Wait for ProxyGroup ready: `kubectl wait proxygroup ingress-proxies --for=condition=ProxyGroupReady=true -n tailscale --timeout=300s`
 - [ ] T020 [US3] Verify StatefulSet created with 1 replica: `kubectl get statefulset -n tailscale`
@@ -110,9 +110,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Create smoke test directory structure in `k8s/infrastructure/tailscale/smoke/`
-- [ ] T022 [P] [US1] Create Ingress for Longhorn UI in `k8s/infrastructure/tailscale/smoke/ingress-longhorn.yaml`
-- [ ] T023 [P] [US1] Create smoke test kustomization in `k8s/infrastructure/tailscale/smoke/kustomization.yaml`
+- [x] T021 [US1] Create smoke test directory structure in `k8s/infrastructure/tailscale/smoke/`
+- [x] T022 [P] [US1] Create Ingress for Longhorn UI in `k8s/infrastructure/tailscale/smoke/ingress-longhorn.yaml`
+- [x] T023 [P] [US1] Create smoke test kustomization in `k8s/infrastructure/tailscale/smoke/kustomization.yaml`
 - [ ] T024 [US1] Enable smoke test in main kustomization by adding `smoke/` to `k8s/infrastructure/tailscale/kustomization.yaml`
 - [ ] T025 [US1] Commit and push changes to trigger Flux reconciliation
 - [ ] T026 [US1] Verify Ingress created: `kubectl get ingress -n longhorn-system longhorn-ui`
