@@ -12,6 +12,16 @@ This quickstart describes the operator workflow to configure Longhorn with Cloud
   - Access key + secret key (scoped to the bucket)
 - You have the age private key available locally to encrypt secrets (the private key is NOT committed to Git).
 
+## Bootstrap the Flux SOPS age key Secret (one-time, out-of-band)
+
+Flux needs the **age private key** available in-cluster to decrypt `*.sops.yaml` files during reconciliation.
+
+Create the Secret in `flux-system` **from your local** `age.agekey` (do not commit the private key to Git):
+
+```bash
+kubectl -n flux-system create secret generic sops-age --from-file=age.agekey=age.agekey
+```
+
 ## Configure encrypted R2 credentials
 
 1. Create a Kubernetes Secret manifest for the R2 credentials in the Longhorn namespace (name to be referenced by Longhorn configuration).
@@ -19,7 +29,7 @@ This quickstart describes the operator workflow to configure Longhorn with Cloud
 
 Notes:
 - This repository already has `.sops.yaml` rules for Talos secrets. The Longhorn work will extend the rules to also cover Kubernetes secrets under `k8s/`.
-- Flux must be configured to decrypt SOPS secrets during reconciliation (Kustomization decryption config + age key Secret in-cluster).
+- Flux must be configured to decrypt SOPS secrets during reconciliation (Kustomization decryption config + `sops-age` Secret in-cluster).
 
 ## Reconcile
 
