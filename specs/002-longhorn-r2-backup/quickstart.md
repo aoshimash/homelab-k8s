@@ -31,6 +31,10 @@ Notes:
 - This repository already has `.sops.yaml` rules for Talos secrets and Kubernetes secrets under `k8s/` (SOPS + age).
 - Flux must be configured to decrypt SOPS secrets during reconciliation (Kustomization decryption config + `sops-age` Secret in-cluster).
 
+For this cluster:
+- Bucket: `homelab-longhorn-backups`
+- Endpoint: `https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com`
+
 ## Validate manifests render (local)
 
 Before pushing, validate that the manifests render cleanly:
