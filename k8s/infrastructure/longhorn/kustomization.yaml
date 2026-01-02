@@ -4,6 +4,8 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - secret-r2-credentials.sops.yaml
+  # Optional example secret to validate SOPS decryption wiring (non-sensitive demo value):
+  # - examples/secret-demo.sops.yaml
   # Optional smoke test resources (enable when validating provisioning):
   # - smoke/
-
