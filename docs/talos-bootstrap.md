@@ -35,12 +35,17 @@ homelab-k8s/
 ├── age.agekey                    # Age private key (git-ignored)
 └── infra/
     └── talos/
-        ├── talconfig.yaml        # Talhelper configuration
-        ├── talenv.sops.yaml      # Encrypted environment variables
+        ├── talconfig.yaml        # Talhelper configuration (git-tracked)
+        ├── talsecret.sops.yaml   # Encrypted cluster secrets (git-tracked)
+        ├── talenv.sops.yaml      # Encrypted environment variables (git-tracked)
         └── clusterconfig/        # Generated configs (git-ignored)
-            ├── homelab-cluster-homelab-node-01.yaml
-            └── talosconfig
+            ├── homelab-cluster-homelab-node-01.yaml  # Node config
+            └── talosconfig                           # Client credentials
 ```
+
+> **Note**: The `clusterconfig/` directory is git-ignored because:
+> - Node configs contain sensitive data and can be regenerated from `talsecret.sops.yaml`
+> - `talosconfig` contains a private key and is regenerated each time by `talhelper genconfig`
 
 ## Initial Setup
 
@@ -116,20 +121,15 @@ export SOPS_AGE_KEY_FILE=/path/to/age.agekey
 # Verify talsecret.sops.yaml exists
 ls talsecret.sops.yaml || echo "ERROR: talsecret.sops.yaml not found!"
 
-# Generate Talos configs (--no-gitignore to allow tracking talosconfig)
-talhelper genconfig --no-gitignore
+# Generate Talos configs
+talhelper genconfig
 ```
 
 This generates:
-- `clusterconfig/homelab-cluster-homelab-node-01.yaml` - Node configuration (git-ignored via root .gitignore)
-- `clusterconfig/talosconfig` - Talosctl client configuration (tracked in Git)
+- `clusterconfig/homelab-cluster-homelab-node-01.yaml` - Node configuration
+- `clusterconfig/talosconfig` - Talosctl client credentials
 
-After generation, commit the `talosconfig`:
-
-```bash
-git add clusterconfig/talosconfig
-git commit -m "chore: add talosconfig for cluster access"
-```
+> **Note**: Both files are git-ignored. They can be regenerated anytime from `talsecret.sops.yaml`.
 
 ## Boot and Install Talos
 

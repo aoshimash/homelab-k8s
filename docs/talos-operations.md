@@ -46,16 +46,7 @@ If adding/removing extensions, create a new schematic at [Talos Image Factory](h
 - `siderolabs/iscsi-tools` - Required for Longhorn storage
 - `siderolabs/tailscale` - VPN connectivity
 
-#### 3. Regenerate Talos Configuration
-
-```bash
-cd infra/talos
-
-# Regenerate configs with updated settings
-talhelper genconfig --no-gitignore
-```
-
-#### 4. Perform the Upgrade
+#### 3. Perform the Upgrade
 
 > ⚠️ **Single Node Cluster Warning**: By default, `talosctl upgrade` stops all pods
 > before upgrading, which can cause issues on single-node clusters. The control plane
@@ -85,7 +76,7 @@ The node will:
 2. Stage the upgrade
 3. Reboot with the new image
 
-#### 5. Verify the Upgrade
+#### 4. Verify the Upgrade
 
 ```bash
 # Check Talos version

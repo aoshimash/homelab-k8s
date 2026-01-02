@@ -1,12 +1,12 @@
 *.agekey
 
-# Generated Talos node configs (contain secrets, regenerated from talsecret.sops.yaml)
-infra/talos/clusterconfig/*.yaml
+# Generated Talos configs (contain secrets, regenerated from talsecret.sops.yaml)
+# - Node configs (*.yaml): machine configuration for each node
+# - talosconfig: client credentials for talosctl (contains private key)
+infra/talos/clusterconfig/
 
 # Generated talhelper schema (can be regenerated with `talhelper genschema`)
 infra/talos/talconfig.json
-
-# Keep talosconfig tracked (needed for cluster access, safe to commit)
 
 # macOS
 .DS_Store
