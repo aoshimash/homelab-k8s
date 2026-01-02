@@ -25,9 +25,9 @@
 
 **Purpose**: Create directory structure and base files
 
-- [ ] T001 Create tailscale directory at `k8s/infrastructure/tailscale/`
-- [ ] T002 [P] Create namespace manifest at `k8s/infrastructure/tailscale/namespace.yaml`
-- [ ] T003 [P] Create HelmRepository manifest at `k8s/infrastructure/tailscale/helmrepository.yaml`
+- [x] T001 Create tailscale directory at `k8s/infrastructure/tailscale/`
+- [x] T002 [P] Create namespace manifest at `k8s/infrastructure/tailscale/namespace.yaml`
+- [x] T003 [P] Create HelmRepository manifest at `k8s/infrastructure/tailscale/helmrepository.yaml`
 
 ---
 
@@ -37,10 +37,10 @@
 
 **⚠️ CRITICAL**: Operator cannot start without valid OAuth credentials
 
-- [ ] T004 Create OAuth client in Tailscale admin console (manual step - document in quickstart.md)
-- [ ] T005 Create plain text secret template at `/tmp/secret-oauth.yaml` with OAuth credentials
-- [ ] T006 Encrypt secret with SOPS and save to `k8s/infrastructure/tailscale/secret-oauth.sops.yaml`
-- [ ] T007 Verify encrypted file contains `ENC[AES256_GCM` markers (no plain text credentials)
+- [x] T004 Create OAuth client in Tailscale admin console (manual step - document in quickstart.md)
+- [x] T005 Create plain text secret template at `/tmp/secret-oauth.yaml` with OAuth credentials
+- [x] T006 Encrypt secret with SOPS and save to `k8s/infrastructure/tailscale/secret-oauth.sops.yaml`
+- [x] T007 Verify encrypted file contains `ENC[AES256_GCM` markers (no plain text credentials)
 
 **Checkpoint**: OAuth credentials encrypted and ready for deployment
 
@@ -56,11 +56,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create HelmRelease manifest at `k8s/infrastructure/tailscale/helmrelease.yaml`
-- [ ] T009 [US1] Configure HelmRelease to reference OAuth secret via `valuesFrom`
-- [ ] T010 [US1] Pin Helm chart version in HelmRelease spec (check latest stable version)
-- [ ] T011 [US1] Create Kustomization at `k8s/infrastructure/tailscale/kustomization.yaml`
-- [ ] T012 [US1] Update `k8s/infrastructure/kustomization.yaml` to include `tailscale/`
+- [x] T008 [US1] Create HelmRelease manifest at `k8s/infrastructure/tailscale/helmrelease.yaml`
+- [x] T009 [US1] Configure HelmRelease to reference OAuth secret via `valuesFrom`
+- [x] T010 [US1] Pin Helm chart version in HelmRelease spec (check latest stable version)
+- [x] T011 [US1] Create Kustomization at `k8s/infrastructure/tailscale/kustomization.yaml`
+- [x] T012 [US1] Update `k8s/infrastructure/kustomization.yaml` to include `tailscale/`
 
 ### Verification for User Story 1
 
