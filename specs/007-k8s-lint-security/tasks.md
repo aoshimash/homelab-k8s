@@ -66,9 +66,9 @@ This is a GitOps infrastructure repository:
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] Implement `security` task with Trivy config scan in `Taskfile.yaml`
-- [ ] T007 [US2] Implement `security:all` task showing all severities in `Taskfile.yaml`
-- [ ] T008 [US2] Test security task locally with `task security` command
+- [x] T006 [US2] Implement `security` task with Trivy config scan in `Taskfile.yaml`
+- [x] T007 [US2] Implement `security:all` task showing all severities in `Taskfile.yaml`
+- [x] T008 [US2] Test security task locally with `task security` command
 
 **Checkpoint**: `task security` が動作し、k8s/配下のマニフェストをセキュリティスキャンできる
 
