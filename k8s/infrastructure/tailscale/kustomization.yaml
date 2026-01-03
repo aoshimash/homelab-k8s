@@ -5,6 +5,3 @@ resources:
   - helmrepository.yaml
   - secret-oauth-credentials.sops.yaml
   - helmrelease.yaml
-  - proxygroup.yaml
-  # Smoke test resources (disabled by default - uncomment to enable)
-  # - smoke/
