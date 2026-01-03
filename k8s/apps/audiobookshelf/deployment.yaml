@@ -37,6 +37,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: metadata
+              mountPath: /metadata
             - name: podcasts
               mountPath: /podcasts
           resources:
@@ -62,6 +64,8 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: audiobookshelf-config
+        - name: metadata
+          emptyDir: {}
         - name: podcasts
           persistentVolumeClaim:
             claimName: audiobookshelf-podcasts
