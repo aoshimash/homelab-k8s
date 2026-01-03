@@ -7,7 +7,6 @@ on:
       - '.github/workflows/build-radigo-image.yaml'
     branches:
       - main
-      - fix/radigo-job-failure
   workflow_dispatch:
 
 env:
