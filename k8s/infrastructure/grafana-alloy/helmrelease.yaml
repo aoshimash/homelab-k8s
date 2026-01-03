@@ -140,7 +140,7 @@ spec:
               url = env("GRAFANA_CLOUD_LOKI_URL")
               
               basic_auth {
-                username = env("GRAFANA_CLOUD_USER")
+                username = env("GRAFANA_CLOUD_LOKI_USER")
                 password = env("GRAFANA_CLOUD_API_KEY")
               }
             }
@@ -170,3 +170,8 @@ spec:
             secretKeyRef:
               name: grafana-cloud-credentials
               key: GRAFANA_CLOUD_API_KEY
+        - name: GRAFANA_CLOUD_LOKI_USER
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_LOKI_USER
