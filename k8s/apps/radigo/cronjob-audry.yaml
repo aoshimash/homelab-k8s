@@ -49,9 +49,9 @@ spec:
                 - name: START_TIME
                   value: "01:00" # JST (25:00 in radiko notation)
                 - name: EXPECTED_TITLE
-                  value: "オードリーのオールナイトニッポン"
+                  value: "オードリー"
                 - name: OUTPUT_DIR
-                  value: "/podcasts/arco"
+                  value: "/podcasts/audry"
                 - name: AUDIOBOOKSHELF_API_KEY
                   valueFrom:
                     secretKeyRef:
