@@ -75,7 +75,7 @@ docs/
 
 ### Implementation for User Story 1+2+3
 
-- [ ] T007 [US1] Create CronJob for first program (arco) in `k8s/apps/radigo/cronjob-arco.yaml` with:
+- [X] T007 [US1] Create CronJob for first program (arco) in `k8s/apps/radigo/cronjob-arco.yaml` with:
   - Schedule: trigger at broadcast end time (e.g., `5 3 * * 0` for Sunday 03:05 JST)
   - Pod affinity to audiobookshelf pod (same node for RWO PVC)
   - Volume mounts: audiobookshelf-podcasts PVC, record script ConfigMap
@@ -83,7 +83,7 @@ docs/
   - Container: `yyoshiki41/radigo` with script execution
   - Resource limits (memory, CPU)
   - backoffLimit: 2 for retry
-- [ ] T008 [US1] Update `k8s/apps/radigo/kustomization.yaml` to include cronjob-arco.yaml
+- [X] T008 [US1] Update `k8s/apps/radigo/kustomization.yaml` to include cronjob-arco.yaml
 - [ ] T009 [US1] Obtain Audiobookshelf API key and library ID (manual step, document in docs/radigo.md)
 - [ ] T010 [US1] Encrypt secret with SOPS: `sops -e -i k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml`
 - [ ] T011 [US1] Commit and push to trigger Flux reconciliation
