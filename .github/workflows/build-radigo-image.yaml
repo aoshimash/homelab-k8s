@@ -3,8 +3,8 @@ name: Build radigo image
 on:
   push:
     paths:
-      - 'images/radigo/**'
-      - '.github/workflows/build-radigo-image.yaml'
+      - "images/radigo/**"
+      - ".github/workflows/build-radigo-image.yaml"
     branches:
       - main
   workflow_dispatch:
