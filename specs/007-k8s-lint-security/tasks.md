@@ -27,8 +27,8 @@ This is a GitOps infrastructure repository:
 
 **Purpose**: Create basic Taskfile structure and GitHub workflows directory
 
-- [ ] T001 Create Taskfile.yaml skeleton with version and vars section in `Taskfile.yaml`
-- [ ] T002 [P] Create `.github/workflows/` directory structure
+- [x] T001 Create Taskfile.yaml skeleton with version and vars section in `Taskfile.yaml`
+- [x] T002 [P] Create `.github/workflows/` directory structure
 
 ---
 

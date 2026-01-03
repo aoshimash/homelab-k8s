@@ -1,0 +1,6 @@
+version: '3'
+
+vars:
+  K8S_DIR: k8s
+  # CRDs that don't have official Kubernetes schemas
+  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy
