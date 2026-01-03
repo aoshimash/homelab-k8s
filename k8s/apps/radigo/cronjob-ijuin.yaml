@@ -4,7 +4,7 @@ metadata:
   name: radigo-ijuin
   namespace: radigo
 spec:
-  schedule: "5 3 * * 1"  # Monday 03:05 JST (5 minutes after Monday 27:00 broadcast end)
+  schedule: "5 3 * * 1" # Monday 03:05 JST (5 minutes after Monday 27:00 broadcast end)
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -45,9 +45,9 @@ spec:
                 - name: STATION_ID
                   value: "TBS"
                 - name: DAY_OF_WEEK
-                  value: "1"  # Monday
+                  value: "1" # Monday
                 - name: START_TIME
-                  value: "01:00"  # JST (25:00 in radiko notation)
+                  value: "01:00" # JST (25:00 in radiko notation)
                 - name: EXPECTED_TITLE
                   value: "伊集院光 深夜の馬鹿力"
                 - name: OUTPUT_DIR

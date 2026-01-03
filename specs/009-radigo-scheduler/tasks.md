@@ -65,7 +65,7 @@ docs/
 
 **Goal**: Record radiko programs automatically, save to audiobookshelf storage, and trigger RSS update
 
-**Independent Test**: 
+**Independent Test**:
 1. Manually create a test job from CronJob
 2. Verify AAC file appears in `/podcasts/{program}/`
 3. Verify episode appears in Audiobookshelf library
