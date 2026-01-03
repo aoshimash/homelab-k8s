@@ -27,10 +27,10 @@ Based on plan.md Project Structure:
 
 **Purpose**: Create directory structure and base files for Grafana Alloy deployment
 
-- [ ] T001 Create `k8s/infrastructure/grafana-alloy/` directory
-- [ ] T002 [P] Create namespace manifest in `k8s/infrastructure/grafana-alloy/namespace.yaml`
-- [ ] T003 [P] Create HelmRepository manifest in `k8s/infrastructure/grafana-alloy/helmrepository.yaml`
-- [ ] T004 Create Kustomization entry point in `k8s/infrastructure/grafana-alloy/kustomization.yaml`
+- [x] T001 Create `k8s/infrastructure/grafana-alloy/` directory
+- [x] T002 [P] Create namespace manifest in `k8s/infrastructure/grafana-alloy/namespace.yaml`
+- [x] T003 [P] Create HelmRepository manifest in `k8s/infrastructure/grafana-alloy/helmrepository.yaml`
+- [x] T004 Create Kustomization entry point in `k8s/infrastructure/grafana-alloy/kustomization.yaml`
 
 ---
 
@@ -40,11 +40,11 @@ Based on plan.md Project Structure:
 
 **⚠️ CRITICAL**: No user story work can begin until credentials are configured
 
-- [ ] T005 Obtain Grafana Cloud credentials (Access Policy Token with metrics:write, logs:write scopes) - manual step per quickstart.md
-- [ ] T006 Create unencrypted secret YAML with Grafana Cloud credentials (temporary, local only)
-- [ ] T007 Encrypt secret with SOPS and save to `k8s/infrastructure/grafana-alloy/secret-grafana-cloud.sops.yaml`
-- [ ] T008 Delete unencrypted secret file (security cleanup)
-- [ ] T009 Update `k8s/infrastructure/kustomization.yaml` to include `grafana-alloy/` directory
+- [x] T005 Obtain Grafana Cloud credentials (Access Policy Token with metrics:write, logs:write scopes) - manual step per quickstart.md
+- [x] T006 Create unencrypted secret YAML with Grafana Cloud credentials (temporary, local only)
+- [x] T007 Encrypt secret with SOPS and save to `k8s/infrastructure/grafana-alloy/secret-grafana-cloud.sops.yaml`
+- [x] T008 Delete unencrypted secret file (security cleanup)
+- [x] T009 Update `k8s/infrastructure/kustomization.yaml` to include `grafana-alloy/` directory
 
 **Checkpoint**: Foundation ready - Grafana Alloy manifests can now be created
 
@@ -62,15 +62,15 @@ Based on plan.md Project Structure:
 
 ### Implementation for User Story 1 & 2
 
-- [ ] T010 [US1/US2] Create HelmRelease manifest with DaemonSet controller type in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
-- [ ] T011 [US1] Add metrics collection River config (discovery.kubernetes nodes, prometheus.scrape kubelet) in HelmRelease values
-- [ ] T012 [US1] Add metrics remote_write config (prometheus.remote_write grafana_cloud) with Basic Auth in HelmRelease values
-- [ ] T013 [US1] Add cadvisor metrics scraping config (prometheus.scrape cadvisor) in HelmRelease values
-- [ ] T014 [US1] Add cluster label (cluster=homelab) via prometheus.relabel in HelmRelease values
-- [ ] T015 [US2] Add log collection River config (loki.source.kubernetes pods) in HelmRelease values
-- [ ] T016 [US2] Add log processing config (loki.process add_labels with cluster=homelab) in HelmRelease values
-- [ ] T017 [US2] Add log write config (loki.write grafana_cloud) with Basic Auth in HelmRelease values
-- [ ] T018 [US1/US2] Configure environment variable injection from Secret for credentials in HelmRelease
+- [x] T010 [US1/US2] Create HelmRelease manifest with DaemonSet controller type in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
+- [x] T011 [US1] Add metrics collection River config (discovery.kubernetes nodes, prometheus.scrape kubelet) in HelmRelease values
+- [x] T012 [US1] Add metrics remote_write config (prometheus.remote_write grafana_cloud) with Basic Auth in HelmRelease values
+- [x] T013 [US1] Add cadvisor metrics scraping config (prometheus.scrape cadvisor) in HelmRelease values
+- [x] T014 [US1] Add cluster label (cluster=homelab) via prometheus.relabel in HelmRelease values
+- [x] T015 [US2] Add log collection River config (loki.source.kubernetes pods) in HelmRelease values
+- [x] T016 [US2] Add log processing config (loki.process add_labels with cluster=homelab) in HelmRelease values
+- [x] T017 [US2] Add log write config (loki.write grafana_cloud) with Basic Auth in HelmRelease values
+- [x] T018 [US1/US2] Configure environment variable injection from Secret for credentials in HelmRelease
 
 **Checkpoint**: At this point, Metrics (US1) and Logs (US2) should be fully configured in HelmRelease
 
@@ -87,7 +87,7 @@ Based on plan.md Project Structure:
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Verify Kustomization includes all resources (namespace, helmrepository, helmrelease, secret) in `k8s/infrastructure/grafana-alloy/kustomization.yaml`
+- [x] T019 [US3] Verify Kustomization includes all resources (namespace, helmrepository, helmrelease, secret) in `k8s/infrastructure/grafana-alloy/kustomization.yaml`
 - [ ] T020 [US3] Commit all manifests to Git repository
 - [ ] T021 [US3] Push changes to trigger Flux reconciliation
 - [ ] T022 [US3] Verify Flux reconciliation status with `flux get kustomizations infrastructure`
@@ -115,10 +115,10 @@ Based on plan.md Project Structure:
 
 **Purpose**: Complete operational documentation
 
-- [ ] T031 [P] Create operational documentation in `docs/grafana-alloy.md` based on quickstart.md
-- [ ] T032 [P] Document Grafana Cloud Access Policy Token creation steps in `docs/grafana-alloy.md`
-- [ ] T033 [P] Document credential rotation procedure in `docs/grafana-alloy.md`
-- [ ] T034 [P] Document troubleshooting steps (no metrics, no logs, auth errors) in `docs/grafana-alloy.md`
+- [x] T031 [P] Create operational documentation in `docs/grafana-alloy.md` based on quickstart.md
+- [x] T032 [P] Document Grafana Cloud Access Policy Token creation steps in `docs/grafana-alloy.md`
+- [x] T033 [P] Document credential rotation procedure in `docs/grafana-alloy.md`
+- [x] T034 [P] Document troubleshooting steps (no metrics, no logs, auth errors) in `docs/grafana-alloy.md`
 - [ ] T035 Update plan.md to mark Phase 2 tasks complete
 
 ---
