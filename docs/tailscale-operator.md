@@ -161,11 +161,59 @@ This is required because when Cilium runs in kube-proxy replacement mode with so
 
 ### MTU Configuration (Critical for Performance)
 
-**Problem**: When Tailscale is installed on the node (e.g., via Talos extension), it creates a `tailscale0` interface with MTU 1280. Cilium auto-detects MTU from all network interfaces and may use the lowest MTU (1280), which severely degrades bandwidth performance.
+#### Background: What is MTU?
+
+MTU (Maximum Transmission Unit) is the maximum packet size that can be sent over a network in a single transmission. When packets exceed the MTU, they must be fragmented, which causes significant performance degradation due to:
+- Additional header overhead for each fragment
+- Reassembly processing at the receiver
+- Entire packet retransmission if any fragment is lost
+- TCP performance degradation from window size issues
+
+#### The Problem
+
+**Without Tailscale**, Cilium auto-detects MTU from the physical network interface:
+
+```
+Physical NIC (enp1s0f1): MTU 1500
+Cilium MTU: 1500 - 50 (VXLAN overhead) = 1450 ✅
+```
+
+**After installing Tailscale** (e.g., via Talos extension), a `tailscale0` interface is created with MTU 1280:
+
+```
+Physical NIC (enp1s0f1): MTU 1500
+tailscale0:              MTU 1280 ← Added by Tailscale
+
+Cilium MTU: min(1500, 1280) = 1280 ❌ (unintentionally lowered)
+```
+
+This causes **all cluster-internal communication** to be limited to MTU 1280, not just Tailscale traffic.
+
+#### Why This Causes Severe Performance Issues
+
+The issue is not that MTU 1280 is "slow", but the **MTU mismatch** between what applications expect and what the network allows:
+
+```
+Application: "Sending 1450 byte packet"
+Cilium network: "Only 1280 allowed"
+Result: Packet drop, fragmentation, TCP retransmission timeouts
+```
+
+When traffic flows through Tailscale Ingress:
+
+```
+audiobookshelf Pod ──[Cilium MTU 1280]──> ProxyGroup Pod ──[Tailscale MTU 1280]──> iPhone
+
+With the fix:
+audiobookshelf Pod ──[Cilium MTU 1450]──> ProxyGroup Pod ──[Tailscale MTU 1280]──> iPhone
+                     ↑ Fixed!              ↑ Tailscale handles conversion properly
+```
+
+The ProxyGroup Pod properly converts between Cilium (1450) and Tailscale (1280) networks. The problem was that Cilium was unnecessarily restricted to 1280.
 
 **Symptoms**:
-- Download speeds are significantly slower than expected
-- Upload speeds may be normal (asymmetric performance)
+- Download speeds are significantly slower than expected (10-20x slower)
+- Upload speeds may be relatively normal (asymmetric performance)
 - `cilium-dbg status --verbose` shows "MTU updated (1280)"
 
 **Diagnosis**:
@@ -178,7 +226,7 @@ kubectl exec -n kube-system ds/cilium -- ip link show tailscale0 | grep mtu
 kubectl exec -n kube-system ds/cilium -- ip link show enp1s0f1 | grep mtu  # physical interface
 ```
 
-**Solution**: Explicitly set the MTU in Cilium configuration to prevent using `tailscale0`'s low MTU:
+**Solution**: Explicitly set the MTU in Cilium configuration to restore the correct value and prevent Cilium from using `tailscale0`'s low MTU:
 
 ```yaml
 # In Cilium HelmRelease values
