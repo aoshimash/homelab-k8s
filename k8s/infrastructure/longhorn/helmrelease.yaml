@@ -13,9 +13,9 @@ spec:
         name: longhorn
         namespace: flux-system
       # Pinned to avoid automatic upgrades; adjust as needed after validating against the repo's upgrade policy.
-      # NOTE: Longhorn requires sequential minor version upgrades (v1.7.3 → v1.8.x → v1.9.x → v1.10.1)
-      # Current cluster version: v1.9.2
-      version: 1.9.2
+      # NOTE: Longhorn requires sequential minor version upgrades (v1.7.3 → v1.8.x → v1.9.x → v1.10.x)
+      # Current cluster version: v1.10.1
+      version: 1.10.1
   releaseName: longhorn
   install:
     createNamespace: true
@@ -28,20 +28,16 @@ spec:
     defaultSettings:
       # Single-node cluster default (clarified in spec): replicas must be 1.
       defaultReplicaCount: 1
-      # Cloudflare R2 (S3-compatible) backup target.
-      # NOTE: Replace placeholders before relying on backups.
+    # Cloudflare R2 (S3-compatible) backup target (1.10.x recommended location).
+    defaultBackupStore:
       backupTarget: s3://homelab-longhorn-backups@auto/longhorn/
       backupTargetCredentialSecret: longhorn-r2-credentials
     # StorageClass settings for single-node cluster.
     persistence:
       defaultClassReplicaCount: 1
-    # Default recurring jobs applied by Longhorn.
-    # NOTE: Validate the exact behavior in your Longhorn version/UI (e.g., group assignment).
-    defaultRecurringJobs:
-      - name: backup-daily
-        task: backup
-        cron: "0 2 * * *"
-        retain: 30
-        concurrency: 1
-        groups:
-          - default
+      # Apply backup-daily recurring job to volumes using default StorageClass.
+      recurringJobSelector:
+        enable: true
+        jobList:
+          - name: backup-daily
+            isGroup: false
