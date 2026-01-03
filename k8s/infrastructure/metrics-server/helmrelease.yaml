@@ -21,6 +21,7 @@ spec:
     remediation:
       retries: 3
   values:
-    hostNetwork: true
+    hostNetwork:
+      enabled: true
     args:
       - --kubelet-insecure-tls
