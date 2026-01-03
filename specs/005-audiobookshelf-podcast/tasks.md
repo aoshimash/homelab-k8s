@@ -55,10 +55,10 @@
 - [x] T008 [US1] Create Deployment manifest at `k8s/apps/audiobookshelf/deployment.yaml`
 - [x] T009 [US1] Create Service manifest at `k8s/apps/audiobookshelf/service.yaml`
 - [x] T010 [US1] Create Tailscale Ingress manifest at `k8s/apps/audiobookshelf/ingress.yaml`
-- [ ] T011 [US1] Commit manifests and trigger Flux reconciliation
-- [ ] T012 [US1] Verify pod is running: `kubectl get pods -n audiobookshelf`
-- [ ] T013 [US1] Verify Ingress is synced: `kubectl get ingress -n audiobookshelf`
-- [ ] T014 [US1] Access web UI from tailnet device and create admin account
+- [x] T011 [US1] Commit manifests and trigger Flux reconciliation
+- [x] T012 [US1] Verify pod is running: `kubectl get pods -n audiobookshelf`
+- [x] T013 [US1] Verify Ingress is synced: `kubectl get ingress -n audiobookshelf`
+- [x] T014 [US1] Access web UI from tailnet device and create admin account
 
 **Checkpoint**: Web UI accessible via Tailscale - User Story 1 complete
 
