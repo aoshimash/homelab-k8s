@@ -4,6 +4,12 @@ metadata:
   name: radigo-record-script
   namespace: audiobookshelf
 data:
+  entrypoint.sh: |
+    #!/bin/sh
+    set -e
+
+    # 元の録音スクリプトを実行
+    /bin/bash /scripts/record.sh
   record.sh: |
     #!/bin/bash
     set -euo pipefail
