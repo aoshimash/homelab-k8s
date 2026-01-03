@@ -126,8 +126,8 @@ This is a GitOps infrastructure repository:
 
 **Purpose**: Documentation and final validation
 
-- [ ] T018 [P] Create documentation with prerequisites and usage guide in `docs/k8s-lint-security.md`
-- [ ] T019 Update README.md with link to new documentation
+- [x] T018 [P] Create documentation with prerequisites and usage guide in `docs/k8s-lint-security.md`
+- [x] T019 Update README.md with link to new documentation
 - [ ] T020 Run full validation: `task check` locally and create test PR for CI
 - [ ] T021 Configure branch protection rules for required status checks (manual via GitHub UI)
 
