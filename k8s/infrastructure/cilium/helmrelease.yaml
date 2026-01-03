@@ -25,6 +25,11 @@ spec:
     kubeProxyReplacement: true
     socketLB:
       hostNamespaceOnly: true
+    # Explicitly set MTU to prevent Cilium from using tailscale0's lower MTU (1280).
+    # Without this, Cilium auto-detects MTU from all devices including tailscale0,
+    # which causes significant bandwidth degradation for downloads.
+    # See: https://tailscale.com/kb/1236/kubernetes-operator#cilium-in-kube-proxy-replacement-mode
+    mtu: 1450
     securityContext:
       capabilities:
         ciliumAgent:
