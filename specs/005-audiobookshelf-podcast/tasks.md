@@ -23,10 +23,10 @@
 
 **Purpose**: Create directory structure and Flux Kustomization for apps
 
-- [ ] T001 Create apps directory structure at `k8s/apps/`
-- [ ] T002 Create Flux Kustomization for apps at `k8s/flux/apps-kustomization.yaml`
-- [ ] T003 Create apps root kustomization at `k8s/apps/kustomization.yaml`
-- [ ] T004 Update `k8s/flux/kustomization.yaml` to include apps-kustomization.yaml
+- [x] T001 Create apps directory structure at `k8s/apps/`
+- [x] T002 Create Flux Kustomization for apps at `k8s/flux/apps-kustomization.yaml`
+- [x] T003 Create apps root kustomization at `k8s/apps/kustomization.yaml`
+- [x] T004 Update `k8s/flux/kustomization.yaml` to include apps-kustomization.yaml
 
 ---
 
@@ -36,9 +36,9 @@
 
 **⚠️ CRITICAL**: Application deployment depends on all these resources
 
-- [ ] T005 [P] Create namespace manifest at `k8s/apps/audiobookshelf/namespace.yaml`
-- [ ] T006 [P] Create PVC manifest (config + podcasts) at `k8s/apps/audiobookshelf/pvc.yaml`
-- [ ] T007 [P] Create Audiobookshelf kustomization at `k8s/apps/audiobookshelf/kustomization.yaml`
+- [x] T005 [P] Create namespace manifest at `k8s/apps/audiobookshelf/namespace.yaml`
+- [x] T006 [P] Create PVC manifest (config + podcasts) at `k8s/apps/audiobookshelf/pvc.yaml`
+- [x] T007 [P] Create Audiobookshelf kustomization at `k8s/apps/audiobookshelf/kustomization.yaml`
 
 **Checkpoint**: Foundational resources ready - deployment can now be created
 
@@ -52,9 +52,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create Deployment manifest at `k8s/apps/audiobookshelf/deployment.yaml`
-- [ ] T009 [US1] Create Service manifest at `k8s/apps/audiobookshelf/service.yaml`
-- [ ] T010 [US1] Create Tailscale Ingress manifest at `k8s/apps/audiobookshelf/ingress.yaml`
+- [x] T008 [US1] Create Deployment manifest at `k8s/apps/audiobookshelf/deployment.yaml`
+- [x] T009 [US1] Create Service manifest at `k8s/apps/audiobookshelf/service.yaml`
+- [x] T010 [US1] Create Tailscale Ingress manifest at `k8s/apps/audiobookshelf/ingress.yaml`
 - [ ] T011 [US1] Commit manifests and trigger Flux reconciliation
 - [ ] T012 [US1] Verify pod is running: `kubectl get pods -n audiobookshelf`
 - [ ] T013 [US1] Verify Ingress is synced: `kubectl get ingress -n audiobookshelf`
@@ -138,7 +138,7 @@
 
 **Purpose**: Final documentation and verification
 
-- [ ] T033 [P] Create operational documentation at `docs/audiobookshelf.md`
+- [x] T033 [P] Create operational documentation at `docs/audiobookshelf.md`
 - [ ] T034 [P] Update `docs/` index if applicable
 - [ ] T035 Run quickstart.md verification checklist
 - [ ] T036 Mark spec tasks.md as complete
