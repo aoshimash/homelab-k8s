@@ -46,7 +46,7 @@ docs/
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create recording shell script in `k8s/apps/radigo/configmap-record-script.yaml` with:
+- [X] T004 Create recording shell script in `k8s/apps/radigo/configmap-record-script.yaml` with:
   - Fetch radiko program schedule API
   - Parse XML for program title and end time
   - Title validation logic (substring match)
@@ -54,8 +54,8 @@ docs/
   - File naming and directory creation
   - Audiobookshelf API library scan trigger
   - Logging for all states (success, skip, error)
-- [ ] T005 [P] Create SOPS-encrypted secret template in `k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml`
-- [ ] T006 [P] Create operational documentation in `docs/radigo.md`
+- [X] T005 [P] Create SOPS-encrypted secret template in `k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml`
+- [X] T006 [P] Create operational documentation in `docs/radigo.md`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 

@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: radigo-record-script
+  namespace: radigo
+data:
+  record.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Logging function
+    log() {
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
+    }
+    
+    # Environment variables (set by CronJob)
+    STATION_ID="${STATION_ID:-}"
+    DAY_OF_WEEK="${DAY_OF_WEEK:-}"
+    START_TIME="${START_TIME:-}"
+    EXPECTED_TITLE="${EXPECTED_TITLE:-}"
+    OUTPUT_DIR="${OUTPUT_DIR:-}"
+    AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
+    AUDIOBOOKSHELF_LIBRARY_ID="${AUDIOBOOKSHELF_LIBRARY_ID:-}"
+    AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
+    
+    # Validate required environment variables
+    if [[ -z "$STATION_ID" ]] || [[ -z "$DAY_OF_WEEK" ]] || [[ -z "$START_TIME" ]] || \
+       [[ -z "$EXPECTED_TITLE" ]] || [[ -z "$OUTPUT_DIR" ]]; then
+      log "ERROR: Missing required environment variables"
+      exit 1
+    fi
+    
+    log "INFO: Starting recording for station=$STATION_ID, day=$DAY_OF_WEEK, start=$START_TIME"
+    
+    # Calculate target date based on day of week
+    # CronJob triggers at end time, so we need to find the most recent broadcast
+    # For now, assume we're recording yesterday's broadcast (timefree)
+    TARGET_DATE=$(date -d "yesterday" '+%Y%m%d')
+    
+    # Fetch radiko program schedule API
+    log "INFO: Fetching program schedule from radiko API"
+    SCHEDULE_URL="http://radiko.jp/v3/program/station/weekly/${STATION_ID}.xml"
+    
+    if ! SCHEDULE_XML=$(curl -s --fail "$SCHEDULE_URL"); then
+      log "ERROR: Failed to fetch radiko schedule API"
+      exit 1
+    fi
+    
+    # Parse XML to find program matching day and start time
+    # Extract program info using simple XML parsing (assuming xmlstarlet or xmllint available)
+    # For simplicity, use grep/sed pattern matching
+    # Find program with matching start time (ft attribute)
+    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
+    
+    # Extract program info (ft, to, title) for programs matching the start time
+    # Note: This is a simplified parser - may need adjustment based on actual XML structure
+    PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"${START_TIMESTAMP}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
+    
+    if [[ -z "$PROGRAM_INFO" ]]; then
+      log "WARNING: Program not found in schedule for date=$TARGET_DATE, start=$START_TIME"
+      log "INFO: Attempting to find program in current week schedule"
+      # Try to find any program with matching start time pattern
+      PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"[0-9]{8}${START_TIME//:/}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
+    fi
+    
+    if [[ -z "$PROGRAM_INFO" ]]; then
+      log "ERROR: Could not find program in schedule"
+      exit 1
+    fi
+    
+    # Extract end time and title
+    END_TIME=$(echo "$PROGRAM_INFO" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' || echo "")
+    ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | grep -A 5 "ft=\"${START_TIMESTAMP}" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' || echo "")
+    
+    # Fallback: try simpler extraction
+    if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
+      # Use xmllint if available, otherwise use sed/grep
+      if command -v xmllint &> /dev/null; then
+        END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
+        ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
+      fi
+    fi
+    
+    if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
+      log "ERROR: Failed to parse program info from schedule XML"
+      log "DEBUG: PROGRAM_INFO=$PROGRAM_INFO"
+      exit 1
+    fi
+    
+    log "INFO: Found program: title='$ACTUAL_TITLE', end_time=$END_TIME"
+    
+    # Validate title
+    if [[ "$ACTUAL_TITLE" != *"$EXPECTED_TITLE"* ]]; then
+      log "WARNING: Title mismatch - expected pattern '$EXPECTED_TITLE' not found in actual title '$ACTUAL_TITLE'"
+      log "INFO: Skipping recording (program may be on hiatus or replaced)"
+      exit 0  # Exit successfully - this is expected behavior
+    fi
+    
+    log "INFO: Title validation passed, proceeding with recording"
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "$OUTPUT_DIR"
+    
+    # Execute radigo timefree recording
+    # Format: radigo rec -id=STATION_ID -s=START_TIMESTAMP
+    log "INFO: Starting radigo recording"
+    RADIGO_OUTPUT=$(radigo rec -id="$STATION_ID" -s="$START_TIMESTAMP" 2>&1) || {
+      log "ERROR: radigo recording failed: $RADIGO_OUTPUT"
+      exit 1
+    }
+    
+    # Find the output file (radigo outputs to RADIGO_HOME or current directory)
+    # Default output pattern: {TIMESTAMP}-{STATION_ID}.aac
+    OUTPUT_FILE=$(find /output -name "${START_TIMESTAMP}-${STATION_ID}.aac" -type f 2>/dev/null | head -1)
+    
+    if [[ -z "$OUTPUT_FILE" ]]; then
+      # Try to find any .aac file created recently
+      OUTPUT_FILE=$(find /output -name "*.aac" -type f -newermt "$(date -d @$(($(date +%s) - 3600)) '+%Y-%m-%d %H:%M:%S')" 2>/dev/null | head -1)
+    fi
+    
+    if [[ -z "$OUTPUT_FILE" ]] || [[ ! -f "$OUTPUT_FILE" ]]; then
+      log "ERROR: Output file not found after recording"
+      log "DEBUG: Searched in /output, START_TIMESTAMP=$START_TIMESTAMP"
+      exit 1
+    fi
+    
+    log "INFO: Recording completed: $OUTPUT_FILE"
+    
+    # Generate final filename: YYYYMMDD-STATION_ID.aac
+    FINAL_FILENAME="${TARGET_DATE}-${STATION_ID}.aac"
+    FINAL_PATH="${OUTPUT_DIR}/${FINAL_FILENAME}"
+    
+    # Move file to target directory
+    mv "$OUTPUT_FILE" "$FINAL_PATH"
+    log "INFO: File saved to $FINAL_PATH"
+    
+    # Trigger Audiobookshelf library scan
+    if [[ -n "$AUDIOBOOKSHELF_API_KEY" ]] && [[ -n "$AUDIOBOOKSHELF_LIBRARY_ID" ]] && [[ -n "$AUDIOBOOKSHELF_BASE_URL" ]]; then
+      log "INFO: Triggering Audiobookshelf library scan"
+      SCAN_URL="${AUDIOBOOKSHELF_BASE_URL}/api/libraries/${AUDIOBOOKSHELF_LIBRARY_ID}/scan"
+      
+      if curl -s --fail -X POST "$SCAN_URL" \
+        -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+        -H "Content-Type: application/json"; then
+        log "INFO: Library scan triggered successfully"
+      else
+        log "WARNING: Failed to trigger library scan (recording saved but may not appear in library immediately)"
+      fi
+    else
+      log "WARNING: Audiobookshelf API credentials not configured, skipping library scan"
+    fi
+    
+    log "INFO: Recording workflow completed successfully"
