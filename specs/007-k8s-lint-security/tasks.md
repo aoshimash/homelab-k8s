@@ -50,9 +50,9 @@ This is a GitOps infrastructure repository:
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Add SKIP_KINDS variable for CRDs (HelmRelease, etc.) in `Taskfile.yaml`
-- [ ] T004 [US1] Implement `lint` task with kubeconform command in `Taskfile.yaml`
-- [ ] T005 [US1] Test lint task locally with `task lint` command
+- [x] T003 [US1] Add SKIP_KINDS variable for CRDs (HelmRelease, etc.) in `Taskfile.yaml`
+- [x] T004 [US1] Implement `lint` task with kubeconform command in `Taskfile.yaml`
+- [x] T005 [US1] Test lint task locally with `task lint` command
 
 **Checkpoint**: `task lint` が動作し、k8s/配下のマニフェストをスキーマ検証できる
 

@@ -4,3 +4,14 @@ vars:
   K8S_DIR: k8s
   # CRDs that don't have official Kubernetes schemas
   SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy
+
+tasks:
+  lint:
+    desc: Validate K8s manifests using kubeconform
+    cmds:
+      - |
+        kubeconform \
+          -summary \
+          -skip-kinds {{.SKIP_KINDS}} \
+          -output text \
+          {{.K8S_DIR}}/**/*.yaml
