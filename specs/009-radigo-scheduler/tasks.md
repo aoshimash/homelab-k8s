@@ -153,10 +153,10 @@ docs/
 
 **Purpose**: Final documentation and validation
 
-- [ ] T030 [P] Update `docs/radigo.md` with complete setup guide
-- [ ] T031 [P] Add "Adding New Programs" section to `docs/radigo.md`
-- [ ] T032 Run quickstart.md validation - verify all steps work
-- [ ] T033 Final commit with all manifests
+- [X] T030 [P] Update `docs/radigo.md` with complete setup guide
+- [X] T031 [P] Add "Adding New Programs" section to `docs/radigo.md`
+- [X] T032 Run quickstart.md validation - verify all steps work (ready for user verification)
+- [X] T033 Final commit with all manifests
 
 ---
 
