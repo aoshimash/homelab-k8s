@@ -25,9 +25,9 @@
 
 **Purpose**: Create directory structure and foundational manifests for kube-state-metrics
 
-- [ ] T001 Create directory `k8s/infrastructure/kube-state-metrics/`
-- [ ] T002 [P] Create HelmRepository for prometheus-community in `k8s/infrastructure/kube-state-metrics/helmrepository.yaml`
-- [ ] T003 [P] Create Kustomization file in `k8s/infrastructure/kube-state-metrics/kustomization.yaml`
+- [x] T001 Create directory `k8s/infrastructure/kube-state-metrics/`
+- [x] T002 [P] Create HelmRepository for prometheus-community in `k8s/infrastructure/kube-state-metrics/helmrepository.yaml`
+- [x] T003 [P] Create Kustomization file in `k8s/infrastructure/kube-state-metrics/kustomization.yaml`
 
 ---
 
@@ -39,12 +39,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T004 [US2] Create HelmRelease for kube-state-metrics in `k8s/infrastructure/kube-state-metrics/helmrelease.yaml`
-- [ ] T005 [US2] Update infrastructure Kustomization to include kube-state-metrics in `k8s/infrastructure/kustomization.yaml`
-- [ ] T006 [US2] Commit and push changes to trigger Flux reconciliation
-- [ ] T007 [US2] Verify HelmRepository is Ready via `kubectl get helmrepository prometheus-community -n flux-system`
-- [ ] T008 [US2] Verify HelmRelease is Ready via `kubectl get helmrelease kube-state-metrics -n monitoring`
-- [ ] T009 [US2] Verify kube-state-metrics pod is Running via `kubectl get pods -n monitoring -l app.kubernetes.io/name=kube-state-metrics`
+- [x] T004 [US2] Create HelmRelease for kube-state-metrics in `k8s/infrastructure/kube-state-metrics/helmrelease.yaml`
+- [x] T005 [US2] Update infrastructure Kustomization to include kube-state-metrics in `k8s/infrastructure/kustomization.yaml`
+- [ ] T006 [US2] Commit and push changes to trigger Flux reconciliation (requires manual git push)
+- [ ] T007 [US2] Verify HelmRepository is Ready via `kubectl get helmrepository prometheus-community -n flux-system` (requires cluster access)
+- [ ] T008 [US2] Verify HelmRelease is Ready via `kubectl get helmrelease kube-state-metrics -n monitoring` (requires cluster access)
+- [ ] T009 [US2] Verify kube-state-metrics pod is Running via `kubectl get pods -n monitoring -l app.kubernetes.io/name=kube-state-metrics` (requires cluster access)
 
 **Checkpoint**: kube-state-metrics is deployed via GitOps. User Story 2 complete.
 
@@ -58,11 +58,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] Add kube-state-metrics service discovery config to Grafana Alloy in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
-- [ ] T011 [US3] Add kube-state-metrics scrape config to Grafana Alloy in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
-- [ ] T012 [US3] Commit and push Grafana Alloy config changes
-- [ ] T013 [US3] Verify Grafana Alloy pods restart and are Ready via `kubectl get pods -n monitoring -l app.kubernetes.io/name=alloy`
-- [ ] T014 [US3] Verify Alloy is scraping kube-state-metrics via `kubectl logs -n monitoring -l app.kubernetes.io/name=alloy | grep kube-state`
+- [x] T010 [US3] Add kube-state-metrics service discovery config to Grafana Alloy in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
+- [x] T011 [US3] Add kube-state-metrics scrape config to Grafana Alloy in `k8s/infrastructure/grafana-alloy/helmrelease.yaml`
+- [ ] T012 [US3] Commit and push Grafana Alloy config changes (requires manual git push)
+- [ ] T013 [US3] Verify Grafana Alloy pods restart and are Ready via `kubectl get pods -n monitoring -l app.kubernetes.io/name=alloy` (requires cluster access)
+- [ ] T014 [US3] Verify Alloy is scraping kube-state-metrics via `kubectl logs -n monitoring -l app.kubernetes.io/name=alloy | grep kube-state` (requires cluster access)
 
 **Checkpoint**: Grafana Alloy is scraping kube-state-metrics. User Story 3 complete.
 
@@ -76,10 +76,10 @@
 
 ### Verification for User Story 1
 
-- [ ] T015 [US1] Query `kube_deployment_spec_replicas{cluster="homelab"}` in Grafana Cloud and verify results
-- [ ] T016 [US1] Query `kube_pod_status_phase{cluster="homelab"}` in Grafana Cloud and verify pod states match `kubectl get pods -A`
-- [ ] T017 [US1] Query `kube_node_status_condition{cluster="homelab"}` in Grafana Cloud and verify node conditions
-- [ ] T018 [US1] Test metric accuracy by scaling a deployment and verifying metrics update within 5 minutes
+- [ ] T015 [US1] Query `kube_deployment_spec_replicas{cluster="homelab"}` in Grafana Cloud and verify results (requires Grafana Cloud access)
+- [ ] T016 [US1] Query `kube_pod_status_phase{cluster="homelab"}` in Grafana Cloud and verify pod states match `kubectl get pods -A` (requires Grafana Cloud and cluster access)
+- [ ] T017 [US1] Query `kube_node_status_condition{cluster="homelab"}` in Grafana Cloud and verify node conditions (requires Grafana Cloud access)
+- [ ] T018 [US1] Test metric accuracy by scaling a deployment and verifying metrics update within 5 minutes (requires Grafana Cloud and cluster access)
 
 **Checkpoint**: All kube_* metrics visible in Grafana Cloud with correct labels. User Story 1 complete.
 
@@ -89,9 +89,9 @@
 
 **Purpose**: Add operational documentation and finalize implementation
 
-- [ ] T019 [P] Create operational documentation in `docs/kube-state-metrics.md`
-- [ ] T020 [P] Update tasks.md to mark all tasks as complete in `specs/006-kube-metrics/tasks.md`
-- [ ] T021 Run quickstart.md validation steps to ensure documentation accuracy
+- [x] T019 [P] Create operational documentation in `docs/kube-state-metrics.md`
+- [x] T020 [P] Update tasks.md to mark all tasks as complete in `specs/006-kube-metrics/tasks.md`
+- [ ] T021 Run quickstart.md validation steps to ensure documentation accuracy (requires manual verification)
 
 ---
 
