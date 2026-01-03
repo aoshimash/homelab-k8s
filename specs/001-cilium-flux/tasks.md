@@ -70,15 +70,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] **CRITICAL**: Capture current Helm release details (version and values) from running cluster using `helm get values cilium -n kube-system` and `helm list -n kube-system`
+- [x] T009 [US2] **CRITICAL**: Capture current Helm release details (version and values) from running cluster using `helm get values cilium -n kube-system` and `helm list -n kube-system`
   - **REQUIRED BEFORE DEPLOYMENT**: This task must be completed to verify the HelmRelease values match the actual cluster state, preventing version mismatches or configuration drift that could cause networking disruption.
-- [ ] T010 [US2] **CRITICAL**: Encode captured Helm values into HelmRelease spec.values in `k8s/infrastructure/cilium/helmrelease.yaml` to match current configuration
+- [x] T010 [US2] **CRITICAL**: Encode captured Helm values into HelmRelease spec.values in `k8s/infrastructure/cilium/helmrelease.yaml` to match current configuration
   - **REQUIRED BEFORE DEPLOYMENT**: Update the HelmRelease with verified values from T009 to ensure zero-downtime migration.
-- [ ] T011 [US2] Set HelmRelease spec.releaseName to match existing manual Helm release name (`cilium`) in `k8s/infrastructure/cilium/helmrelease.yaml`
-- [ ] T012 [US2] Verify HelmRelease adopts existing release by checking Flux reconciliation status: `kubectl -n kube-system get helmreleases cilium`
-- [ ] T013 [US2] Verify Cilium pods remain Ready during cutover: `kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium`
-- [ ] T014 [US2] Verify nodes remain Ready during cutover: `kubectl get nodes`
-- [ ] T015 [US2] Verify no double management by confirming manual Helm release is adopted: `helm list -n kube-system` should show release managed by Flux
+- [x] T011 [US2] Set HelmRelease spec.releaseName to match existing manual Helm release name (`cilium`) in `k8s/infrastructure/cilium/helmrelease.yaml`
+- [x] T012 [US2] Verify HelmRelease adopts existing release by checking Flux reconciliation status: `kubectl -n kube-system get helmreleases cilium`
+- [x] T013 [US2] Verify Cilium pods remain Ready during cutover: `kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium`
+- [x] T014 [US2] Verify nodes remain Ready during cutover: `kubectl get nodes`
+- [x] T015 [US2] Verify no double management by confirming manual Helm release is adopted: `helm list -n kube-system` should show release managed by Flux
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently. Migration is complete with zero downtime, and Flux is the single source of truth.
 
@@ -92,9 +92,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Verify HelmRelease has chart version pinned (no automatic upgrades) in `k8s/infrastructure/cilium/helmrelease.yaml`
-- [ ] T017 [US3] Document rollback procedure: revert Git commit and verify Flux reconciles back to previous state in `docs/cilium-rollback.md`
-- [ ] T018 [US3] Test rollback workflow: make a test change to HelmRelease values, commit, verify reconciliation, then revert commit and verify rollback reconciliation completes within 15 minutes
+- [x] T016 [US3] Verify HelmRelease has chart version pinned (no automatic upgrades) in `k8s/infrastructure/cilium/helmrelease.yaml`
+- [x] T017 [US3] Document rollback procedure: revert Git commit and verify Flux reconciles back to previous state in `docs/talos-bootstrap.md` (Rollback Procedure section)
+- [x] T018 [US3] Test rollback workflow: make a test change to HelmRelease values, commit, verify reconciliation, then revert commit and verify rollback reconciliation completes within 15 minutes
 
 **Checkpoint**: All user stories should now be independently functional. Rollback capability is validated and documented.
 
@@ -107,7 +107,7 @@
 - [x] T019 [P] Update `docs/talos-bootstrap.md` to remove manual Helm install steps (sections "Post-Bootstrap: Install Cilium CNI" and related)
 - [x] T020 [P] Add Flux-managed Cilium installation workflow to `docs/talos-bootstrap.md` referencing the GitOps path
 - [x] T021 [P] Add verification commands from quickstart.md to `docs/talos-bootstrap.md` for post-bootstrap validation
-- [ ] T022 Run quickstart.md validation: execute all validation commands and confirm Cilium is Flux-managed and healthy
+- [x] T022 Run quickstart.md validation: execute all validation commands and confirm Cilium is Flux-managed and healthy
 
 ---
 
