@@ -47,4 +47,4 @@ jobs:
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
           format: 'table'
-          skip-files: 'flux/flux-system/gotk-components.yaml,apps/audiobookshelf/deployment.yaml'
+          skip-files: 'flux/flux-system/gotk-components.yaml'

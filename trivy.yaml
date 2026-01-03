@@ -1,0 +1,10 @@
+# Trivy configuration file
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/
+
+# Skip specific checks that are intentional for this repository
+# KSV0014: readOnlyRootFilesystem
+# audiobookshelf needs to write config and podcasts to mounted volumes
+checks:
+  skip:
+    - KSV0014
+    - AVD-KSV-0014

@@ -21,6 +21,7 @@ tasks:
     cmds:
       - |
         trivy config \
+          --config trivy.yaml \
           --exit-code 1 \
           --severity HIGH,CRITICAL \
           --skip-files flux/flux-system/gotk-components.yaml \
