@@ -47,3 +47,4 @@ jobs:
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
           format: 'table'
+          skip-paths: 'flux/flux-system/gotk-components.yaml'

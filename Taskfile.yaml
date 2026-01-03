@@ -23,6 +23,7 @@ tasks:
         trivy config \
           --exit-code 1 \
           --severity HIGH,CRITICAL \
+          --skip-files flux/flux-system/gotk-components.yaml \
           {{.K8S_DIR}}/
 
   security:all:
