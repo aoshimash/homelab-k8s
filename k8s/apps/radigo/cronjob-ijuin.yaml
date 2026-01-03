@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: radigo-ijuin
-  namespace: radigo
+  namespace: audiobookshelf
 spec:
   schedule: "5 3 * * 1" # Monday 03:05 JST (5 minutes after Monday 27:00 broadcast end)
   concurrencyPolicy: Forbid
