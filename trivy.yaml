@@ -8,3 +8,8 @@ checks:
   skip:
     - KSV0014
     - AVD-KSV-0014
+
+# Secret scanning configuration
+# See: https://aquasecurity.github.io/trivy/latest/docs/scanner/secret/
+secret:
+  config: trivy-secret.yaml

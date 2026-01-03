@@ -6,6 +6,8 @@ on:
       - 'k8s/**'
       - 'Taskfile.yaml'
       - '.github/workflows/k8s-lint-security.yaml'
+      - 'trivy.yaml'
+      - 'trivy-secret.yaml'
 
 jobs:
   lint:
@@ -39,7 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Trivy config scan
+      - name: Run Trivy config scan (misconfig)
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'config'
@@ -48,3 +50,15 @@ jobs:
           severity: 'HIGH,CRITICAL'
           format: 'table'
           skip-files: 'flux/flux-system/gotk-components.yaml'
+
+      - name: Run Trivy filesystem scan (secrets)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'k8s/'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+          skip-files: 'flux/flux-system/gotk-components.yaml'
+          trivy-config: 'trivy.yaml'
+          scanners: 'secret'

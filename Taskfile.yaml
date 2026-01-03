@@ -17,11 +17,19 @@ tasks:
           {{.K8S_DIR}}/**/*.yaml
 
   security:
-    desc: Run Trivy security scan on K8s manifests
+    desc: Run Trivy security scan on K8s manifests (misconfig + secrets)
     cmds:
       - |
         trivy config \
           --config trivy.yaml \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --skip-files flux/flux-system/gotk-components.yaml \
+          {{.K8S_DIR}}/
+      - |
+        trivy fs \
+          --config trivy.yaml \
+          --scanners secret \
           --exit-code 1 \
           --severity HIGH,CRITICAL \
           --skip-files flux/flux-system/gotk-components.yaml \
@@ -32,6 +40,12 @@ tasks:
     cmds:
       - |
         trivy config \
+          --exit-code 0 \
+          {{.K8S_DIR}}/
+      - |
+        trivy fs \
+          --config trivy.yaml \
+          --scanners secret \
           --exit-code 0 \
           {{.K8S_DIR}}/
 
