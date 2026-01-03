@@ -155,4 +155,4 @@ No constitution violations requiring justification.
 - [x] **Phase 1**: [data-model.md](./data-model.md) - Kubernetes resource definitions
 - [x] **Phase 1**: [contracts/reconciliation.md](./contracts/reconciliation.md) - Flux reconciliation contract
 - [x] **Phase 1**: [quickstart.md](./quickstart.md) - Deployment guide with Grafana Cloud setup
-- [ ] **Phase 2**: [tasks.md](./tasks.md) - Task breakdown (created by /speckit.tasks)
+- [x] **Phase 2**: [tasks.md](./tasks.md) - Task breakdown (created by /speckit.tasks)
