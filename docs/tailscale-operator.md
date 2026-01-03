@@ -204,6 +204,30 @@ After applying these changes, restart Cilium pods:
 kubectl rollout restart daemonset/cilium -n kube-system
 ```
 
+### Verification
+
+After applying the MTU fix, verify the configuration:
+
+```bash
+# Check Cilium interface MTU (should show 1450)
+kubectl exec -n kube-system ds/cilium -- ip link show cilium_host | grep mtu
+
+# Check Cilium status (should NOT show "MTU updated (1280)")
+kubectl exec -n kube-system ds/cilium -- cilium-dbg status --verbose | grep -i mtu
+```
+
+### Actual Results (2026-01-03)
+
+After applying the MTU fix in our homelab cluster:
+
+| Metric | Before (MTU 1280) | After (MTU 1450) | Improvement |
+|--------|-------------------|------------------|-------------|
+| Tailscale Ingress response time | 459ms | 23ms | **~20x faster** |
+| port-forward response time | 13ms | 13ms | (unchanged) |
+| `cilium_host` MTU | 1280 | 1450 | ✅ Fixed |
+
+The fix resolved the slow download issue experienced when accessing audiobookshelf via Tailscale Ingress from iPhone.
+
 ### References
 
 - [Tailscale KB: Cilium in kube-proxy replacement mode](https://tailscale.com/kb/1236/kubernetes-operator#cilium-in-kube-proxy-replacement-mode)
