@@ -14,8 +14,8 @@ spec:
         namespace: flux-system
       # Pinned to avoid automatic upgrades; adjust as needed after validating against the repo's upgrade policy.
       # NOTE: Longhorn requires sequential minor version upgrades (v1.7.3 → v1.8.x → v1.9.x → v1.10.1)
-      # Current cluster version: v1.8.4
-      version: 1.8.4
+      # Current cluster version: v1.9.3
+      version: 1.9.3
   releaseName: longhorn
   install:
     createNamespace: true
