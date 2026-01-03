@@ -182,10 +182,12 @@ kubectl exec -n kube-system ds/cilium -- ip link show enp1s0f1 | grep mtu  # phy
 
 ```yaml
 # In Cilium HelmRelease values
-mtu: 1450  # Use physical interface MTU minus overhead (1500 - 50 for VXLAN)
+# Note: Cilium Helm chart uses uppercase 'MTU' key
+MTU: 1450  # Use physical interface MTU minus overhead (1500 - 50 for VXLAN)
 ```
 
 > **Note**: The MTU value of 1450 accounts for VXLAN encapsulation overhead. If using a different tunnel mode, adjust accordingly.
+> **Important**: The Cilium Helm chart uses uppercase `MTU` (not lowercase `mtu`).
 
 ### Complete Cilium Configuration for Tailscale
 
@@ -193,7 +195,7 @@ mtu: 1450  # Use physical interface MTU minus overhead (1500 - 50 for VXLAN)
 # In Cilium HelmRelease values
 socketLB:
   hostNamespaceOnly: true
-mtu: 1450
+MTU: 1450
 ```
 
 After applying these changes, restart Cilium pods:
