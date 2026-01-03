@@ -114,9 +114,9 @@ This is a GitOps infrastructure repository:
 
 ### Implementation for User Story 5
 
-- [ ] T015 [US5] Verify SKIP_KINDS in Taskfile matches CI workflow skip-kinds in both files
-- [ ] T016 [US5] Verify Trivy severity threshold (HIGH,CRITICAL) matches between local and CI in both files
-- [ ] T017 [US5] Document version alignment strategy in `docs/k8s-lint-security.md`
+- [x] T015 [US5] Verify SKIP_KINDS in Taskfile matches CI workflow skip-kinds in both files
+- [x] T016 [US5] Verify Trivy severity threshold (HIGH,CRITICAL) matches between local and CI in both files
+- [x] T017 [US5] Document version alignment strategy in `docs/k8s-lint-security.md`
 
 **Checkpoint**: ローカルとCIのチェック設定が同一であることを確認済み
 
