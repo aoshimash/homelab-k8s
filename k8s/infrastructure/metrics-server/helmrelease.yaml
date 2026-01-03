@@ -10,7 +10,7 @@ spec:
       chart: metrics-server
       sourceRef:
         kind: HelmRepository
-        name: bitnami
+        name: metrics-server
         namespace: flux-system
   releaseName: metrics-server
   install:
@@ -21,9 +21,6 @@ spec:
     remediation:
       retries: 3
   values:
-    apiService:
-      create: true
-    hostNetwork:
-      enabled: true
-    kubelet:
-      insecure: true
+    hostNetwork: true
+    args:
+      - --kubelet-insecure-tls
