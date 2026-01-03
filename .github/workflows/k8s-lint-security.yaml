@@ -28,7 +28,7 @@ jobs:
         run: |
           kubeconform \
             -summary \
-            -skip-kinds HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy \
+            -skip HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy \
             -output text \
             k8s/**/*.yaml
 

@@ -12,7 +12,7 @@ tasks:
       - |
         kubeconform \
           -summary \
-          -skip-kinds {{.SKIP_KINDS}} \
+          -skip {{.SKIP_KINDS}} \
           -output text \
           {{.K8S_DIR}}/**/*.yaml
 
