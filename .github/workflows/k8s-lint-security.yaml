@@ -1,0 +1,49 @@
+name: K8s Lint & Security
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/**'
+      - 'Taskfile.yaml'
+      - '.github/workflows/k8s-lint-security.yaml'
+
+jobs:
+  lint:
+    name: Lint K8s Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          KUBECONFORM_VERSION="v0.6.7"
+          curl -L -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+          kubeconform -v
+
+      - name: Run kubeconform
+        run: |
+          kubeconform \
+            -summary \
+            -skip-kinds HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy \
+            -output text \
+            k8s/**/*.yaml
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'k8s/'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'

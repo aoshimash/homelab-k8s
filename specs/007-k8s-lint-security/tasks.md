@@ -97,9 +97,9 @@ This is a GitOps infrastructure repository:
 
 ### Implementation for User Story 4
 
-- [ ] T011 [P] [US4] Create workflow file with trigger configuration in `.github/workflows/k8s-lint-security.yaml`
-- [ ] T012 [US4] Add lint job with kubeconform installation and execution in `.github/workflows/k8s-lint-security.yaml`
-- [ ] T013 [US4] Add security job with trivy-action in `.github/workflows/k8s-lint-security.yaml`
+- [x] T011 [P] [US4] Create workflow file with trigger configuration in `.github/workflows/k8s-lint-security.yaml`
+- [x] T012 [US4] Add lint job with kubeconform installation and execution in `.github/workflows/k8s-lint-security.yaml`
+- [x] T013 [US4] Add security job with trivy-action in `.github/workflows/k8s-lint-security.yaml`
 - [ ] T014 [US4] Test workflow by creating a test PR
 
 **Checkpoint**: PRを作成するとGitHub Actionsでチェックが自動実行される
