@@ -82,8 +82,8 @@ This is a GitOps infrastructure repository:
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Implement `check` task that runs lint and security sequentially in `Taskfile.yaml`
-- [ ] T010 [US3] Test check task locally with `task check` command
+- [x] T009 [US3] Implement `check` task that runs lint and security sequentially in `Taskfile.yaml`
+- [x] T010 [US3] Test check task locally with `task check` command
 
 **Checkpoint**: `task check` が動作し、全チェックを一括実行できる
 

@@ -32,3 +32,9 @@ tasks:
         trivy config \
           --exit-code 0 \
           {{.K8S_DIR}}/
+
+  check:
+    desc: Run all checks (lint + security)
+    cmds:
+      - task: lint
+      - task: security
