@@ -4,7 +4,7 @@ metadata:
   name: cilium
   namespace: kube-system
   annotations:
-    rollback-test: "T018 validation - this annotation should be removed after revert"
+    migration-warning: "Values are provisional and must be verified against the running cluster (tasks T009/T010) before deployment to ensure zero-downtime migration"
 spec:
   interval: 10m0s
   chart:
@@ -16,6 +16,9 @@ spec:
         namespace: flux-system
       version: 1.18.5
   releaseName: cilium
+  # WARNING: These values are based on documentation and may not match the actual running cluster.
+  # Before deploying, T009 and T010 must be completed to capture and verify the current Helm release
+  # values from the running cluster to ensure zero-downtime migration.
   values:
     ipam:
       mode: kubernetes
