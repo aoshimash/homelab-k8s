@@ -5,3 +5,4 @@ resources:
   - configmap-record-script.yaml
   - secret-audiobookshelf-api.sops.yaml
   - cronjob-arco.yaml
+  - cronjob-ijuin.yaml

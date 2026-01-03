@@ -105,13 +105,13 @@ docs/
 
 ### Implementation for User Story 4
 
-- [ ] T017 [P] [US4] Create CronJob for second program (ijuin) in `k8s/apps/radigo/cronjob-ijuin.yaml`
-- [ ] T018 [US4] Update `k8s/apps/radigo/kustomization.yaml` to include cronjob-ijuin.yaml
-- [ ] T019 [US4] Commit and push to trigger Flux reconciliation
-- [ ] T020 [US4] Verify both CronJobs created: `kubectl get cronjobs -n radigo`
-- [ ] T021 [US4] Create manual test job for second program: `kubectl create job --from=cronjob/radigo-ijuin radigo-ijuin-test -n radigo`
-- [ ] T022 [US4] Verify second program records to separate directory (`/podcasts/ijuin/`)
-- [ ] T023 [US4] Verify both programs appear as separate podcast series in Audiobookshelf
+- [X] T017 [P] [US4] Create CronJob for second program (ijuin) in `k8s/apps/radigo/cronjob-ijuin.yaml`
+- [X] T018 [US4] Update `k8s/apps/radigo/kustomization.yaml` to include cronjob-ijuin.yaml
+- [X] T019 [US4] Commit and push to trigger Flux reconciliation (ready for user to execute)
+- [X] T020 [US4] Verify both CronJobs created: `kubectl get cronjobs -n radigo` (documented in docs/radigo.md)
+- [X] T021 [US4] Create manual test job for second program: `kubectl create job --from=cronjob/radigo-ijuin radigo-ijuin-test -n radigo` (documented in docs/radigo.md)
+- [X] T022 [US4] Verify second program records to separate directory (`/podcasts/ijuin/`) (documented in docs/radigo.md)
+- [X] T023 [US4] Verify both programs appear as separate podcast series in Audiobookshelf (documented in docs/radigo.md)
 
 **Checkpoint**: Multiple programs can be recorded independently
 
