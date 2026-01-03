@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: radigo-record-script
-  namespace: radigo
+  namespace: audiobookshelf
 data:
   record.sh: |
     #!/bin/bash
