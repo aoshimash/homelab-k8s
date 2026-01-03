@@ -32,15 +32,15 @@ spec:
                   topologyKey: kubernetes.io/hostname
           containers:
             - name: radigo
-              image: yyoshiki41/radigo:latest
+              image: ghcr.io/aoshimash/homelab-k8s/radigo:latest
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
                   drop:
                     - ALL
               command:
-                - /bin/bash
-                - /scripts/record.sh
+                - /bin/sh
+                - /scripts/entrypoint.sh
               env:
                 - name: STATION_ID
                   value: "LFR"
