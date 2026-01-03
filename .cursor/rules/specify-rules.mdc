@@ -16,6 +16,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 - YAML, Taskfile (go-task v3) + kubeconform, trivy, go-task (007-k8s-lint-security)
 - JSON5 (renovate.json5) + GitHub Renovate App (マネージド版) (008-renovate)
 - N/A (設定ファイルのみ) (008-renovate)
+- Shell script (bash) for orchestration, radigo (Go binary) for recording + radigo Docker image (`yyoshiki41/radigo`), curl, jq for API calls (009-radigo-scheduler)
+- Longhorn PVC (`audiobookshelf-podcasts`, 50Gi, ReadWriteOnce) (009-radigo-scheduler)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -35,9 +37,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 009-radigo-scheduler: Added Shell script (bash) for orchestration, radigo (Go binary) for recording + radigo Docker image (`yyoshiki41/radigo`), curl, jq for API calls
 - 008-renovate: Added JSON5 (renovate.json5) + GitHub Renovate App (マネージド版)
 - 007-k8s-lint-security: Added YAML, Taskfile (go-task v3) + kubeconform, trivy, go-task
-- 006-kube-metrics: Added YAML (Kubernetes manifests) + kube-state-metrics Helm chart (prometheus-community/kube-state-metrics v5.37.0), Grafana Alloy (existing)
 
 
 <!-- MANUAL ADDITIONS START -->
