@@ -6,3 +6,4 @@ resources:
   - tailscale/
   - grafana-alloy/
   - kube-state-metrics/
+  - metrics-server/
