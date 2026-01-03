@@ -37,10 +37,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create OAuth client in Tailscale Admin Console with scopes: `Devices Core` (write), `Auth Keys` (write), `Services` (write) and tags: `tag:k8s-operator`, `tag:k8s`
+- [x] T004 Create OAuth client in Tailscale Admin Console with scopes: `Devices Core` (write), `Auth Keys` (write), `Services` (write) and tags: `tag:k8s-operator`, `tag:k8s`
 - [x] T005 Create SOPS-encrypted OAuth secret in `k8s/infrastructure/tailscale/secret-oauth-credentials.sops.yaml`
 - [x] T006 [US4] Update Cilium HelmRelease with `socketLB.hostNamespaceOnly: true` in `k8s/infrastructure/cilium/helmrelease.yaml`
-- [ ] T007 Verify Cilium reconciliation succeeds after socketLB configuration change
+- [x] T007 Verify Cilium reconciliation succeeds after socketLB configuration change
 
 **Checkpoint**: Foundation ready - Tailscale Operator can now be deployed
 
@@ -59,9 +59,9 @@
 - [x] T008 [US2] Create HelmRelease for Tailscale Operator in `k8s/infrastructure/tailscale/helmrelease.yaml`
 - [x] T009 [US2] Create Kustomization entry point in `k8s/infrastructure/tailscale/kustomization.yaml`
 - [x] T010 [US2] Add tailscale to infrastructure kustomization in `k8s/infrastructure/kustomization.yaml`
-- [ ] T011 [US2] Commit and push changes to trigger Flux reconciliation
-- [ ] T012 [US2] Verify operator pod is running: `kubectl get pods -n tailscale`
-- [ ] T013 [US2] Verify operator registered in Tailscale Admin Console with `tag:k8s-operator`
+- [x] T011 [US2] Commit and push changes to trigger Flux reconciliation
+- [x] T012 [US2] Verify operator pod is running: `kubectl get pods -n tailscale`
+- [x] T013 [US2] Verify operator registered in Tailscale Admin Console with `tag:k8s-operator`
 
 **Checkpoint**: Tailscale Operator is deployed and registered in tailnet
 
@@ -77,8 +77,8 @@
 
 ### Verification for User Story 4
 
-- [ ] T014 [US4] Verify Cilium pods restarted and healthy after config change: `kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium`
-- [ ] T015 [US4] Verify socketLB configuration applied: `kubectl get configmap -n kube-system cilium-config -o yaml | grep socketLB`
+- [x] T014 [US4] Verify Cilium pods restarted and healthy after config change: `kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium`
+- [x] T015 [US4] Verify socketLB configuration applied: `kubectl get configmap -n kube-system cilium-config -o yaml | grep socketLB`
 
 **Checkpoint**: Cilium is configured for Tailscale compatibility
 
@@ -94,9 +94,9 @@
 
 - [x] T016 [US3] Create ProxyGroup manifest in `k8s/infrastructure/tailscale/proxygroup.yaml`
 - [x] T017 [US3] Add proxygroup.yaml to kustomization in `k8s/infrastructure/tailscale/kustomization.yaml`
-- [ ] T018 [US3] Commit and push changes to trigger Flux reconciliation
-- [ ] T019 [US3] Wait for ProxyGroup ready: `kubectl wait proxygroup ingress-proxies --for=condition=ProxyGroupReady=true -n tailscale --timeout=300s`
-- [ ] T020 [US3] Verify StatefulSet created with 1 replica: `kubectl get statefulset -n tailscale`
+- [x] T018 [US3] Commit and push changes to trigger Flux reconciliation
+- [x] T019 [US3] Wait for ProxyGroup ready: `kubectl wait proxygroup ingress-proxies --for=condition=ProxyGroupReady=true -n tailscale --timeout=300s`
+- [x] T020 [US3] Verify StatefulSet created with 1 replica: `kubectl get statefulset -n tailscale`
 
 **Checkpoint**: ProxyGroup is ready for Ingress resources
 
@@ -113,12 +113,12 @@
 - [x] T021 [US1] Create smoke test directory structure in `k8s/infrastructure/tailscale/smoke/`
 - [x] T022 [P] [US1] Create Ingress for Longhorn UI in `k8s/infrastructure/tailscale/smoke/ingress-longhorn.yaml`
 - [x] T023 [P] [US1] Create smoke test kustomization in `k8s/infrastructure/tailscale/smoke/kustomization.yaml`
-- [ ] T024 [US1] Enable smoke test in main kustomization by adding `smoke/` to `k8s/infrastructure/tailscale/kustomization.yaml`
-- [ ] T025 [US1] Commit and push changes to trigger Flux reconciliation
-- [ ] T026 [US1] Verify Ingress created: `kubectl get ingress -n longhorn-system longhorn-ui`
-- [ ] T027 [US1] Access Longhorn UI from tailnet device: `curl -I https://longhorn.<tailnet>.ts.net`
-- [ ] T028 [US1] Verify TLS certificate is valid and issued by Tailscale
-- [ ] T029 [US1] Verify service is NOT accessible from public internet
+- [x] T024 [US1] Enable smoke test in main kustomization by adding `smoke/` to `k8s/infrastructure/tailscale/kustomization.yaml`
+- [x] T025 [US1] Commit and push changes to trigger Flux reconciliation
+- [x] T026 [US1] Verify Ingress created: `kubectl get ingress -n longhorn-system longhorn-ui`
+- [x] T027 [US1] Access Longhorn UI from tailnet device: `curl -I https://longhorn.<tailnet>.ts.net`
+- [x] T028 [US1] Verify TLS certificate is valid and issued by Tailscale
+- [x] T029 [US1] Verify service is NOT accessible from public internet
 
 **Checkpoint**: Longhorn UI is accessible via Tailscale Ingress with TLS - MVP Complete!
 
@@ -128,10 +128,10 @@
 
 **Purpose**: Documentation and cleanup
 
-- [ ] T030 [P] Update docs with Tailscale Operator operational procedures
-- [ ] T031 [P] Disable smoke test resources (comment out in kustomization) if not needed permanently
-- [ ] T032 Run quickstart.md validation to ensure documentation matches implementation
-- [ ] T033 Final commit with all changes
+- [x] T030 [P] Update docs with Tailscale Operator operational procedures
+- [x] T031 [P] Disable smoke test resources (comment out in kustomization) if not needed permanently
+- [x] T032 Run quickstart.md validation to ensure documentation matches implementation
+- [x] T033 Final commit with all changes
 
 ---
 
