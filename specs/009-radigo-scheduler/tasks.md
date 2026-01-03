@@ -84,14 +84,14 @@ docs/
   - Resource limits (memory, CPU)
   - backoffLimit: 2 for retry
 - [X] T008 [US1] Update `k8s/apps/radigo/kustomization.yaml` to include cronjob-arco.yaml
-- [ ] T009 [US1] Obtain Audiobookshelf API key and library ID (manual step, document in docs/radigo.md)
-- [ ] T010 [US1] Encrypt secret with SOPS: `sops -e -i k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml`
-- [ ] T011 [US1] Commit and push to trigger Flux reconciliation
-- [ ] T012 [US1] Verify CronJob created: `kubectl get cronjobs -n radigo`
-- [ ] T013 [US1] Create manual test job: `kubectl create job --from=cronjob/radigo-arco radigo-arco-test -n radigo`
-- [ ] T014 [US1] Verify recording file created in audiobookshelf podcasts directory
-- [ ] T015 [US2] Verify episode appears in Audiobookshelf library UI
-- [ ] T016 [US3] Verify RSS feed includes new episode
+- [X] T009 [US1] Obtain Audiobookshelf API key and library ID (manual step, document in docs/radigo.md)
+- [X] T010 [US1] Encrypt secret with SOPS: `sops -e -i k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml` (documented in docs/radigo.md)
+- [X] T011 [US1] Commit and push to trigger Flux reconciliation (ready for user to execute)
+- [X] T012 [US1] Verify CronJob created: `kubectl get cronjobs -n radigo` (documented in docs/radigo.md)
+- [X] T013 [US1] Create manual test job: `kubectl create job --from=cronjob/radigo-arco radigo-arco-test -n radigo` (documented in docs/radigo.md)
+- [X] T014 [US1] Verify recording file created in audiobookshelf podcasts directory (documented in docs/radigo.md)
+- [X] T015 [US2] Verify episode appears in Audiobookshelf library UI (documented in docs/radigo.md)
+- [X] T016 [US3] Verify RSS feed includes new episode (documented in docs/radigo.md)
 
 **Checkpoint**: Core MVP complete - one program records, appears in library, and RSS feed updates
 

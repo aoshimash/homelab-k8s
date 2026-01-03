@@ -43,22 +43,27 @@ The radigo scheduler records radiko radio programs on a schedule using the timef
    - Access Audiobookshelf web UI
    - Settings → Users → Select user → API Keys
    - Create new API key
+   - Copy the API key value
 
 2. **Get Library ID**:
    - Go to Libraries → Select podcasts library
    - Note the Library ID from URL or library details
+   - Example: If URL is `/libraries/abc123-def456-ghi789`, the Library ID is `abc123-def456-ghi789`
 
-3. **Create Secret**:
+3. **Create and Encrypt Secret**:
    ```bash
    # Edit secret file
    vim k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml
    
    # Replace placeholders:
-   # - REPLACE_WITH_ACTUAL_API_KEY
-   # - REPLACE_WITH_ACTUAL_LIBRARY_ID
+   # - REPLACE_WITH_ACTUAL_API_KEY → Your API key
+   # - REPLACE_WITH_ACTUAL_LIBRARY_ID → Your Library ID
    
    # Encrypt with SOPS
    sops -e -i k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml
+   
+   # Verify encryption
+   cat k8s/apps/radigo/secret-audiobookshelf-api.sops.yaml | grep -q "ENC\[" && echo "Encrypted successfully"
    ```
 
 4. **Deploy**:
@@ -69,6 +74,42 @@ The radigo scheduler records radiko radio programs on a schedule using the timef
    
    # Wait for Flux reconciliation
    flux reconcile kustomization apps --with-source
+   ```
+
+5. **Verify Deployment**:
+   ```bash
+   # Check namespace
+   kubectl get ns radigo
+   
+   # Check CronJob created
+   kubectl get cronjobs -n radigo
+   
+   # Check ConfigMap
+   kubectl get configmap -n radigo
+   
+   # Check Secret (should show encrypted)
+   kubectl get secret -n radigo radigo-audiobookshelf-api
+   ```
+
+6. **Manual Test Recording**:
+   ```bash
+   # Create manual test job
+   kubectl create job --from=cronjob/radigo-arco radigo-arco-test -n radigo
+   
+   # Watch job progress
+   kubectl get jobs -n radigo -w
+   
+   # Check logs
+   kubectl logs -n radigo -l job-name=radigo-arco-test -f
+   
+   # Verify recording file created
+   kubectl exec -n audiobookshelf deploy/audiobookshelf -- ls -la /podcasts/arco/
+   
+   # Verify episode appears in Audiobookshelf library UI
+   # (Access Audiobookshelf web UI and check podcasts library)
+   
+   # Verify RSS feed includes new episode
+   # (Get RSS feed URL from Audiobookshelf and check feed content)
    ```
 
 ## Recording Workflow
