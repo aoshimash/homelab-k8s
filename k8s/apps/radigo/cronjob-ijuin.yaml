@@ -1,0 +1,96 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-ijuin
+  namespace: radigo
+spec:
+  schedule: "5 3 * * 1" # Monday 03:05 JST (5 minutes after Monday 27:00 broadcast end)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: radigo
+            program: ijuin
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 99
+            runAsGroup: 99
+            fsGroup: 99
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: audiobookshelf
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: radigo
+              image: yyoshiki41/radigo:latest
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              command:
+                - /bin/bash
+                - /scripts/record.sh
+              env:
+                - name: STATION_ID
+                  value: "TBS"
+                - name: DAY_OF_WEEK
+                  value: "1" # Monday
+                - name: START_TIME
+                  value: "01:00" # JST (25:00 in radiko notation)
+                - name: EXPECTED_TITLE
+                  value: "伊集院光"
+                - name: OUTPUT_DIR
+                  value: "/podcasts/ijuin"
+                - name: AUDIOBOOKSHELF_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: radigo-audiobookshelf-api
+                      key: api_key
+                - name: AUDIOBOOKSHELF_LIBRARY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: radigo-audiobookshelf-api
+                      key: library_id
+                - name: AUDIOBOOKSHELF_BASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: radigo-audiobookshelf-api
+                      key: base_url
+                - name: RADIGO_HOME
+                  value: "/output"
+              volumeMounts:
+                - name: podcasts
+                  mountPath: /podcasts
+                - name: output
+                  mountPath: /output
+                - name: record-script
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 512Mi
+          volumes:
+            - name: podcasts
+              persistentVolumeClaim:
+                claimName: audiobookshelf-podcasts
+            - name: output
+              emptyDir: {}
+            - name: record-script
+              configMap:
+                name: radigo-record-script
+                defaultMode: 0755
