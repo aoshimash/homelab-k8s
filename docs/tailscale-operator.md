@@ -17,16 +17,19 @@ Before deploying the operator, you must configure the following in the [Tailscal
 
 #### 1. Create ACL Tags
 
-Add the following tags to your ACL policy under **Access controls**:
+Add the following tags to your ACL policy under **Access controls** → `tagOwners`:
 
 ```json
 {
   "tagOwners": {
-    "tag:k8s-operator": ["autogroup:admin"],
+    "tag:k8s-operator": [],
     "tag:k8s": ["tag:k8s-operator"]
   }
 }
 ```
+
+- `tag:k8s-operator`: Tag for the operator itself (empty array means only the tailnet admin can assign it)
+- `tag:k8s`: Tag for proxy devices, owned by `tag:k8s-operator`
 
 #### 2. Create OAuth Client
 
@@ -59,42 +62,21 @@ This allows devices tagged with `tag:k8s-operator` to automatically advertise se
 
 > **Note**: Without this configuration, each new Ingress will create a Service in "Needs approval" state, requiring manual approval in the Tailscale Admin Console under **Services**.
 
-#### 4. Configure ACL Rules for Service Access
+### ACL Policy Changes Summary
 
-Add ACL rules to allow access to exposed services:
-
-```json
-{
-  "acls": [
-    {
-      "action": "accept",
-      "src": ["autogroup:member"],
-      "dst": ["tag:k8s-operator:443"]
-    }
-  ]
-}
-```
-
-### Complete ACL Policy Example
+Add the following to your existing ACL policy:
 
 ```json
 {
   "tagOwners": {
-    "tag:k8s-operator": ["autogroup:admin"],
+    "tag:k8s-operator": [],
     "tag:k8s": ["tag:k8s-operator"]
   },
   "autoApprovers": {
     "services": {
       "svc:*": ["tag:k8s-operator"]
     }
-  },
-  "acls": [
-    {
-      "action": "accept",
-      "src": ["autogroup:member"],
-      "dst": ["tag:k8s-operator:443"]
-    }
-  ]
+  }
 }
 ```
 
