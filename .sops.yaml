@@ -16,3 +16,9 @@ creation_rules:
     key_groups:
       - age:
           - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa
+  # Kubernetes secrets (GitOps) - for encryption (before .sops.yaml suffix)
+  - path_regex: k8s/.*secret.*\.yaml$
+    encrypted_regex: "^(data|stringData)$"
+    key_groups:
+      - age:
+          - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa

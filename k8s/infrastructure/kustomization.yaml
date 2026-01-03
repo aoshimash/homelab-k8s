@@ -4,3 +4,4 @@ resources:
   - cilium/
   - longhorn/
   - tailscale/
+  - grafana-alloy/

@@ -1,0 +1,172 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana-alloy
+  namespace: monitoring
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: alloy
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+      # Version not pinned - will use latest from repository
+      # Consider pinning version after initial deployment for stability
+  releaseName: grafana-alloy
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    controller:
+      type: daemonset
+    alloy:
+      configMap:
+        content: |-
+          // =============================================================================
+          // LOGGING
+          // =============================================================================
+          logging {
+            level  = "info"
+            format = "logfmt"
+          }
+
+          // =============================================================================
+          // DISCOVERY
+          // =============================================================================
+
+          // Discover Kubernetes nodes
+          discovery.kubernetes "nodes" {
+            role = "node"
+          }
+
+          // Discover Kubernetes pods
+          discovery.kubernetes "pods" {
+            role = "pod"
+          }
+
+          // =============================================================================
+          // METRICS COLLECTION
+          // =============================================================================
+
+          // Scrape kubelet metrics (node-level)
+          prometheus.scrape "kubelet" {
+            targets = discovery.kubernetes.nodes.targets
+            
+            job_name = "kubelet"
+            scheme   = "https"
+            
+            tls_config {
+              ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              insecure_skip_verify = true
+            }
+            bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+          }
+
+          // Scrape cadvisor metrics (container-level)
+          prometheus.scrape "cadvisor" {
+            targets = discovery.kubernetes.nodes.targets
+            
+            job_name     = "cadvisor"
+            scheme       = "https"
+            metrics_path = "/metrics/cadvisor"
+            
+            tls_config {
+              ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              insecure_skip_verify = true
+            }
+            bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+          }
+
+          // Add cluster label to all metrics
+          prometheus.relabel "add_cluster" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+            
+            rule {
+              target_label = "cluster"
+              replacement  = "homelab"
+            }
+          }
+
+          // Remote write to Grafana Cloud Prometheus
+          prometheus.remote_write "grafana_cloud" {
+            endpoint {
+              url = env("GRAFANA_CLOUD_PROMETHEUS_URL")
+              
+              basic_auth {
+                username = env("GRAFANA_CLOUD_USER")
+                password = env("GRAFANA_CLOUD_API_KEY")
+              }
+            }
+            
+            external_labels = {
+              cluster = "homelab",
+            }
+          }
+
+          // =============================================================================
+          // LOG COLLECTION
+          // =============================================================================
+
+          // Collect logs from all pods
+          loki.source.kubernetes "pods" {
+            targets    = discovery.kubernetes.pods.targets
+            forward_to = [loki.process.add_labels.receiver]
+          }
+
+          // Process and add labels
+          loki.process "add_labels" {
+            forward_to = [loki.write.grafana_cloud.receiver]
+            
+            stage.static_labels {
+              values = {
+                cluster = "homelab",
+              }
+            }
+          }
+
+          // Write logs to Grafana Cloud Loki
+          loki.write "grafana_cloud" {
+            endpoint {
+              url = env("GRAFANA_CLOUD_LOKI_URL")
+              
+              basic_auth {
+                username = env("GRAFANA_CLOUD_USER")
+                password = env("GRAFANA_CLOUD_API_KEY")
+              }
+            }
+            
+            external_labels = {
+              cluster = "homelab",
+            }
+          }
+      extraEnv:
+        - name: GRAFANA_CLOUD_PROMETHEUS_URL
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_PROMETHEUS_URL
+        - name: GRAFANA_CLOUD_LOKI_URL
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_LOKI_URL
+        - name: GRAFANA_CLOUD_USER
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_USER
+        - name: GRAFANA_CLOUD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_API_KEY
