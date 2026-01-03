@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+
+  // PR limits
+  "prConcurrentLimit": 10,
+  "separateMajorMinor": true,
+  "separateMultipleMajor": true,
+  "automerge": false,
+
+  // Exclude paths
+  "ignorePaths": [
+    "**/*.sops.yaml",
+    ".sops.yaml",
+    "k8s/flux/flux-system/gotk-components.yaml"
+  ],
+
+  // Flux HelmRelease targets
+  "flux": {
+    "fileMatch": ["k8s/infrastructure/.+\\.yaml$"]
+  },
+
+  // PR labels
+  "labels": ["dependencies", "renovate"]
+}
