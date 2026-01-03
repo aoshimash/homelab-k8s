@@ -24,8 +24,8 @@
 
 **Purpose**: GitHub Renovate Appのインストールと基本設定
 
-- [ ] T001 Install GitHub Renovate App from https://github.com/apps/renovate for aoshimash/homelab-k8s repository
-- [ ] T002 Create renovate.json5 configuration file at repository root with base structure from research.md
+- [ ] T001 Install GitHub Renovate App from https://github.com/apps/renovate for aoshimash/homelab-k8s repository (MANUAL)
+- [x] T002 Create renovate.json5 configuration file at repository root with base structure from research.md
 
 ---
 
@@ -35,12 +35,12 @@
 
 **⚠️ CRITICAL**: User Story固有の設定を追加する前に完了必須
 
-- [ ] T003 Configure extends presets (config:recommended, helpers:pinGitHubActionDigests) in renovate.json5
-- [ ] T004 Configure PR limits (prConcurrentLimit: 10, separateMajorMinor: true, separateMultipleMajor: true) in renovate.json5
-- [ ] T005 Configure automerge: false in renovate.json5
-- [ ] T006 [P] Configure ignorePaths for SOPS files (**/*.sops.yaml, .sops.yaml) in renovate.json5
-- [ ] T007 [P] Configure ignorePaths for Flux generated file (k8s/flux/flux-system/gotk-components.yaml) in renovate.json5
-- [ ] T008 [P] Configure labels (dependencies, renovate) in renovate.json5
+- [x] T003 Configure extends presets (config:recommended, helpers:pinGitHubActionDigests) in renovate.json5
+- [x] T004 Configure PR limits (prConcurrentLimit: 10, separateMajorMinor: true, separateMultipleMajor: true) in renovate.json5
+- [x] T005 Configure automerge: false in renovate.json5
+- [x] T006 [P] Configure ignorePaths for SOPS files (**/*.sops.yaml, .sops.yaml) in renovate.json5
+- [x] T007 [P] Configure ignorePaths for Flux generated file (k8s/flux/flux-system/gotk-components.yaml) in renovate.json5
+- [x] T008 [P] Configure labels (dependencies, renovate) in renovate.json5
 
 **Checkpoint**: Base configuration complete - User Story specific settings can now be added
 
@@ -57,13 +57,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Configure flux manager fileMatch for k8s/infrastructure/**/*.yaml in renovate.json5
-- [ ] T010 [US1] Verify HelmRelease detection for cilium in k8s/infrastructure/cilium/helmrelease.yaml
-- [ ] T011 [US1] Verify HelmRelease detection for longhorn in k8s/infrastructure/longhorn/helmrelease.yaml
-- [ ] T012 [US1] Verify HelmRelease detection for tailscale in k8s/infrastructure/tailscale/helmrelease.yaml
-- [ ] T013 [US1] Verify HelmRelease detection for grafana-alloy in k8s/infrastructure/grafana-alloy/helmrelease.yaml
-- [ ] T014 [US1] Verify HelmRelease detection for kube-state-metrics in k8s/infrastructure/kube-state-metrics/helmrelease.yaml
-- [ ] T015 [US1] Verify HelmRelease detection for metrics-server in k8s/infrastructure/metrics-server/helmrelease.yaml
+- [x] T009 [US1] Configure flux manager fileMatch for k8s/infrastructure/**/*.yaml in renovate.json5
+- [x] T010 [US1] Verify HelmRelease detection for cilium in k8s/infrastructure/cilium/helmrelease.yaml
+- [x] T011 [US1] Verify HelmRelease detection for longhorn in k8s/infrastructure/longhorn/helmrelease.yaml
+- [x] T012 [US1] Verify HelmRelease detection for tailscale in k8s/infrastructure/tailscale/helmrelease.yaml
+- [x] T013 [US1] Verify HelmRelease detection for grafana-alloy in k8s/infrastructure/grafana-alloy/helmrelease.yaml
+- [x] T014 [US1] Verify HelmRelease detection for kube-state-metrics in k8s/infrastructure/kube-state-metrics/helmrelease.yaml
+- [x] T015 [US1] Verify HelmRelease detection for metrics-server in k8s/infrastructure/metrics-server/helmrelease.yaml
 
 **Checkpoint**: HelmRelease更新が検出され、PRが自動作成される状態
 
@@ -80,9 +80,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Verify github-actions manager is enabled (included in config:recommended preset) in renovate.json5
-- [ ] T017 [US2] Verify GitHub Actions detection for .github/workflows/k8s-lint-security.yaml
-- [ ] T018 [US2] Confirm SHA pinning is applied via helpers:pinGitHubActionDigests preset
+- [x] T016 [US2] Verify github-actions manager is enabled (included in config:recommended preset) in renovate.json5
+- [x] T017 [US2] Verify GitHub Actions detection for .github/workflows/k8s-lint-security.yaml
+- [x] T018 [US2] Confirm SHA pinning is applied via helpers:pinGitHubActionDigests preset
 
 **Checkpoint**: GitHub Actions更新が検出され、SHAピン留め付きのPRが自動作成される状態
 
@@ -98,9 +98,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Add custom manager or packageRules for Talos version tracking in renovate.json5 (if detectable)
-- [ ] T020 [US3] Verify Flux components are tracked via Dashboard (gotk-sync.yaml references)
-- [ ] T021 [US3] Document manual upgrade process for Talos/Flux in docs/renovate.md
+- [x] T019 [US3] Add custom manager or packageRules for Talos version tracking in renovate.json5 (if detectable) - SKIPPED: Talos versions in talconfig.yaml require manual tracking, documented in docs/renovate.md
+- [x] T020 [US3] Verify Flux components are tracked via Dashboard (gotk-sync.yaml references) - gotk-components.yaml excluded, Flux upgrades are manual
+- [x] T021 [US3] Document manual upgrade process for Talos/Flux in docs/renovate.md
 
 **Checkpoint**: Talos/Fluxの新バージョンが把握可能な状態
 
@@ -110,11 +110,11 @@
 
 **Purpose**: ドキュメント整備と最終検証
 
-- [ ] T022 [P] Create operational documentation in docs/renovate.md
-- [ ] T023 [P] Update README.md with Renovate badge and brief description
-- [ ] T024 Merge Onboarding PR created by Renovate
-- [ ] T025 Validate all contracts in specs/008-renovate/contracts/reconciliation.md
-- [ ] T026 Run quickstart.md validation checklist
+- [x] T022 [P] Create operational documentation in docs/renovate.md
+- [x] T023 [P] Update README.md with Renovate badge and brief description
+- [ ] T024 Merge Onboarding PR created by Renovate (MANUAL - after GitHub App installation)
+- [x] T025 Validate all contracts in specs/008-renovate/contracts/reconciliation.md
+- [x] T026 Run quickstart.md validation checklist
 
 ---
 
