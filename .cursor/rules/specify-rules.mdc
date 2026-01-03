@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 - N/A (Alloy is stateless; data buffered in-memory during network issues) (004-grafana-alloy)
 - YAML (Kubernetes manifests) + Flux CD, Kustomize, Tailscale Operator, Longhorn (005-audiobookshelf-podcast)
 - Longhorn PersistentVolumeClaims (50Gi for podcasts, 1Gi for config/metadata) (005-audiobookshelf-podcast)
+- YAML (Kubernetes manifests) + kube-state-metrics Helm chart (prometheus-community/kube-state-metrics v5.37.0), Grafana Alloy (existing) (006-kube-metrics)
+- N/A (stateless metrics generator) (006-kube-metrics)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -30,9 +32,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 006-kube-metrics: Added YAML (Kubernetes manifests) + kube-state-metrics Helm chart (prometheus-community/kube-state-metrics v5.37.0), Grafana Alloy (existing)
 - 005-audiobookshelf-podcast: Added YAML (Kubernetes manifests) + Flux CD, Kustomize, Tailscale Operator, Longhorn
 - 004-grafana-alloy: Added YAML (Kubernetes manifests), Helm charts, River configuration (Grafana Alloy config language) + Flux CD, Grafana Alloy Helm chart, SOPS + age
-- 003-tailscale-k8s-operator: Added YAML (Kubernetes manifests), Helm charts + Flux CD, Tailscale Operator Helm chart, Cilium CNI
 
 
 <!-- MANUAL ADDITIONS START -->

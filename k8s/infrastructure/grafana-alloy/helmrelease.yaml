@@ -50,6 +50,18 @@ spec:
             role = "pod"
           }
 
+          // Discover kube-state-metrics service
+          discovery.kubernetes "kube_state_metrics" {
+            role = "service"
+            namespaces {
+              names = ["monitoring"]
+            }
+            selectors {
+              role = "service"
+              label = "app.kubernetes.io/name=kube-state-metrics"
+            }
+          }
+
           // =============================================================================
           // METRICS COLLECTION
           // =============================================================================
@@ -84,6 +96,13 @@ spec:
             }
             bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
             
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+          }
+
+          // Scrape kube-state-metrics
+          prometheus.scrape "kube_state_metrics" {
+            targets    = discovery.kubernetes.kube_state_metrics.targets
+            job_name   = "kube-state-metrics"
             forward_to = [prometheus.relabel.add_cluster.receiver]
           }
 
