@@ -30,6 +30,9 @@ spec:
       # NOTE: Replace placeholders before relying on backups.
       backupTarget: s3://homelab-longhorn-backups@auto/longhorn/
       backupTargetCredentialSecret: longhorn-r2-credentials
+    # StorageClass settings for single-node cluster.
+    persistence:
+      defaultClassReplicaCount: 1
     # Default recurring jobs applied by Longhorn.
     # NOTE: Validate the exact behavior in your Longhorn version/UI (e.g., group assignment).
     defaultRecurringJobs:
