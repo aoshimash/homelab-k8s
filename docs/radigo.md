@@ -186,10 +186,30 @@ This is expected behavior when:
 - Special broadcast replaces regular program
 - Program schedule changed
 
+**Title Validation**:
+The recording script validates the program title before recording. If the actual title doesn't contain the expected pattern, recording is skipped and logged.
+
 Check logs:
 ```bash
 kubectl logs -n radigo job/<job-name> | grep -i title
 ```
+
+**Testing Title Validation**:
+To test title validation, temporarily modify the `EXPECTED_TITLE` environment variable in a test job:
+```bash
+# Create test job with modified expected title
+kubectl create job radigo-arco-title-test -n radigo \
+  --from=cronjob/radigo-arco \
+  --dry-run=client -o yaml | \
+  sed 's/オードリーのオールナイトニッポン/テスト用タイトル/' | \
+  kubectl apply -f -
+
+# Check logs - should show title mismatch and skip
+kubectl logs -n radigo job/radigo-arco-title-test | grep -i "title\|skip"
+```
+
+**Restore Configuration**:
+After testing, ensure the CronJob has the correct `EXPECTED_TITLE` value.
 
 ### Pod Stuck in Pending
 
@@ -202,10 +222,25 @@ Ensure audiobookshelf pod is running (required for RWO PVC sharing).
 
 ### Manual Retry
 
-If recording failed, create manual job:
+**Automatic Retry**:
+CronJobs are configured with `backoffLimit: 2`, which means Kubernetes will automatically retry failed jobs up to 2 times.
+
+**Manual Retry**:
+If automatic retries are exhausted, create manual job:
 ```bash
 kubectl create job --from=cronjob/radigo-arco radigo-arco-retry-$(date +%s) -n radigo
 ```
+
+**Retry Procedure**:
+1. Check why the job failed:
+   ```bash
+   kubectl logs -n radigo job/<failed-job-name>
+   kubectl describe job -n radigo <failed-job-name>
+   ```
+
+2. If it's a transient error (network, API timeout), retry is safe
+3. If it's a configuration error, fix the issue first
+4. Timefree recordings are available for 1 week, so manual retry is possible within that window
 
 ## Monitoring
 

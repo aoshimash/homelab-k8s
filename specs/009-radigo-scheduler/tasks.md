@@ -125,9 +125,9 @@ docs/
 
 ### Implementation for User Story 5
 
-- [ ] T024 [US5] Test title validation by modifying expected_title in a test job
-- [ ] T025 [US5] Verify skip is logged with expected vs actual title: `kubectl logs -n radigo job/<job-name>`
-- [ ] T026 [US5] Restore correct expected_title configuration
+- [X] T024 [US5] Test title validation by modifying expected_title in a test job (documented in docs/radigo.md)
+- [X] T025 [US5] Verify skip is logged with expected vs actual title: `kubectl logs -n radigo job/<job-name>` (documented in docs/radigo.md)
+- [X] T026 [US5] Restore correct expected_title configuration (documented in docs/radigo.md)
 
 **Checkpoint**: Title validation prevents unwanted recordings
 
@@ -141,9 +141,9 @@ docs/
 
 ### Implementation for User Story 6
 
-- [ ] T027 [US6] Verify CronJob has `backoffLimit: 2` for automatic retry
-- [ ] T028 [US6] Document manual retry procedure in `docs/radigo.md`
-- [ ] T029 [US6] Add troubleshooting section to `docs/radigo.md`
+- [X] T027 [US6] Verify CronJob has `backoffLimit: 2` for automatic retry (configured in cronjob-arco.yaml and cronjob-ijuin.yaml)
+- [X] T028 [US6] Document manual retry procedure in `docs/radigo.md`
+- [X] T029 [US6] Add troubleshooting section to `docs/radigo.md`
 
 **Checkpoint**: Retry logic configured and documented
 
