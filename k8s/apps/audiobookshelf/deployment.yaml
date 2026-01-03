@@ -13,6 +13,11 @@ spec:
       labels:
         app: audiobookshelf
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 99
+        runAsGroup: 99
+        fsGroup: 99
       containers:
         - name: audiobookshelf
           image: ghcr.io/advplyr/audiobookshelf:latest
@@ -23,6 +28,11 @@ spec:
               value: "99"
             - name: AUDIOBOOKSHELF_GID
               value: "99"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: config
               mountPath: /config
