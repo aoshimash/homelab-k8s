@@ -5,3 +5,4 @@ resources:
   - longhorn/
   - tailscale/
   - grafana-alloy/
+  - kube-state-metrics/
