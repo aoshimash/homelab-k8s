@@ -145,7 +145,11 @@ metadata:
 
 ## Cilium Compatibility
 
-When running Cilium in kube-proxy replacement mode, configure `socketLB.hostNamespaceOnly: true` to ensure Tailscale proxies can correctly route traffic:
+When running Cilium in kube-proxy replacement mode, there are two important configurations needed to ensure Tailscale proxies work correctly.
+
+### Socket LB Bypass
+
+Configure `socketLB.hostNamespaceOnly: true` to ensure Tailscale proxies can correctly route traffic:
 
 ```yaml
 # In Cilium HelmRelease values
@@ -153,11 +157,54 @@ socketLB:
   hostNamespaceOnly: true
 ```
 
-After applying this change, restart Cilium pods:
+This is required because when Cilium runs in kube-proxy replacement mode with socket load balancing enabled in Pods' namespaces, connections from Pods to ClusterIPs go over a TCP socket (instead of going out via Pods' veth devices) and thus bypass Tailscale firewall rules.
+
+### MTU Configuration (Critical for Performance)
+
+**Problem**: When Tailscale is installed on the node (e.g., via Talos extension), it creates a `tailscale0` interface with MTU 1280. Cilium auto-detects MTU from all network interfaces and may use the lowest MTU (1280), which severely degrades bandwidth performance.
+
+**Symptoms**:
+- Download speeds are significantly slower than expected
+- Upload speeds may be normal (asymmetric performance)
+- `cilium-dbg status --verbose` shows "MTU updated (1280)"
+
+**Diagnosis**:
+```bash
+# Check current MTU in Cilium
+kubectl exec -n kube-system ds/cilium -- cilium-dbg status --verbose | grep -i mtu
+
+# Check interface MTUs
+kubectl exec -n kube-system ds/cilium -- ip link show tailscale0 | grep mtu
+kubectl exec -n kube-system ds/cilium -- ip link show enp1s0f1 | grep mtu  # physical interface
+```
+
+**Solution**: Explicitly set the MTU in Cilium configuration to prevent using `tailscale0`'s low MTU:
+
+```yaml
+# In Cilium HelmRelease values
+mtu: 1450  # Use physical interface MTU minus overhead (1500 - 50 for VXLAN)
+```
+
+> **Note**: The MTU value of 1450 accounts for VXLAN encapsulation overhead. If using a different tunnel mode, adjust accordingly.
+
+### Complete Cilium Configuration for Tailscale
+
+```yaml
+# In Cilium HelmRelease values
+socketLB:
+  hostNamespaceOnly: true
+mtu: 1450
+```
+
+After applying these changes, restart Cilium pods:
 
 ```bash
 kubectl rollout restart daemonset/cilium -n kube-system
 ```
+
+### References
+
+- [Tailscale KB: Cilium in kube-proxy replacement mode](https://tailscale.com/kb/1236/kubernetes-operator#cilium-in-kube-proxy-replacement-mode)
 
 ## Creating an Ingress
 
@@ -265,6 +312,32 @@ kubectl logs -n tailscale ingress-proxies-0
 **Symptom**: `InvalidIngressBackend` or `NoValidBackends` warnings
 
 **Solution**: Use the correct Ingress format with `defaultBackend` and `tls.hosts` instead of `rules.host`.
+
+### Slow Download Speeds via Tailscale Ingress
+
+**Symptom**: 
+- Downloads are extremely slow (10-50x slower than expected)
+- Uploads are relatively normal
+- Direct ping latency is low (e.g., 3ms for LAN connections)
+- `kubectl port-forward` shows normal speeds
+
+**Diagnosis**:
+```bash
+# Compare Tailscale Ingress vs direct port-forward
+# Via Tailscale (slow)
+curl -o /dev/null -w "time: %{time_total}s\n" https://myservice.tailnet.ts.net/healthcheck
+
+# Via port-forward (should be faster)
+kubectl port-forward svc/myservice 8080:80 &
+curl -o /dev/null -w "time: %{time_total}s\n" http://localhost:8080/healthcheck
+
+# Check Cilium MTU
+kubectl exec -n kube-system ds/cilium -- cilium-dbg status --verbose | grep -i mtu
+```
+
+**Cause**: Cilium is using `tailscale0` interface's MTU (1280) instead of the physical interface MTU (1500).
+
+**Solution**: See [MTU Configuration](#mtu-configuration-critical-for-performance) in the Cilium Compatibility section.
 
 ## References
 
