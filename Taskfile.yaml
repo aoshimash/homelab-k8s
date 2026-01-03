@@ -1,0 +1,56 @@
+version: '3'
+
+vars:
+  K8S_DIR: k8s
+  # CRDs that don't have official Kubernetes schemas
+  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy
+
+tasks:
+  lint:
+    desc: Validate K8s manifests using kubeconform
+    cmds:
+      - |
+        kubeconform \
+          -summary \
+          -skip {{.SKIP_KINDS}} \
+          -output text \
+          {{.K8S_DIR}}/**/*.yaml
+
+  security:
+    desc: Run Trivy security scan on K8s manifests (misconfig + secrets)
+    cmds:
+      - |
+        trivy config \
+          --config trivy.yaml \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --skip-files flux/flux-system/gotk-components.yaml \
+          {{.K8S_DIR}}/
+      - |
+        trivy fs \
+          --config trivy.yaml \
+          --scanners secret \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --skip-files flux/flux-system/gotk-components.yaml \
+          {{.K8S_DIR}}/
+
+  security:all:
+    desc: Run Trivy security scan showing all severities (informational)
+    cmds:
+      - |
+        trivy config \
+          --exit-code 0 \
+          {{.K8S_DIR}}/
+      - |
+        trivy fs \
+          --config trivy.yaml \
+          --scanners secret \
+          --exit-code 0 \
+          {{.K8S_DIR}}/
+
+  check:
+    desc: Run all checks (lint + security)
+    cmds:
+      - task: lint
+      - task: security

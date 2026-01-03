@@ -13,8 +13,14 @@ spec:
       labels:
         app: audiobookshelf
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 99
+        runAsGroup: 99
+        fsGroup: 99
       containers:
         - name: audiobookshelf
+          # trivy:ignore:AVD-KSV-0014 - audiobookshelf needs to write config and podcasts to mounted volumes
           image: ghcr.io/advplyr/audiobookshelf:latest
           ports:
             - containerPort: 80
@@ -23,6 +29,11 @@ spec:
               value: "99"
             - name: AUDIOBOOKSHELF_GID
               value: "99"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: config
               mountPath: /config

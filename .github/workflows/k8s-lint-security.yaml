@@ -1,0 +1,64 @@
+name: K8s Lint & Security
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/**'
+      - 'Taskfile.yaml'
+      - '.github/workflows/k8s-lint-security.yaml'
+      - 'trivy.yaml'
+      - 'trivy-secret.yaml'
+
+jobs:
+  lint:
+    name: Lint K8s Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          KUBECONFORM_VERSION="v0.6.7"
+          curl -L -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+          kubeconform -v
+
+      - name: Run kubeconform
+        run: |
+          kubeconform \
+            -summary \
+            -skip HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy \
+            -output text \
+            k8s/**/*.yaml
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan (misconfig)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'k8s/'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+          skip-files: 'flux/flux-system/gotk-components.yaml'
+
+      - name: Run Trivy filesystem scan (secrets)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'k8s/'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          format: 'table'
+          skip-files: 'flux/flux-system/gotk-components.yaml'
+          trivy-config: 'trivy.yaml'
+          scanners: 'secret'
