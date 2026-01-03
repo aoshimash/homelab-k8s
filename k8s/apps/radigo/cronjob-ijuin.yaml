@@ -18,6 +18,11 @@ spec:
             program: ijuin
         spec:
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 99
+            runAsGroup: 99
+            fsGroup: 99
           affinity:
             podAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -28,6 +33,11 @@ spec:
           containers:
             - name: radigo
               image: yyoshiki41/radigo:latest
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
               command:
                 - /bin/bash
                 - /scripts/record.sh
