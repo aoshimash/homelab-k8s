@@ -34,9 +34,9 @@ docs/
 
 **Purpose**: Create radigo namespace and base configuration
 
-- [ ] T001 Create namespace manifest in `k8s/apps/radigo/namespace.yaml`
-- [ ] T002 Create Kustomize configuration in `k8s/apps/radigo/kustomization.yaml`
-- [ ] T003 Update `k8s/apps/kustomization.yaml` to include radigo directory
+- [X] T001 Create namespace manifest in `k8s/apps/radigo/namespace.yaml`
+- [X] T002 Create Kustomize configuration in `k8s/apps/radigo/kustomization.yaml`
+- [X] T003 Update `k8s/apps/kustomization.yaml` to include radigo directory
 
 ---
 
