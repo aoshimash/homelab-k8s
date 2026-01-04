@@ -1,16 +1,15 @@
-# Job template for updating podcast episode metadata
-# This job is triggered manually via kubectl create job --from=cronjob/...
+# CronJob template for updating podcast episode metadata
+# Schedule is overridden by program overlays
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: radigo-metadata
   namespace: audiobookshelf
 spec:
-  # This CronJob is not intended to run on schedule
-  # It serves as a template for manual job creation
-  schedule: "0 0 31 2 *" # Feb 31 - never runs
-  suspend: true
+  schedule: "0 0 * * *" # Override in program overlay
   concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
       backoffLimit: 1

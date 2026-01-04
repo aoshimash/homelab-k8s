@@ -1,12 +1,14 @@
 # Program-specific configuration for アルコ＆ピース D.C.GARAGE metadata
 # Podcast ID: 51491db5-5ba8-4e63-9f79-55d3c4257209
 # Broadcast: Tuesday 25:00 (BROADCAST_DOW=2=Tuesday)
+# Recording schedule: Wednesday 01:05 JST (radigo-recorder-arco)
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: radigo-metadata
   namespace: audiobookshelf
 spec:
+  schedule: "15 1 * * 3" # Wednesday 01:15 JST (10min after recorder)
   jobTemplate:
     spec:
       template:
