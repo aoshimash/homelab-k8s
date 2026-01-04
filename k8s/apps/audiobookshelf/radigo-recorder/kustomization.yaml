@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - configmap-record-script.yaml
   # Program overlays (add new programs here)
+  - programs/arco
   - programs/audrey
   - programs/ijuin

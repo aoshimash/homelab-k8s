@@ -1,0 +1,22 @@
+# Program-specific configuration for 有吉弘行のSUNDAY NIGHT DREAMER metadata
+# Podcast ID: 434221f7-db1c-422d-9860-78d9193d8e45
+# Broadcast: Sunday 25:00 (BROADCAST_DOW=0=Sunday)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-metadata
+  namespace: audiobookshelf
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: metadata-updater
+              env:
+                - name: PODCAST_ID
+                  value: "434221f7-db1c-422d-9860-78d9193d8e45"
+                - name: PODCAST_DIR
+                  value: "/podcasts/ariyoshi"
+                - name: BROADCAST_DOW
+                  value: "0" # Sunday (title should be Sunday's date)
