@@ -36,8 +36,8 @@ spec:
     persistence:
       defaultClassReplicaCount: 1
       # Apply backup-daily recurring job to volumes using default StorageClass.
+      # Note: Using JSON string format to work around Helm chart bug that
+      # outputs Go map format instead of valid JSON
       recurringJobSelector:
         enable: true
-        jobList:
-          - name: backup-daily
-            isGroup: false
+        jobList: '[{"name":"backup-daily","isGroup":false}]'
