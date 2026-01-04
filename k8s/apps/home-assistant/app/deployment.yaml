@@ -5,6 +5,9 @@ metadata:
   namespace: home-assistant
 spec:
   replicas: 1
+  # Use Recreate strategy to avoid port conflicts with hostNetwork
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: home-assistant
