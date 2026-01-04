@@ -4,7 +4,7 @@ metadata:
   name: radigo-ijuin
   namespace: audiobookshelf
 spec:
-  schedule: "5 3 * * 1" # Monday 03:05 JST (5 minutes after Monday 27:00 broadcast end)
+  schedule: "5 3 * * 2" # Tuesday 03:05 JST (5 minutes after Tuesday 27:00 broadcast end)
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -47,7 +47,7 @@ spec:
                 - name: STATION_ID
                   value: "TBS"
                 - name: DAY_OF_WEEK
-                  value: "1" # Monday
+                  value: "2" # Tuesday
                 - name: START_TIME
                   value: "01:00" # JST (25:00 in radiko notation)
                 - name: EXPECTED_TITLE
