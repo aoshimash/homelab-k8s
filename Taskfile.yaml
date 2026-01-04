@@ -66,8 +66,8 @@ tasks:
     cmds:
       - |
         if [ -z "{{.PROGRAM}}" ]; then
-          echo "Error: PROGRAM is required. Usage: task radigo:update-metadata PROGRAM=audry"
-          echo "Available programs: audry, ijuin"
+          echo "Error: PROGRAM is required. Usage: task radigo:update-metadata PROGRAM=audrey"
+          echo "Available programs: audrey, ijuin"
           exit 1
         fi
         kubectl create job radigo-metadata-{{.PROGRAM}}-{{.TIMESTAMP}} \
