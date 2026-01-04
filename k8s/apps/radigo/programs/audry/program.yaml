@@ -1,0 +1,27 @@
+# Program-specific configuration for オードリーのオールナイトニッポン
+# Broadcast: Saturday 25:00-27:00 (Sunday 01:00-03:00 JST)
+# Station: LFR (NIPPON BROADCASTING SYSTEM)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo
+  namespace: audiobookshelf
+spec:
+  schedule: "5 3 * * 0" # Sunday 03:05 JST (after Saturday 27:00 broadcast end)
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: radigo
+              env:
+                - name: STATION_ID
+                  value: "LFR"
+                - name: DAY_OF_WEEK
+                  value: "0" # Sunday (broadcast day in calendar)
+                - name: START_TIME
+                  value: "01:00" # JST (25:00 in radiko notation)
+                - name: EXPECTED_TITLE
+                  value: "オードリー"
+                - name: OUTPUT_DIR
+                  value: "/podcasts/audry"

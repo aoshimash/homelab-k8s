@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: radigo-ijuin
+  name: radigo
   namespace: audiobookshelf
 spec:
-  schedule: "5 3 * * 2" # Tuesday 03:05 JST (5 minutes after Tuesday 27:00 broadcast end)
+  schedule: "0 0 * * *" # Override in program overlay
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -15,7 +15,6 @@ spec:
         metadata:
           labels:
             app: radigo
-            program: ijuin
         spec:
           imagePullSecrets:
             - name: ghcr-secret
@@ -44,16 +43,18 @@ spec:
                 - /bin/sh
                 - /scripts/entrypoint.sh
               env:
+                # Program-specific env vars (override in program overlay)
                 - name: STATION_ID
-                  value: "TBS"
+                  value: "PLACEHOLDER"
                 - name: DAY_OF_WEEK
-                  value: "2" # Tuesday
+                  value: "0"
                 - name: START_TIME
-                  value: "01:00" # JST (25:00 in radiko notation)
+                  value: "00:00"
                 - name: EXPECTED_TITLE
-                  value: "伊集院光"
+                  value: "PLACEHOLDER"
                 - name: OUTPUT_DIR
-                  value: "/podcasts/ijuin"
+                  value: "/podcasts/PLACEHOLDER"
+                # Shared env vars from secrets
                 - name: AUDIOBOOKSHELF_API_KEY
                   valueFrom:
                     secretKeyRef:
