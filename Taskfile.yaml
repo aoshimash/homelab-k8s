@@ -25,7 +25,8 @@ tasks:
           --exit-code 1 \
           --severity HIGH,CRITICAL \
           --skip-files flux/flux-system/gotk-components.yaml \
-          --skip-dirs apps/radigo/programs \
+          --skip-dirs apps/radigo/recording/programs \
+          --skip-dirs apps/radigo/metadata/programs \
           {{.K8S_DIR}}/
       - |
         trivy fs \
@@ -55,3 +56,23 @@ tasks:
     cmds:
       - task: lint
       - task: security
+
+  radigo:update-metadata:
+    desc: Update podcast episode metadata from filenames
+    vars:
+      PROGRAM: '{{.PROGRAM | default ""}}'
+      TIMESTAMP:
+        sh: date +%s
+    cmds:
+      - |
+        if [ -z "{{.PROGRAM}}" ]; then
+          echo "Error: PROGRAM is required. Usage: task radigo:update-metadata PROGRAM=audry"
+          echo "Available programs: audry, ijuin"
+          exit 1
+        fi
+        kubectl create job radigo-metadata-{{.PROGRAM}}-{{.TIMESTAMP}} \
+          --from=cronjob/{{.PROGRAM}}-radigo-metadata \
+          -n audiobookshelf
+        echo "Job created: radigo-metadata-{{.PROGRAM}}-{{.TIMESTAMP}}"
+        echo "Check status: kubectl get jobs -n audiobookshelf -l program={{.PROGRAM}}"
+        echo "View logs: kubectl logs -n audiobookshelf -l job-name=radigo-metadata-{{.PROGRAM}}-{{.TIMESTAMP}}"

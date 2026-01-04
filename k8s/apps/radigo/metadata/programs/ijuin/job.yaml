@@ -1,0 +1,22 @@
+# Program-specific configuration for 伊集院光 深夜の馬鹿力 metadata
+# Podcast ID: 0fc23d6d-d122-4b37-ad44-98c01981efcb
+# Broadcast: Monday 25:00 (BROADCAST_DOW=1=Monday)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-metadata
+  namespace: audiobookshelf
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: metadata-updater
+              env:
+                - name: PODCAST_ID
+                  value: "0fc23d6d-d122-4b37-ad44-98c01981efcb"
+                - name: PODCAST_DIR
+                  value: "/podcasts/ijuin"
+                - name: BROADCAST_DOW
+                  value: "1" # Monday (title should be Monday's date)

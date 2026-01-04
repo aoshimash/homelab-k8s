@@ -50,7 +50,7 @@ jobs:
           severity: "HIGH,CRITICAL"
           format: "table"
           skip-files: "flux/flux-system/gotk-components.yaml"
-          skip-dirs: "apps/radigo/programs"
+          skip-dirs: "apps/radigo/recording/programs,apps/radigo/metadata/programs"
           trivy-config: "trivy.yaml"
 
       - name: Run Trivy filesystem scan (secrets)

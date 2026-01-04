@@ -1,0 +1,22 @@
+# Program-specific configuration for オードリーのオールナイトニッポン metadata
+# Podcast ID: f259c548-c572-4015-8a32-6fd9f0606672
+# Broadcast: Saturday 25:00 (BROADCAST_DOW=6=Saturday)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-metadata
+  namespace: audiobookshelf
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: metadata-updater
+              env:
+                - name: PODCAST_ID
+                  value: "f259c548-c572-4015-8a32-6fd9f0606672"
+                - name: PODCAST_DIR
+                  value: "/podcasts/audry"
+                - name: BROADCAST_DOW
+                  value: "6" # Saturday (title should be Saturday's date)
