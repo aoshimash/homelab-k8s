@@ -38,12 +38,34 @@ data:
 
     log "INFO: Starting recording for station=$STATION_ID, day=$DAY_OF_WEEK, start=$START_TIME"
 
-    # Calculate target date
-    # CronJob triggers at end time (e.g., Sunday 03:05 for Saturday 27:00 = Sunday 01:00 broadcast)
-    # Use execution day's date with START_TIME
+    # Calculate target date based on DAY_OF_WEEK
+    # CronJob triggers at end time (e.g., Tuesday 03:05 for Monday 27:00 = Tuesday 01:00 broadcast)
+    # DAY_OF_WEEK: 0=Sunday, 1=Monday, 2=Tuesday, ..., 6=Saturday
+    # Calculate the date of the target day of week
     # START_TIME format: HH:MM (e.g., "01:00")
     # radiko API ft format: YYYYMMDDHHMMSS (14 digits)
-    TARGET_DATE=$(date '+%Y%m%d')
+    
+    CURRENT_DOW=$(date +%w)  # 0=Sunday, 1=Monday, ..., 6=Saturday
+    TARGET_DOW=$DAY_OF_WEEK
+    
+    # Calculate days to add to get to target day of week
+    # If target is same or later in week, go forward
+    # If target is earlier in week, go forward to next week
+    if [[ $TARGET_DOW -ge $CURRENT_DOW ]]; then
+      DAYS_TO_ADD=$((TARGET_DOW - CURRENT_DOW))
+    else
+      # Target day is earlier in week, go to next week
+      DAYS_TO_ADD=$((7 - CURRENT_DOW + TARGET_DOW))
+    fi
+    
+    # If we're on the target day and it's after the broadcast time, use today
+    # Otherwise, calculate the target date
+    if [[ $DAYS_TO_ADD -eq 0 ]]; then
+      TARGET_DATE=$(date '+%Y%m%d')
+    else
+      TARGET_DATE=$(date -d "+${DAYS_TO_ADD} days" '+%Y%m%d')
+    fi
+    
     START_TIME_NUMERIC="${START_TIME//:/}"
     START_TIMESTAMP="${TARGET_DATE}${START_TIME_NUMERIC}00"
 
