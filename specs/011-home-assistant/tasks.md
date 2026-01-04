@@ -97,9 +97,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [P] [US3] Create ConfigMap with sample automation in `k8s/apps/home-assistant/app/configmap.yaml`
-- [ ] T020 [US3] Update Deployment to mount ConfigMap at `/config/automations.yaml` in `k8s/apps/home-assistant/app/deployment.yaml`
-- [ ] T021 [US3] Update app kustomization to include ConfigMap in `k8s/apps/home-assistant/app/kustomization.yaml`
+- [x] T019 [P] [US3] Create ConfigMap with sample automation in `k8s/apps/home-assistant/app/configmap.yaml`
+- [x] T020 [US3] Update Deployment to mount ConfigMap at `/config/automations.yaml` in `k8s/apps/home-assistant/app/deployment.yaml`
+- [x] T021 [US3] Update app kustomization to include ConfigMap in `k8s/apps/home-assistant/app/kustomization.yaml`
 - [ ] T022 [US3] Verify automation is loaded in Home Assistant (Settings → Automations)
 - [ ] T023 [US3] Test automation execution (startup notification should appear)
 - [ ] T024 [US3] Test ConfigMap update workflow (modify, apply, reload)
