@@ -5,3 +5,8 @@
 # audiobookshelf needs to write config and podcasts to mounted volumes
 KSV0014
 AVD-KSV-0014
+
+# KSV0009/AVD-KSV-0009: hostNetwork
+# Home Assistant requires hostNetwork for Matter/mDNS communication
+KSV0009
+AVD-KSV-0009
