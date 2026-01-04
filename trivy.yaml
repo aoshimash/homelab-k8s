@@ -4,10 +4,14 @@
 # Skip specific checks that are intentional for this repository
 # KSV0014: readOnlyRootFilesystem
 # audiobookshelf needs to write config and podcasts to mounted volumes
+# KSV0009: hostNetwork
+# Home Assistant requires hostNetwork for Matter/mDNS communication
 checks:
   skip:
     - KSV0014
     - AVD-KSV-0014
+    - KSV0009
+    - AVD-KSV-0009
 
 # Secret scanning configuration
 # See: https://aquasecurity.github.io/trivy/latest/docs/scanner/secret/

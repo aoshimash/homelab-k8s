@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-assistant-automations
+  namespace: home-assistant
+data:
+  automations.yaml: |
+    # Sample automation - turn on notification at startup
+    - id: startup_notification
+      alias: "Startup Notification"
+      trigger:
+        - platform: homeassistant
+          event: start
+      action:
+        - service: persistent_notification.create
+          data:
+            title: "Home Assistant Started"
+            message: "Home Assistant has started successfully."

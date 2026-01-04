@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+    spec:
+      # trivy:ignore:AVD-KSV-0009 - hostNetwork required for Matter/mDNS communication
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: homelab-node-01
+      securityContext:
+        # Home Assistant requires root for Matter integration and hostNetwork
+        # Security boundary is enforced at Tailscale Ingress level
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: home-assistant
+          # trivy:ignore:AVD-KSV-0118 - Home Assistant requires root for Matter integration
+          image: ghcr.io/home-assistant/home-assistant:2024.12
+          ports:
+            - containerPort: 8123
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: automations
+              mountPath: /config/automations.yaml
+              subPath: automations.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: home-assistant-config
+        - name: automations
+          configMap:
+            name: home-assistant-automations
