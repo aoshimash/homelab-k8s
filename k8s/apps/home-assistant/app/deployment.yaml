@@ -13,15 +13,27 @@ spec:
       labels:
         app: home-assistant
     spec:
+      # trivy:ignore:AVD-KSV-0009 - hostNetwork required for Matter/mDNS communication
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         kubernetes.io/hostname: homelab-node-01
+      securityContext:
+        # Home Assistant requires root for Matter integration and hostNetwork
+        # Security boundary is enforced at Tailscale Ingress level
+        runAsUser: 0
+        runAsGroup: 0
       containers:
         - name: home-assistant
+          # trivy:ignore:AVD-KSV-0118 - Home Assistant requires root for Matter integration
           image: ghcr.io/home-assistant/home-assistant:2024.12
           ports:
             - containerPort: 8123
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: config
               mountPath: /config
