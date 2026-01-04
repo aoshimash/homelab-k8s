@@ -1,0 +1,22 @@
+# Program-specific configuration for オードリーのオールナイトニッポン metadata
+# Podcast ID: f259c548-c572-4015-8a32-6fd9f0606672
+# Title date offset: -1 (late-night show, use previous day for title)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-metadata
+  namespace: audiobookshelf
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: metadata-updater
+              env:
+                - name: PODCAST_ID
+                  value: "f259c548-c572-4015-8a32-6fd9f0606672"
+                - name: PODCAST_DIR
+                  value: "/podcasts/audry"
+                - name: TITLE_DATE_OFFSET
+                  value: "-1" # Late-night show: use previous day for title

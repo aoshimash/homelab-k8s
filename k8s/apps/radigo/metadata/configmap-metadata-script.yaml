@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: radigo-metadata-script
+  namespace: audiobookshelf
+data:
+  update-metadata.sh: |
+    #!/bin/sh
+    set -e
+
+    # Logging function
+    log() {
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
+    }
+
+    # Environment variables
+    PODCAST_ID="${PODCAST_ID:-}"
+    PODCAST_DIR="${PODCAST_DIR:-}"
+    TITLE_DATE_OFFSET="${TITLE_DATE_OFFSET:-0}"
+    AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
+    AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
+
+    # Validate required environment variables
+    if [ -z "$PODCAST_ID" ] || [ -z "$PODCAST_DIR" ] || \
+       [ -z "$AUDIOBOOKSHELF_API_KEY" ] || [ -z "$AUDIOBOOKSHELF_BASE_URL" ]; then
+      log "ERROR: Missing required environment variables"
+      log "DEBUG: PODCAST_ID=$PODCAST_ID, PODCAST_DIR=$PODCAST_DIR"
+      exit 1
+    fi
+
+    log "INFO: Starting metadata update for podcast=$PODCAST_ID, dir=$PODCAST_DIR, offset=$TITLE_DATE_OFFSET"
+
+    # Fetch podcast episodes from Audiobookshelf API
+    log "INFO: Fetching podcast episodes from Audiobookshelf"
+    PODCAST_DATA=$(curl -s -f \
+      -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+      "${AUDIOBOOKSHELF_BASE_URL}/api/items/${PODCAST_ID}") || {
+      log "ERROR: Failed to fetch podcast data"
+      exit 1
+    }
+
+    # Extract episodes using basic JSON parsing with sed/grep
+    # Format: id|filename pairs
+    EPISODES=$(echo "$PODCAST_DATA" | \
+      sed 's/},/}\n/g' | \
+      grep -o '"id":"[^"]*"[^}]*"filename":"[^"]*"' | \
+      sed 's/"id":"\([^"]*\)".*"filename":"\([^"]*\)"/\1|\2/')
+
+    if [ -z "$EPISODES" ]; then
+      log "WARNING: No episodes found or failed to parse episodes"
+      exit 0
+    fi
+
+    UPDATED_COUNT=0
+    SKIPPED_COUNT=0
+
+    # Process each episode
+    echo "$EPISODES" | while IFS='|' read -r episode_id filename; do
+      if [ -z "$episode_id" ] || [ -z "$filename" ]; then
+        continue
+      fi
+
+      log "INFO: Processing episode: $filename (id: $episode_id)"
+
+      # Extract date from filename (YYYYMMDD pattern)
+      FILE_DATE=$(echo "$filename" | grep -o '[0-9]\{8\}' | head -1)
+
+      if [ -z "$FILE_DATE" ]; then
+        log "WARNING: No date found in filename: $filename, skipping"
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        continue
+      fi
+
+      # Parse date components
+      YEAR=$(echo "$FILE_DATE" | cut -c1-4)
+      MONTH=$(echo "$FILE_DATE" | cut -c5-6)
+      DAY=$(echo "$FILE_DATE" | cut -c7-8)
+
+      # Calculate pubDate timestamp (file date at 00:00:00 JST)
+      # Convert to Unix timestamp (seconds since epoch)
+      # Note: date command in Alpine uses different syntax
+      PUB_DATE_STR="${YEAR}-${MONTH}-${DAY}T00:00:00+09:00"
+      
+      # Try to get Unix timestamp
+      if command -v date >/dev/null 2>&1; then
+        # Try GNU date syntax first
+        PUB_TIMESTAMP=$(date -d "${YEAR}-${MONTH}-${DAY} 00:00:00" +%s 2>/dev/null || \
+          date -D "%Y-%m-%d %H:%M:%S" -d "${YEAR}-${MONTH}-${DAY} 00:00:00" +%s 2>/dev/null || \
+          echo "")
+      fi
+
+      if [ -z "$PUB_TIMESTAMP" ]; then
+        # Fallback: calculate manually (approximate, assumes UTC)
+        # Days since 1970-01-01 * 86400
+        # This is a simplified calculation
+        log "WARNING: Could not calculate timestamp, using approximate value"
+        # Use a simple epoch calculation (may be off by timezone)
+        PUB_TIMESTAMP=$(( (YEAR - 1970) * 31536000 + (MONTH - 1) * 2592000 + (DAY - 1) * 86400 ))
+      fi
+
+      # Convert to milliseconds for Audiobookshelf API
+      PUB_TIMESTAMP_MS="${PUB_TIMESTAMP}000"
+
+      # Calculate title date (with offset for late-night shows)
+      if [ "$TITLE_DATE_OFFSET" -ne 0 ]; then
+        # Calculate offset date
+        OFFSET_TIMESTAMP=$((PUB_TIMESTAMP + TITLE_DATE_OFFSET * 86400))
+        
+        if command -v date >/dev/null 2>&1; then
+          TITLE_DATE=$(date -d "@${OFFSET_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+            date -r "${OFFSET_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+            echo "${YEAR}-${MONTH}-${DAY}")
+        else
+          TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+        fi
+      else
+        TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+      fi
+
+      log "INFO: Setting title=$TITLE_DATE, publishedAt=$PUB_TIMESTAMP_MS"
+
+      # Update episode metadata via API
+      UPDATE_RESPONSE=$(curl -s -f -X PATCH \
+        -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}}" \
+        "${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${PODCAST_ID}/episode/${episode_id}") || {
+        log "ERROR: Failed to update episode $episode_id"
+        continue
+      }
+
+      log "INFO: Successfully updated episode: $filename -> title=$TITLE_DATE"
+      UPDATED_COUNT=$((UPDATED_COUNT + 1))
+    done
+
+    log "INFO: Metadata update completed. Updated: $UPDATED_COUNT, Skipped: $SKIPPED_COUNT"
