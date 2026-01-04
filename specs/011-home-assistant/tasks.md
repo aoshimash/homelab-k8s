@@ -25,10 +25,10 @@
 
 **Purpose**: Create directory structure and base kustomization files
 
-- [ ] T001 Create directory structure `k8s/apps/home-assistant/app/`
-- [ ] T002 [P] Create namespace manifest in `k8s/apps/home-assistant/namespace.yaml`
-- [ ] T003 [P] Create root kustomization in `k8s/apps/home-assistant/kustomization.yaml`
-- [ ] T004 Update apps kustomization to include home-assistant in `k8s/apps/kustomization.yaml`
+- [x] T001 Create directory structure `k8s/apps/home-assistant/app/`
+- [x] T002 [P] Create namespace manifest in `k8s/apps/home-assistant/namespace.yaml`
+- [x] T003 [P] Create root kustomization in `k8s/apps/home-assistant/kustomization.yaml`
+- [x] T004 Update apps kustomization to include home-assistant in `k8s/apps/kustomization.yaml`
 
 **Checkpoint**: Directory structure ready for resource manifests
 
