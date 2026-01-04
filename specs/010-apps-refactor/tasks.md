@@ -24,10 +24,10 @@
 
 **Purpose**: Create new directory structure before file moves
 
-- [ ] T001 Create app/ subdirectory at `k8s/apps/audiobookshelf/app/`
-- [ ] T002 [P] Create shared-secrets/ subdirectory at `k8s/apps/audiobookshelf/shared-secrets/`
-- [ ] T003 [P] Create radigo-recorder/ subdirectory structure at `k8s/apps/audiobookshelf/radigo-recorder/`
-- [ ] T004 [P] Create metadata-updater/ subdirectory structure at `k8s/apps/audiobookshelf/metadata-updater/`
+- [x] T001 Create app/ subdirectory at `k8s/apps/audiobookshelf/app/`
+- [x] T002 [P] Create shared-secrets/ subdirectory at `k8s/apps/audiobookshelf/shared-secrets/`
+- [x] T003 [P] Create radigo-recorder/ subdirectory structure at `k8s/apps/audiobookshelf/radigo-recorder/`
+- [x] T004 [P] Create metadata-updater/ subdirectory structure at `k8s/apps/audiobookshelf/metadata-updater/`
 
 ---
 
@@ -39,34 +39,34 @@
 
 ### Core App Files
 
-- [ ] T005 [P] Move deployment.yaml using `git mv k8s/apps/audiobookshelf/deployment.yaml k8s/apps/audiobookshelf/app/`
-- [ ] T006 [P] Move service.yaml using `git mv k8s/apps/audiobookshelf/service.yaml k8s/apps/audiobookshelf/app/`
-- [ ] T007 [P] Move ingress.yaml using `git mv k8s/apps/audiobookshelf/ingress.yaml k8s/apps/audiobookshelf/app/`
-- [ ] T008 [P] Move pvc.yaml using `git mv k8s/apps/audiobookshelf/pvc.yaml k8s/apps/audiobookshelf/app/`
+- [x] T005 [P] Move deployment.yaml using `git mv k8s/apps/audiobookshelf/deployment.yaml k8s/apps/audiobookshelf/app/`
+- [x] T006 [P] Move service.yaml using `git mv k8s/apps/audiobookshelf/service.yaml k8s/apps/audiobookshelf/app/`
+- [x] T007 [P] Move ingress.yaml using `git mv k8s/apps/audiobookshelf/ingress.yaml k8s/apps/audiobookshelf/app/`
+- [x] T008 [P] Move pvc.yaml using `git mv k8s/apps/audiobookshelf/pvc.yaml k8s/apps/audiobookshelf/app/`
 
 ### Shared Secrets
 
-- [ ] T009 [P] Move shared-secrets files using `git mv k8s/apps/radigo/shared-secrets/* k8s/apps/audiobookshelf/shared-secrets/`
+- [x] T009 [P] Move shared-secrets files using `git mv k8s/apps/radigo/shared-secrets/* k8s/apps/audiobookshelf/shared-secrets/`
 
 ### Radigo Recorder (from recording/)
 
-- [ ] T010 [P] Move radigo-recorder base files using `git mv k8s/apps/radigo/recording/base/* k8s/apps/audiobookshelf/radigo-recorder/base/`
-- [ ] T011 [P] Move radigo-recorder configmap using `git mv k8s/apps/radigo/recording/configmap-record-script.yaml k8s/apps/audiobookshelf/radigo-recorder/`
-- [ ] T012 [P] Move radigo-recorder kustomization using `git mv k8s/apps/radigo/recording/kustomization.yaml k8s/apps/audiobookshelf/radigo-recorder/`
-- [ ] T013 [P] Move radigo-recorder programs/audrey using `git mv k8s/apps/radigo/recording/programs/audrey/* k8s/apps/audiobookshelf/radigo-recorder/programs/audrey/`
-- [ ] T014 [P] Move radigo-recorder programs/ijuin using `git mv k8s/apps/radigo/recording/programs/ijuin/* k8s/apps/audiobookshelf/radigo-recorder/programs/ijuin/`
+- [x] T010 [P] Move radigo-recorder base files using `git mv k8s/apps/radigo/recording/base/* k8s/apps/audiobookshelf/radigo-recorder/base/`
+- [x] T011 [P] Move radigo-recorder configmap using `git mv k8s/apps/radigo/recording/configmap-record-script.yaml k8s/apps/audiobookshelf/radigo-recorder/`
+- [x] T012 [P] Move radigo-recorder kustomization using `git mv k8s/apps/radigo/recording/kustomization.yaml k8s/apps/audiobookshelf/radigo-recorder/`
+- [x] T013 [P] Move radigo-recorder programs/audrey using `git mv k8s/apps/radigo/recording/programs/audrey/* k8s/apps/audiobookshelf/radigo-recorder/programs/audrey/`
+- [x] T014 [P] Move radigo-recorder programs/ijuin using `git mv k8s/apps/radigo/recording/programs/ijuin/* k8s/apps/audiobookshelf/radigo-recorder/programs/ijuin/`
 
 ### Metadata Updater (from metadata/)
 
-- [ ] T015 [P] Move metadata-updater base files using `git mv k8s/apps/radigo/metadata/base/* k8s/apps/audiobookshelf/metadata-updater/base/`
-- [ ] T016 [P] Move metadata-updater configmap using `git mv k8s/apps/radigo/metadata/configmap-metadata-script.yaml k8s/apps/audiobookshelf/metadata-updater/`
-- [ ] T017 [P] Move metadata-updater kustomization using `git mv k8s/apps/radigo/metadata/kustomization.yaml k8s/apps/audiobookshelf/metadata-updater/`
-- [ ] T018 [P] Move metadata-updater programs/audrey using `git mv k8s/apps/radigo/metadata/programs/audrey/* k8s/apps/audiobookshelf/metadata-updater/programs/audrey/`
-- [ ] T019 [P] Move metadata-updater programs/ijuin using `git mv k8s/apps/radigo/metadata/programs/ijuin/* k8s/apps/audiobookshelf/metadata-updater/programs/ijuin/`
+- [x] T015 [P] Move metadata-updater base files using `git mv k8s/apps/radigo/metadata/base/* k8s/apps/audiobookshelf/metadata-updater/base/`
+- [x] T016 [P] Move metadata-updater configmap using `git mv k8s/apps/radigo/metadata/configmap-metadata-script.yaml k8s/apps/audiobookshelf/metadata-updater/`
+- [x] T017 [P] Move metadata-updater kustomization using `git mv k8s/apps/radigo/metadata/kustomization.yaml k8s/apps/audiobookshelf/metadata-updater/`
+- [x] T018 [P] Move metadata-updater programs/audrey using `git mv k8s/apps/radigo/metadata/programs/audrey/* k8s/apps/audiobookshelf/metadata-updater/programs/audrey/`
+- [x] T019 [P] Move metadata-updater programs/ijuin using `git mv k8s/apps/radigo/metadata/programs/ijuin/* k8s/apps/audiobookshelf/metadata-updater/programs/ijuin/`
 
 ### Cleanup
 
-- [ ] T020 Remove old radigo directory `k8s/apps/radigo/`
+- [x] T020 Remove old radigo directory `k8s/apps/radigo/`
 
 **Checkpoint**: All files moved to new locations
 
@@ -80,10 +80,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Create new kustomization.yaml at `k8s/apps/audiobookshelf/app/kustomization.yaml` with resources: deployment.yaml, service.yaml, ingress.yaml, pvc.yaml
-- [ ] T022 [US1] Update kustomization.yaml at `k8s/apps/audiobookshelf/kustomization.yaml` to reference: namespace.yaml, app/, shared-secrets/, radigo-recorder/, metadata-updater/
-- [ ] T023 [US1] Update kustomization.yaml at `k8s/apps/kustomization.yaml` to reference only audiobookshelf/ (remove radigo/)
-- [ ] T024 [US1] Verify kustomize build succeeds: `kustomize build k8s/apps/`
+- [x] T021 [US1] Create new kustomization.yaml at `k8s/apps/audiobookshelf/app/kustomization.yaml` with resources: deployment.yaml, service.yaml, ingress.yaml, pvc.yaml
+- [x] T022 [US1] Update kustomization.yaml at `k8s/apps/audiobookshelf/kustomization.yaml` to reference: namespace.yaml, app/, shared-secrets/, radigo-recorder/, metadata-updater/
+- [x] T023 [US1] Update kustomization.yaml at `k8s/apps/kustomization.yaml` to reference only audiobookshelf/ (remove radigo/)
+- [x] T024 [US1] Verify kustomize build succeeds: `kustomize build k8s/apps/`
 
 **Checkpoint**: Directory structure unified, kustomize build succeeds
 
@@ -97,10 +97,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Verify shared-secrets kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/shared-secrets/kustomization.yaml`
-- [ ] T026 [US2] Verify radigo-recorder kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/radigo-recorder/kustomization.yaml`
-- [ ] T027 [US2] Verify metadata-updater kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/metadata-updater/kustomization.yaml`
-- [ ] T028 [US2] Verify all resource outputs match before/after: `kustomize build k8s/apps/ | kubectl diff -f -`
+- [x] T025 [US2] Verify shared-secrets kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/shared-secrets/kustomization.yaml`
+- [x] T026 [US2] Verify radigo-recorder kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/radigo-recorder/kustomization.yaml`
+- [x] T027 [US2] Verify metadata-updater kustomization.yaml paths are correct at `k8s/apps/audiobookshelf/metadata-updater/kustomization.yaml`
+- [x] T028 [US2] Verify all resource outputs match before/after: `kustomize build k8s/apps/ | kubectl diff -f -`
 
 **Checkpoint**: All resources identical to before refactoring
 
@@ -114,10 +114,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Verify app/ contains only: deployment.yaml, service.yaml, ingress.yaml, pvc.yaml, kustomization.yaml
-- [ ] T030 [US3] Verify shared-secrets/ contains only: secret-ghcr.sops.yaml, secret-audiobookshelf-api.sops.yaml, kustomization.yaml
-- [ ] T031 [US3] Verify radigo-recorder/ contains only: base/, programs/, configmap-record-script.yaml, kustomization.yaml
-- [ ] T032 [US3] Verify metadata-updater/ contains only: base/, programs/, configmap-metadata-script.yaml, kustomization.yaml
+- [x] T029 [US3] Verify app/ contains only: deployment.yaml, service.yaml, ingress.yaml, pvc.yaml, kustomization.yaml
+- [x] T030 [US3] Verify shared-secrets/ contains only: secret-ghcr.sops.yaml, secret-audiobookshelf-api.sops.yaml, kustomization.yaml
+- [x] T031 [US3] Verify radigo-recorder/ contains only: base/, programs/, configmap-record-script.yaml, kustomization.yaml
+- [x] T032 [US3] Verify metadata-updater/ contains only: base/, programs/, configmap-metadata-script.yaml, kustomization.yaml
 
 **Checkpoint**: All subdirectories contain only their relevant resources
 
@@ -127,7 +127,7 @@
 
 **Purpose**: CI/CD updates and final verification
 
-- [ ] T033 Update skip-dirs in `.github/workflows/k8s-lint-security.yaml` from `apps/radigo/recording/programs,apps/radigo/metadata/programs` to `apps/audiobookshelf/radigo-recorder/programs,apps/audiobookshelf/metadata-updater/programs`
+- [x] T033 Update skip-dirs in `.github/workflows/k8s-lint-security.yaml` from `apps/radigo/recording/programs,apps/radigo/metadata/programs` to `apps/audiobookshelf/radigo-recorder/programs,apps/audiobookshelf/metadata-updater/programs`
 - [ ] T034 [P] Run kubeconform lint: verify CI passes
 - [ ] T035 [P] Run trivy security scan: verify CI passes
 - [ ] T036 Create PR and verify CI checks pass
