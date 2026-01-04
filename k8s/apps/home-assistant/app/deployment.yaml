@@ -62,10 +62,19 @@ spec:
         # Matter Server sidecar for Matter device integration
         - name: matter-server
           image: ghcr.io/home-assistant-libs/python-matter-server:stable
+          args:
+            - --storage-path
+            - /data
+            - --paa-root-cert-dir
+            - /data/credentials
           ports:
             - containerPort: 5580
           securityContext:
-            privileged: false
+            # Matter Server needs NET_ADMIN and NET_RAW for mDNS/multicast
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
           volumeMounts:
             - name: matter-data
               mountPath: /data
