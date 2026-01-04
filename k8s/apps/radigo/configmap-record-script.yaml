@@ -41,8 +41,11 @@ data:
     # Calculate target date
     # CronJob triggers at end time (e.g., Sunday 03:05 for Saturday 27:00 = Sunday 01:00 broadcast)
     # Use execution day's date with START_TIME
+    # START_TIME format: HH:MM (e.g., "01:00")
+    # radiko API ft format: YYYYMMDDHHMMSS (14 digits)
     TARGET_DATE=$(date '+%Y%m%d')
-    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
+    START_TIME_NUMERIC="${START_TIME//:/}"
+    START_TIMESTAMP="${TARGET_DATE}${START_TIME_NUMERIC}00"
 
     # Fetch radiko program schedule API
     log "INFO: Fetching program schedule from radiko API"
