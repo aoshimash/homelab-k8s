@@ -72,17 +72,21 @@ spec:
             - /data/credentials
             - --primary-interface
             - enp1s0f1
+          env:
+            # Use Avahi for mDNS instead of built-in mDNS
+            - name: CHIP_USE_AVAHI
+              value: "1"
           ports:
             - containerPort: 5580
           securityContext:
-            # Matter Server needs NET_ADMIN and NET_RAW for mDNS/multicast
-            capabilities:
-              add:
-                - NET_ADMIN
-                - NET_RAW
+            # Privileged mode required for full network access including multicast
+            privileged: true
           volumeMounts:
             - name: matter-data
               mountPath: /data
+            - name: dbus
+              mountPath: /var/run/dbus
+              readOnly: true
           resources:
             requests:
               cpu: 50m
@@ -99,3 +103,6 @@ spec:
             name: home-assistant-automations
         - name: matter-data
           emptyDir: {}
+        - name: dbus
+          hostPath:
+            path: /var/run/dbus
