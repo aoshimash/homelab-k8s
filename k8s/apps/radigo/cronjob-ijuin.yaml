@@ -17,6 +17,8 @@ spec:
             app: radigo
             program: ijuin
         spec:
+          imagePullSecrets:
+            - name: ghcr-secret
           restartPolicy: OnFailure
           securityContext:
             runAsNonRoot: true
