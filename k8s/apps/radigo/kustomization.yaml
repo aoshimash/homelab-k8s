@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - configmap-record-script.yaml
   - secret-audiobookshelf-api.sops.yaml
+  - secret-ghcr.sops.yaml
   - cronjob-audry.yaml
   - cronjob-ijuin.yaml
