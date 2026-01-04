@@ -35,9 +35,8 @@ spec:
     # StorageClass settings for single-node cluster.
     persistence:
       defaultClassReplicaCount: 1
-      # Apply backup-daily recurring job to volumes using default StorageClass.
-      # Note: Using JSON string format to work around Helm chart bug that
-      # outputs Go map format instead of valid JSON
+      # Disable recurringJobSelector at StorageClass level due to Helm chart bug
+      # that outputs Go map format instead of valid JSON.
+      # Use PVC annotations to enable recurring jobs per-volume instead.
       recurringJobSelector:
-        enable: true
-        jobList: '[{"name":"backup-daily","isGroup":false}]'
+        enable: false
