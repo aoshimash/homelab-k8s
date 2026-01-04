@@ -3,6 +3,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: home-assistant-config
   namespace: home-assistant
+  annotations:
+    # Override StorageClass recurringJobSelector with valid JSON format
+    # Workaround for Longhorn Helm chart bug that outputs Go map format
+    recurring-job-selector.longhorn.io: '[{"name":"backup-daily","isGroup":false}]'
 spec:
   accessModes:
     - ReadWriteOnce
