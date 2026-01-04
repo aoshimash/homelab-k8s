@@ -59,6 +59,23 @@ spec:
               port: 8123
             initialDelaySeconds: 30
             periodSeconds: 10
+        # Matter Server sidecar for Matter device integration
+        - name: matter-server
+          image: ghcr.io/home-assistant-libs/python-matter-server:stable
+          ports:
+            - containerPort: 5580
+          securityContext:
+            privileged: false
+          volumeMounts:
+            - name: matter-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
       volumes:
         - name: config
           persistentVolumeClaim:
@@ -66,3 +83,5 @@ spec:
         - name: automations
           configMap:
             name: home-assistant-automations
+        - name: matter-data
+          emptyDir: {}
