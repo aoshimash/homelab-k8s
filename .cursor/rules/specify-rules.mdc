@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 - N/A (設定ファイルのみ) (008-renovate)
 - Shell script (bash) for orchestration, radigo (Go binary) for recording + radigo Docker image (`yyoshiki41/radigo`), curl, jq for API calls (009-radigo-scheduler)
 - Longhorn PVC (`audiobookshelf-podcasts`, 50Gi, ReadWriteOnce) (009-radigo-scheduler)
+- YAML (Kubernetes manifests, Kustomize) + Kustomize, Flux CD, SOPS (010-apps-refactor)
+- N/A (manifest refactoring only) (010-apps-refactor)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -37,9 +39,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 010-apps-refactor: Added YAML (Kubernetes manifests, Kustomize) + Kustomize, Flux CD, SOPS
 - 009-radigo-scheduler: Added Shell script (bash) for orchestration, radigo (Go binary) for recording + radigo Docker image (`yyoshiki41/radigo`), curl, jq for API calls
 - 008-renovate: Added JSON5 (renovate.json5) + GitHub Renovate App (マネージド版)
-- 007-k8s-lint-security: Added YAML, Taskfile (go-task v3) + kubeconform, trivy, go-task
 
 
 <!-- MANUAL ADDITIONS START -->
