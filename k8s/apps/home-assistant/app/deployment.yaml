@@ -67,6 +67,8 @@ spec:
             - /data
             - --paa-root-cert-dir
             - /data/credentials
+            - --primary-interface
+            - enp1s0f1
           ports:
             - containerPort: 5580
           securityContext:
