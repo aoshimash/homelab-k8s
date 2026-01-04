@@ -5,7 +5,6 @@ metadata:
   namespace: home-assistant
 spec:
   replicas: 1
-  # Use Recreate strategy to avoid port conflicts with hostNetwork
   strategy:
     type: Recreate
   selector:
@@ -16,19 +15,15 @@ spec:
       labels:
         app: home-assistant
     spec:
-      # trivy:ignore:AVD-KSV-0009 - hostNetwork required for Matter/mDNS communication
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         kubernetes.io/hostname: homelab-node-01
       securityContext:
-        # Home Assistant requires root for Matter integration and hostNetwork
-        # Security boundary is enforced at Tailscale Ingress level
         runAsUser: 0
         runAsGroup: 0
       containers:
         - name: home-assistant
-          # trivy:ignore:AVD-KSV-0118 - Home Assistant requires root for Matter integration
           image: ghcr.io/home-assistant/home-assistant:2024.12
           ports:
             - containerPort: 8123
@@ -62,7 +57,6 @@ spec:
               port: 8123
             initialDelaySeconds: 30
             periodSeconds: 10
-        # Matter Server sidecar for Matter device integration
         - name: matter-server
           image: ghcr.io/home-assistant-libs/python-matter-server:stable
           args:
@@ -73,13 +67,14 @@ spec:
             - --primary-interface
             - enp1s0f1
           env:
-            # Use Avahi for mDNS instead of built-in mDNS
-            - name: CHIP_USE_AVAHI
-              value: "1"
+            # Force CHIP SDK to only use the physical interface
+            - name: CHIP_MDNS_INTERFACE
+              value: "enp1s0f1"
+            - name: CHIP_INET_INTERFACE
+              value: "enp1s0f1"
           ports:
             - containerPort: 5580
           securityContext:
-            # Privileged mode required for full network access including multicast
             privileged: true
           volumeMounts:
             - name: matter-data
