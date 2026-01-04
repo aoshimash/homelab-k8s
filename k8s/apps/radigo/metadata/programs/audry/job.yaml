@@ -1,6 +1,6 @@
 # Program-specific configuration for オードリーのオールナイトニッポン metadata
 # Podcast ID: f259c548-c572-4015-8a32-6fd9f0606672
-# Title date offset: -1 (late-night show, use previous day for title)
+# Broadcast: Saturday 25:00 (BROADCAST_DOW=6=Saturday)
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -18,5 +18,5 @@ spec:
                   value: "f259c548-c572-4015-8a32-6fd9f0606672"
                 - name: PODCAST_DIR
                   value: "/podcasts/audry"
-                - name: TITLE_DATE_OFFSET
-                  value: "-1" # Late-night show: use previous day for title
+                - name: BROADCAST_DOW
+                  value: "6" # Saturday (title should be Saturday's date)

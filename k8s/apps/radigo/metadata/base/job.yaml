@@ -49,8 +49,8 @@ spec:
                   value: "PLACEHOLDER"
                 - name: PODCAST_DIR
                   value: "/podcasts/PLACEHOLDER"
-                - name: TITLE_DATE_OFFSET
-                  value: "0" # Days to subtract from file date for title (e.g., -1 for late-night shows)
+                - name: BROADCAST_DOW
+                  value: "6" # Broadcast day of week (0=Sun, 1=Mon, ..., 6=Sat)
                 - name: PUBDATE_TIME
                   value: "03:00" # Time for pubDate in HH:MM format (broadcast end time)
                 # Shared env vars from secrets

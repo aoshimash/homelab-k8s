@@ -16,7 +16,7 @@ data:
     # Environment variables
     PODCAST_ID="${PODCAST_ID:-}"
     PODCAST_DIR="${PODCAST_DIR:-}"
-    TITLE_DATE_OFFSET="${TITLE_DATE_OFFSET:-0}"
+    BROADCAST_DOW="${BROADCAST_DOW:-6}"  # Broadcast day of week (0=Sun, 1=Mon, ..., 6=Sat)
     PUBDATE_TIME="${PUBDATE_TIME:-03:00}"  # HH:MM format for pubDate time
     AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
     AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
@@ -33,7 +33,7 @@ data:
     PUBDATE_HOUR=$(echo "$PUBDATE_TIME" | cut -d: -f1)
     PUBDATE_MIN=$(echo "$PUBDATE_TIME" | cut -d: -f2)
 
-    log "INFO: Starting metadata update for podcast=$PODCAST_ID, dir=$PODCAST_DIR, offset=$TITLE_DATE_OFFSET, time=$PUBDATE_TIME"
+    log "INFO: Starting metadata update for podcast=$PODCAST_ID, dir=$PODCAST_DIR, broadcast_dow=$BROADCAST_DOW, time=$PUBDATE_TIME"
 
     # Fetch podcast episodes from Audiobookshelf API
     log "INFO: Fetching podcast episodes from Audiobookshelf"
@@ -106,20 +106,33 @@ data:
       # Convert to milliseconds for Audiobookshelf API
       PUB_TIMESTAMP_MS="${PUB_TIMESTAMP}000"
 
-      # Calculate title date (with offset for late-night shows)
-      if [ "$TITLE_DATE_OFFSET" -ne 0 ]; then
-        # Calculate offset date
-        OFFSET_TIMESTAMP=$((PUB_TIMESTAMP + TITLE_DATE_OFFSET * 86400))
+      # Get the day of week for the file date (0=Sun, 1=Mon, ..., 6=Sat)
+      FILE_DOW=""
+      if command -v date >/dev/null 2>&1; then
+        FILE_DOW=$(date -d "${YEAR}-${MONTH}-${DAY}" +%w 2>/dev/null || \
+          date -D "%Y-%m-%d" -d "${YEAR}-${MONTH}-${DAY}" +%w 2>/dev/null || \
+          echo "")
+      fi
+
+      # Calculate title date based on broadcast day of week
+      # If file date's DOW matches BROADCAST_DOW, use as-is (already correct)
+      # If not, subtract 1 day (file date is the day after broadcast)
+      if [ -n "$FILE_DOW" ] && [ "$FILE_DOW" = "$BROADCAST_DOW" ]; then
+        # File date is already the broadcast day
+        TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+        log "INFO: File date DOW ($FILE_DOW) matches broadcast DOW ($BROADCAST_DOW), using date as-is"
+      else
+        # File date is not the broadcast day, subtract 1 day
+        TITLE_TIMESTAMP=$((PUB_TIMESTAMP - 86400))
         
         if command -v date >/dev/null 2>&1; then
-          TITLE_DATE=$(date -d "@${OFFSET_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
-            date -r "${OFFSET_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+          TITLE_DATE=$(date -d "@${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+            date -r "${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
             echo "${YEAR}-${MONTH}-${DAY}")
         else
           TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
         fi
-      else
-        TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+        log "INFO: File date DOW ($FILE_DOW) != broadcast DOW ($BROADCAST_DOW), using previous day"
       fi
 
       log "INFO: Setting title=$TITLE_DATE, publishedAt=$PUB_TIMESTAMP_MS"
