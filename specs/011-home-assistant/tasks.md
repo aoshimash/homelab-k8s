@@ -54,10 +54,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Create Deployment manifest with hostNetwork in `k8s/apps/home-assistant/app/deployment.yaml`
-- [ ] T007 [P] [US1] Create Service manifest (port 80 → 8123) in `k8s/apps/home-assistant/app/service.yaml`
-- [ ] T008 [P] [US1] Create Tailscale Ingress manifest in `k8s/apps/home-assistant/app/ingress.yaml`
-- [ ] T009 [US1] Create app-level kustomization in `k8s/apps/home-assistant/app/kustomization.yaml`
+- [x] T006 [P] [US1] Create Deployment manifest with hostNetwork in `k8s/apps/home-assistant/app/deployment.yaml`
+- [x] T007 [P] [US1] Create Service manifest (port 80 → 8123) in `k8s/apps/home-assistant/app/service.yaml`
+- [x] T008 [P] [US1] Create Tailscale Ingress manifest in `k8s/apps/home-assistant/app/ingress.yaml`
+- [x] T009 [US1] Create app-level kustomization in `k8s/apps/home-assistant/app/kustomization.yaml`
 - [ ] T010 [US1] Verify Flux reconciliation and pod status with `kubectl get all -n home-assistant`
 - [ ] T011 [US1] Verify Tailscale Ingress access via `https://home-assistant.<tailnet>.ts.net`
 - [ ] T012 [US1] Complete Home Assistant onboarding and verify persistence after pod restart
