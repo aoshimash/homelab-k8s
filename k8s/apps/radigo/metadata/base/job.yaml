@@ -51,6 +51,8 @@ spec:
                   value: "/podcasts/PLACEHOLDER"
                 - name: TITLE_DATE_OFFSET
                   value: "0" # Days to subtract from file date for title (e.g., -1 for late-night shows)
+                - name: PUBDATE_TIME
+                  value: "03:00" # Time for pubDate in HH:MM format (broadcast end time)
                 # Shared env vars from secrets
                 - name: AUDIOBOOKSHELF_API_KEY
                   valueFrom:
