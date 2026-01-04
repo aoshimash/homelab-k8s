@@ -38,10 +38,11 @@ data:
 
     log "INFO: Starting recording for station=$STATION_ID, day=$DAY_OF_WEEK, start=$START_TIME"
 
-    # Calculate target date based on day of week
-    # CronJob triggers at end time, so we need to find the most recent broadcast
-    # For now, assume we're recording yesterday's broadcast (timefree)
-    TARGET_DATE=$(date -d "yesterday" '+%Y%m%d')
+    # Calculate target date
+    # CronJob triggers at end time (e.g., Sunday 03:05 for Saturday 27:00 = Sunday 01:00 broadcast)
+    # Use execution day's date with START_TIME
+    TARGET_DATE=$(date '+%Y%m%d')
+    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
 
     # Fetch radiko program schedule API
     log "INFO: Fetching program schedule from radiko API"
@@ -52,44 +53,28 @@ data:
       exit 1
     fi
 
-    # Parse XML to find program matching day and start time
-    # Extract program info using simple XML parsing (assuming xmlstarlet or xmllint available)
-    # For simplicity, use grep/sed pattern matching
-    # Find program with matching start time (ft attribute)
-    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
+    # Parse XML to find program with exact timestamp
+    # Use xmllint if available for reliable XML parsing
+    ACTUAL_TITLE=""
+    END_TIME=""
 
-    # Extract program info (ft, to, title) for programs matching the start time
-    # Note: This is a simplified parser - may need adjustment based on actual XML structure
-    PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"${START_TIMESTAMP}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
-
-    if [[ -z "$PROGRAM_INFO" ]]; then
-      log "WARNING: Program not found in schedule for date=$TARGET_DATE, start=$START_TIME"
-      log "INFO: Attempting to find program in current week schedule"
-      # Try to find any program with matching start time pattern
-      PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"[0-9]{8}${START_TIME//:/}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
-    fi
-
-    if [[ -z "$PROGRAM_INFO" ]]; then
-      log "ERROR: Could not find program in schedule"
-      exit 1
-    fi
-
-    # Extract end time and title
-    END_TIME=$(echo "$PROGRAM_INFO" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' || echo "")
-    ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | grep -A 5 "ft=\"${START_TIMESTAMP}" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' || echo "")
-
-    # Fallback: try simpler extraction
-    if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
-      # Use xmllint if available, otherwise use sed/grep
-      if command -v xmllint &> /dev/null; then
-        END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
-        ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
+    if command -v xmllint &> /dev/null; then
+      log "INFO: Using xmllint for XML parsing"
+      ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
+      END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
+    else
+      # Fallback to grep-based parsing
+      log "WARNING: xmllint not available, using grep-based parsing"
+      PROGRAM_BLOCK=$(echo "$SCHEDULE_XML" | grep -A 20 "ft=\"${START_TIMESTAMP}" | head -25 || echo "")
+      if [[ -n "$PROGRAM_BLOCK" ]]; then
+        ACTUAL_TITLE=$(echo "$PROGRAM_BLOCK" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' | head -1 || echo "")
+        END_TIME=$(echo "$PROGRAM_BLOCK" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' | head -1 || echo "")
       fi
     fi
 
     if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
       log "ERROR: Failed to parse program info from schedule XML"
-      log "DEBUG: PROGRAM_INFO=$PROGRAM_INFO"
+      log "DEBUG: START_TIMESTAMP=$START_TIMESTAMP, TARGET_DATE=$TARGET_DATE, EXPECTED_TITLE=$EXPECTED_TITLE"
       exit 1
     fi
 
