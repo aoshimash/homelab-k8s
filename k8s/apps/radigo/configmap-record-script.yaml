@@ -38,10 +38,12 @@ data:
 
     log "INFO: Starting recording for station=$STATION_ID, day=$DAY_OF_WEEK, start=$START_TIME"
 
-    # Calculate target date based on day of week
-    # CronJob triggers at end time, so we need to find the most recent broadcast
-    # For now, assume we're recording yesterday's broadcast (timefree)
-    TARGET_DATE=$(date -d "yesterday" '+%Y%m%d')
+    # Calculate target date
+    # CronJob triggers at end time (e.g., Sunday 03:05 for Saturday 27:00 broadcast)
+    # For timefree recording, we need to find the program that matches EXPECTED_TITLE
+    # and has START_TIME (e.g., 01:00) in the weekly schedule
+    TARGET_DATE=$(date '+%Y%m%d')
+    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
 
     # Fetch radiko program schedule API
     log "INFO: Fetching program schedule from radiko API"
@@ -52,44 +54,76 @@ data:
       exit 1
     fi
 
-    # Parse XML to find program matching day and start time
-    # Extract program info using simple XML parsing (assuming xmlstarlet or xmllint available)
-    # For simplicity, use grep/sed pattern matching
-    # Find program with matching start time (ft attribute)
-    START_TIMESTAMP="${TARGET_DATE}${START_TIME//:/}"
-
-    # Extract program info (ft, to, title) for programs matching the start time
-    # Note: This is a simplified parser - may need adjustment based on actual XML structure
-    PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"${START_TIMESTAMP}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
-
-    if [[ -z "$PROGRAM_INFO" ]]; then
-      log "WARNING: Program not found in schedule for date=$TARGET_DATE, start=$START_TIME"
-      log "INFO: Attempting to find program in current week schedule"
-      # Try to find any program with matching start time pattern
-      PROGRAM_INFO=$(echo "$SCHEDULE_XML" | grep -oP "ft=\"[0-9]{8}${START_TIME//:/}[^\"]*\".*?to=\"([^\"]+)\".*?<title>([^<]+)</title>" | head -1 || true)
-    fi
-
-    if [[ -z "$PROGRAM_INFO" ]]; then
-      log "ERROR: Could not find program in schedule"
-      exit 1
-    fi
-
-    # Extract end time and title
-    END_TIME=$(echo "$PROGRAM_INFO" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' || echo "")
-    ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | grep -A 5 "ft=\"${START_TIMESTAMP}" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' || echo "")
-
-    # Fallback: try simpler extraction
-    if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
-      # Use xmllint if available, otherwise use sed/grep
-      if command -v xmllint &> /dev/null; then
-        END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
-        ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
+    # Parse XML to find program matching expected title and start time pattern
+    # Use xmllint if available for reliable XML parsing
+    ACTUAL_TITLE=""
+    END_TIME=""
+    
+    if command -v xmllint &> /dev/null; then
+      log "INFO: Using xmllint for XML parsing"
+      # First, try to find program with exact timestamp
+      ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
+      END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
+      
+      # If found but title doesn't match, or not found at all, search by title pattern
+      if [[ -z "$ACTUAL_TITLE" ]] || [[ "$ACTUAL_TITLE" != *"$EXPECTED_TITLE"* ]]; then
+        log "INFO: Searching for program with title pattern '$EXPECTED_TITLE' and start time ${START_TIME}"
+        # Find all programs containing EXPECTED_TITLE in title
+        # Extract timestamps of programs matching the title
+        MATCHING_PROGS=$(echo "$SCHEDULE_XML" | xmllint --xpath "//prog[contains(title, '${EXPECTED_TITLE}')]/@ft" - 2>/dev/null | grep -oP 'ft="[^"]+"' | sed 's/ft="\(.*\)"/\1/' || echo "")
+        
+        if [[ -n "$MATCHING_PROGS" ]]; then
+          # Check each matching program to see if it has the right start time pattern
+          for ts in $MATCHING_PROGS; do
+            # Extract time part (last 6 digits: HHMMSS)
+            ts_time="${ts:8:6}"
+            expected_time="${START_TIME//:/}"
+            if [[ "$ts_time" == "$expected_time"* ]]; then
+              ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${ts}']/title)" - 2>/dev/null || echo "")
+              END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${ts}']/@to)" - 2>/dev/null || echo "")
+              START_TIMESTAMP="$ts"
+              TARGET_DATE="${ts:0:8}"
+              log "INFO: Found matching program at timestamp ${ts}"
+              break
+            fi
+          done
+        fi
+      else
+        # Found with exact timestamp and title matches
+        log "INFO: Found program with exact timestamp ${START_TIMESTAMP}"
+      fi
+    else
+      # Fallback to grep-based parsing
+      log "WARNING: xmllint not available, using grep-based parsing (less reliable)"
+      # First try exact timestamp
+      PROGRAM_BLOCK=$(echo "$SCHEDULE_XML" | grep -A 20 "ft=\"${START_TIMESTAMP}" | head -25 || echo "")
+      
+      if [[ -n "$PROGRAM_BLOCK" ]]; then
+        ACTUAL_TITLE=$(echo "$PROGRAM_BLOCK" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' | head -1 || echo "")
+        END_TIME=$(echo "$PROGRAM_BLOCK" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' | head -1 || echo "")
+      fi
+      
+      # If title doesn't match or not found, search by title pattern
+      if [[ -z "$ACTUAL_TITLE" ]] || [[ "$ACTUAL_TITLE" != *"$EXPECTED_TITLE"* ]]; then
+        log "INFO: Searching for program with title pattern '$EXPECTED_TITLE'"
+        # Find program block containing EXPECTED_TITLE
+        TITLE_BLOCK=$(echo "$SCHEDULE_XML" | grep -B 5 -A 15 "${EXPECTED_TITLE}" | head -25 || echo "")
+        if [[ -n "$TITLE_BLOCK" ]]; then
+          TITLE_MATCH=$(echo "$TITLE_BLOCK" | grep -oP 'ft="([^"]+)"' | head -1 | sed 's/ft="\(.*\)"/\1/' || echo "")
+          if [[ -n "$TITLE_MATCH" ]]; then
+            PROGRAM_BLOCK=$(echo "$SCHEDULE_XML" | grep -A 20 "ft=\"${TITLE_MATCH}" | head -25 || echo "")
+            ACTUAL_TITLE=$(echo "$PROGRAM_BLOCK" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' | head -1 || echo "")
+            END_TIME=$(echo "$PROGRAM_BLOCK" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' | head -1 || echo "")
+            START_TIMESTAMP="$TITLE_MATCH"
+            TARGET_DATE="${TITLE_MATCH:0:8}"
+          fi
+        fi
       fi
     fi
 
     if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
       log "ERROR: Failed to parse program info from schedule XML"
-      log "DEBUG: PROGRAM_INFO=$PROGRAM_INFO"
+      log "DEBUG: START_TIMESTAMP=$START_TIMESTAMP, TARGET_DATE=$TARGET_DATE, EXPECTED_TITLE=$EXPECTED_TITLE"
       exit 1
     fi
 
