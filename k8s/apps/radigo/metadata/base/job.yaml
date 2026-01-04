@@ -25,6 +25,8 @@ spec:
             runAsUser: 99
             runAsGroup: 99
             fsGroup: 99
+            seccompProfile:
+              type: RuntimeDefault
           affinity:
             podAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
