@@ -17,6 +17,6 @@ spec:
                 - name: PODCAST_ID
                   value: "f259c548-c572-4015-8a32-6fd9f0606672"
                 - name: PODCAST_DIR
-                  value: "/podcasts/audry"
+                  value: "/podcasts/audrey"
                 - name: BROADCAST_DOW
                   value: "6" # Saturday (title should be Saturday's date)
