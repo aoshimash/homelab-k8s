@@ -1,0 +1,22 @@
+# Program-specific configuration for アルコ＆ピース D.C.GARAGE metadata
+# Podcast ID: 51491db5-5ba8-4e63-9f79-55d3c4257209
+# Broadcast: Tuesday 25:00 (BROADCAST_DOW=2=Tuesday)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo-metadata
+  namespace: audiobookshelf
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: metadata-updater
+              env:
+                - name: PODCAST_ID
+                  value: "51491db5-5ba8-4e63-9f79-55d3c4257209"
+                - name: PODCAST_DIR
+                  value: "/podcasts/arco"
+                - name: BROADCAST_DOW
+                  value: "2" # Tuesday (title should be Tuesday's date)

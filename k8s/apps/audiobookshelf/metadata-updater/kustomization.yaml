@@ -3,5 +3,7 @@ kind: Kustomization
 resources:
   - configmap-metadata-script.yaml
   # Program overlays (add new programs here)
+  - programs/arco
+  - programs/ariyoshi
   - programs/audrey
   - programs/ijuin
