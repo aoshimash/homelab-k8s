@@ -40,7 +40,7 @@
 
 **⚠️ CRITICAL**: PVC must be created and bound before pod can start
 
-- [ ] T005 Create PVC manifest (5Gi Longhorn) in `k8s/apps/home-assistant/app/pvc.yaml`
+- [x] T005 Create PVC manifest (5Gi Longhorn) in `k8s/apps/home-assistant/app/pvc.yaml`
 
 **Checkpoint**: Storage foundation ready - user story implementation can begin
 
