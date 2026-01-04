@@ -1,12 +1,14 @@
 # Program-specific configuration for 伊集院光 深夜の馬鹿力 metadata
 # Podcast ID: 0fc23d6d-d122-4b37-ad44-98c01981efcb
 # Broadcast: Monday 25:00 (BROADCAST_DOW=1=Monday)
+# Recording schedule: Tuesday 03:05 JST (radigo-recorder-ijuin)
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: radigo-metadata
   namespace: audiobookshelf
 spec:
+  schedule: "15 3 * * 2" # Tuesday 03:15 JST (10min after recorder)
   jobTemplate:
     spec:
       template:

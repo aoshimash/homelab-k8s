@@ -1,12 +1,14 @@
 # Program-specific configuration for オードリーのオールナイトニッポン metadata
 # Podcast ID: f259c548-c572-4015-8a32-6fd9f0606672
 # Broadcast: Saturday 25:00 (BROADCAST_DOW=6=Saturday)
+# Recording schedule: Sunday 03:05 JST (radigo-recorder-audrey)
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: radigo-metadata
   namespace: audiobookshelf
 spec:
+  schedule: "15 3 * * 0" # Sunday 03:15 JST (10min after recorder)
   jobTemplate:
     spec:
       template:
