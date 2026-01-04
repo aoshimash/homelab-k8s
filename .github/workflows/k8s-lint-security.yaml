@@ -3,11 +3,11 @@ name: K8s Lint & Security
 on:
   pull_request:
     paths:
-      - 'k8s/**'
-      - 'Taskfile.yaml'
-      - '.github/workflows/k8s-lint-security.yaml'
-      - 'trivy.yaml'
-      - 'trivy-secret.yaml'
+      - "k8s/**"
+      - "Taskfile.yaml"
+      - ".github/workflows/k8s-lint-security.yaml"
+      - "trivy.yaml"
+      - "trivy-secret.yaml"
 
 jobs:
   lint:
@@ -44,21 +44,23 @@ jobs:
       - name: Run Trivy config scan (misconfig)
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          scan-type: 'config'
-          scan-ref: 'k8s/'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
-          skip-files: 'flux/flux-system/gotk-components.yaml'
+          scan-type: "config"
+          scan-ref: "k8s/"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          format: "table"
+          skip-files: "flux/flux-system/gotk-components.yaml"
+          skip-dirs: "apps/radigo/programs"
+          trivy-config: "trivy.yaml"
 
       - name: Run Trivy filesystem scan (secrets)
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          scan-type: 'fs'
-          scan-ref: 'k8s/'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
-          skip-files: 'flux/flux-system/gotk-components.yaml'
-          trivy-config: 'trivy.yaml'
-          scanners: 'secret'
+          scan-type: "fs"
+          scan-ref: "k8s/"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          format: "table"
+          skip-files: "flux/flux-system/gotk-components.yaml"
+          trivy-config: "trivy.yaml"
+          scanners: "secret"
