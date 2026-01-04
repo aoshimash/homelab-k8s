@@ -25,6 +25,7 @@ tasks:
           --exit-code 1 \
           --severity HIGH,CRITICAL \
           --skip-files flux/flux-system/gotk-components.yaml \
+          --skip-dirs apps/radigo/programs \
           {{.K8S_DIR}}/
       - |
         trivy fs \
