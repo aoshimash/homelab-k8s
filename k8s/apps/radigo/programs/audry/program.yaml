@@ -25,3 +25,6 @@ spec:
                   value: "オードリー"
                 - name: OUTPUT_DIR
                   value: "/podcasts/audry"
+                # Get this ID from Audiobookshelf URL: /library/{libraryId}/podcast/{podcastId}
+                - name: AUDIOBOOKSHELF_PODCAST_ID
+                  value: "REPLACE_WITH_ACTUAL_PODCAST_ID"

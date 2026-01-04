@@ -70,6 +70,9 @@ spec:
                     secretKeyRef:
                       name: radigo-audiobookshelf-api
                       key: base_url
+                # Podcast ID for episode metadata update (override in program overlay)
+                - name: AUDIOBOOKSHELF_PODCAST_ID
+                  value: "PLACEHOLDER"
                 - name: RADIGO_HOME
                   value: "/output"
               volumeMounts:

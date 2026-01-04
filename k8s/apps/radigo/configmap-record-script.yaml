@@ -28,6 +28,7 @@ data:
     AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
     AUDIOBOOKSHELF_LIBRARY_ID="${AUDIOBOOKSHELF_LIBRARY_ID:-}"
     AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
+    AUDIOBOOKSHELF_PODCAST_ID="${AUDIOBOOKSHELF_PODCAST_ID:-}"
 
     # Validate required environment variables
     if [[ -z "$STATION_ID" ]] || [[ -z "$DAY_OF_WEEK" ]] || [[ -z "$START_TIME" ]] || \
@@ -185,6 +186,69 @@ data:
       fi
     else
       log "WARNING: Audiobookshelf API credentials not configured, skipping library scan"
+    fi
+
+    # Update episode metadata (title and publishedAt)
+    if [[ -n "$AUDIOBOOKSHELF_API_KEY" ]] && [[ -n "$AUDIOBOOKSHELF_PODCAST_ID" ]] && [[ -n "$AUDIOBOOKSHELF_BASE_URL" ]]; then
+      log "INFO: Waiting for library scan to complete..."
+      sleep 15
+
+      # Calculate broadcast date for title
+      # For late-night shows (00:00-05:00), use previous day as the broadcast date
+      # e.g., 2026-01-11 01:00 broadcast -> "2026-01-10" (Saturday's show)
+      END_TIME_HOUR="${END_TIME:8:2}"
+      if [[ "$END_TIME_HOUR" -lt "05" ]]; then
+        # Late-night broadcast: subtract 1 day from END_TIME date
+        END_DATE="${END_TIME:0:8}"
+        BROADCAST_DATE=$(date -d "${END_DATE:0:4}-${END_DATE:4:2}-${END_DATE:6:2} -1 day" '+%Y-%m-%d')
+      else
+        BROADCAST_DATE=$(date -d "${END_TIME:0:4}-${END_TIME:4:2}-${END_TIME:6:2}" '+%Y-%m-%d')
+      fi
+
+      # Calculate publishedAt (end time of broadcast) in milliseconds
+      # END_TIME format: YYYYMMDDHHMMSS
+      END_DATE_ISO="${END_TIME:0:4}-${END_TIME:4:2}-${END_TIME:6:2}T${END_TIME:8:2}:${END_TIME:10:2}:${END_TIME:12:2}+09:00"
+      PUBLISHED_AT_MS=$(($(date -d "$END_DATE_ISO" +%s) * 1000))
+
+      log "INFO: Broadcast date: $BROADCAST_DATE, Published at: $END_DATE_ISO"
+
+      # Get podcast episodes to find the newly added one
+      log "INFO: Fetching podcast episodes"
+      PODCAST_URL="${AUDIOBOOKSHELF_BASE_URL}/api/items/${AUDIOBOOKSHELF_PODCAST_ID}?expanded=1"
+      PODCAST_DATA=$(curl -s --fail "$PODCAST_URL" \
+        -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}") || {
+        log "WARNING: Failed to fetch podcast data"
+        PODCAST_DATA=""
+      }
+
+      if [[ -n "$PODCAST_DATA" ]]; then
+        # Find episode by filename
+        EPISODE_ID=$(echo "$PODCAST_DATA" | jq -r ".media.episodes[] | select(.audioFile.metadata.filename == \"$FINAL_FILENAME\") | .id" 2>/dev/null)
+
+        if [[ -n "$EPISODE_ID" ]] && [[ "$EPISODE_ID" != "null" ]]; then
+          log "INFO: Found episode ID: $EPISODE_ID, updating metadata"
+
+          # Update episode metadata
+          UPDATE_URL="${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${AUDIOBOOKSHELF_PODCAST_ID}/episode/${EPISODE_ID}"
+          UPDATE_PAYLOAD=$(jq -n \
+            --arg title "$BROADCAST_DATE" \
+            --argjson publishedAt "$PUBLISHED_AT_MS" \
+            '{title: $title, publishedAt: $publishedAt}')
+
+          if curl -s --fail -X PATCH "$UPDATE_URL" \
+            -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$UPDATE_PAYLOAD"; then
+            log "INFO: Episode metadata updated successfully (title: $BROADCAST_DATE)"
+          else
+            log "WARNING: Failed to update episode metadata"
+          fi
+        else
+          log "WARNING: Could not find episode with filename: $FINAL_FILENAME"
+        fi
+      fi
+    else
+      log "WARNING: Audiobookshelf podcast ID not configured, skipping episode metadata update"
     fi
 
     log "INFO: Recording workflow completed successfully"

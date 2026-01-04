@@ -25,3 +25,6 @@ spec:
                   value: "伊集院光"
                 - name: OUTPUT_DIR
                   value: "/podcasts/ijuin"
+                # Get this ID from Audiobookshelf URL: /library/{libraryId}/podcast/{podcastId}
+                - name: AUDIOBOOKSHELF_PODCAST_ID
+                  value: "REPLACE_WITH_ACTUAL_PODCAST_ID"
