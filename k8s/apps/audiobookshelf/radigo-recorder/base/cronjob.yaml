@@ -54,22 +54,6 @@ spec:
                   value: "PLACEHOLDER"
                 - name: OUTPUT_DIR
                   value: "/podcasts/PLACEHOLDER"
-                # Shared env vars from secrets
-                - name: AUDIOBOOKSHELF_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: radigo-audiobookshelf-api
-                      key: api_key
-                - name: AUDIOBOOKSHELF_LIBRARY_ID
-                  valueFrom:
-                    secretKeyRef:
-                      name: radigo-audiobookshelf-api
-                      key: library_id
-                - name: AUDIOBOOKSHELF_BASE_URL
-                  valueFrom:
-                    secretKeyRef:
-                      name: radigo-audiobookshelf-api
-                      key: base_url
                 - name: RADIGO_HOME
                   value: "/output"
               volumeMounts:

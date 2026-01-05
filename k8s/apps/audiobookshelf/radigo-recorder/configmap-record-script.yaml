@@ -25,9 +25,6 @@ data:
     START_TIME="${START_TIME:-}"
     EXPECTED_TITLE="${EXPECTED_TITLE:-}"
     OUTPUT_DIR="${OUTPUT_DIR:-}"
-    AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
-    AUDIOBOOKSHELF_LIBRARY_ID="${AUDIOBOOKSHELF_LIBRARY_ID:-}"
-    AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
 
     # Validate required environment variables
     if [[ -z "$STATION_ID" ]] || [[ -z "$DAY_OF_WEEK" ]] || [[ -z "$START_TIME" ]] || \
@@ -53,7 +50,7 @@ data:
     START_TIME_NUMERIC="${START_TIME//:/}"  # Convert "01:00" to "0100"
 
     # Calculate days to subtract to get to the most recent PAST target day+time
-    # 
+    #
     # Key rule: The broadcast START_TIME must be in the past.
     # If same day but START_TIME hasn't passed yet, go back 7 days.
     #
@@ -170,21 +167,5 @@ data:
     # Move file to target directory
     mv "$OUTPUT_FILE" "$FINAL_PATH"
     log "INFO: File saved to $FINAL_PATH"
-
-    # Trigger Audiobookshelf library scan
-    if [[ -n "$AUDIOBOOKSHELF_API_KEY" ]] && [[ -n "$AUDIOBOOKSHELF_LIBRARY_ID" ]] && [[ -n "$AUDIOBOOKSHELF_BASE_URL" ]]; then
-      log "INFO: Triggering Audiobookshelf library scan"
-      SCAN_URL="${AUDIOBOOKSHELF_BASE_URL}/api/libraries/${AUDIOBOOKSHELF_LIBRARY_ID}/scan"
-
-      if curl -s --fail -X POST "$SCAN_URL" \
-        -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
-        -H "Content-Type: application/json"; then
-        log "INFO: Library scan triggered successfully"
-      else
-        log "WARNING: Failed to trigger library scan (recording saved but may not appear in library immediately)"
-      fi
-    else
-      log "WARNING: Audiobookshelf API credentials not configured, skipping library scan"
-    fi
 
     log "INFO: Recording workflow completed successfully"
