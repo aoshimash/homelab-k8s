@@ -15,9 +15,17 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: homelab-node-01
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: home-assistant
           image: ghcr.io/home-assistant/home-assistant:2024.12
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8123
           volumeMounts:
