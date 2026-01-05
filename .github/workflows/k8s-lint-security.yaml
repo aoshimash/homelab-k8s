@@ -10,12 +10,17 @@ on:
       - "trivy-secret.yaml"
 
 jobs:
-  lint:
-    name: Lint K8s Manifests
+  check:
+    name: Lint & Security
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@v4
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
 
       - name: Install kubeconform
         run: |
@@ -24,43 +29,14 @@ jobs:
             "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
           tar xzf kubeconform.tar.gz
           sudo mv kubeconform /usr/local/bin/
-          kubeconform -v
 
-      - name: Run kubeconform
+      - name: Install Trivy
         run: |
-          kubeconform \
-            -summary \
-            -skip HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy \
-            -output text \
-            k8s/**/*.yaml
+          TRIVY_VERSION="0.58.2"
+          curl -L -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar xzf trivy.tar.gz
+          sudo mv trivy /usr/local/bin/
 
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-
-      - name: Run Trivy config scan (misconfig)
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          scan-type: "config"
-          scan-ref: "k8s/"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
-          format: "table"
-          skip-files: "flux/flux-system/gotk-components.yaml"
-          skip-dirs: "apps/audiobookshelf/radigo-recorder/programs,apps/audiobookshelf/metadata-updater/programs"
-          trivy-config: "trivy.yaml"
-
-      - name: Run Trivy filesystem scan (secrets)
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          scan-type: "fs"
-          scan-ref: "k8s/"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
-          format: "table"
-          skip-files: "flux/flux-system/gotk-components.yaml"
-          trivy-config: "trivy.yaml"
-          scanners: "secret"
+      - name: Run checks
+        run: task check
