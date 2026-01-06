@@ -8,7 +8,8 @@ metadata:
   name: radigo-metadata
   namespace: audiobookshelf
 spec:
-  schedule: "15 3 * * 2" # Tuesday 03:15 JST (10min after recorder)
+  # Target: Tuesday 03:15 JST -> Monday 18:15 UTC (JST = UTC+9)
+  schedule: "15 18 * * 1"
   jobTemplate:
     spec:
       template:
