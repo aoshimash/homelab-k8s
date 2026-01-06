@@ -13,6 +13,39 @@ data:
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
     }
 
+    # Day of week name lookup (0=Sun, 1=Mon, ..., 6=Sat)
+    get_dow_name() {
+      case "$1" in
+        0) echo "Sun" ;;
+        1) echo "Mon" ;;
+        2) echo "Tue" ;;
+        3) echo "Wed" ;;
+        4) echo "Thu" ;;
+        5) echo "Fri" ;;
+        6) echo "Sat" ;;
+        *) echo "Mon" ;;
+      esac
+    }
+
+    # Month name lookup (01-12)
+    get_month_name() {
+      case "$1" in
+        01) echo "Jan" ;;
+        02) echo "Feb" ;;
+        03) echo "Mar" ;;
+        04) echo "Apr" ;;
+        05) echo "May" ;;
+        06) echo "Jun" ;;
+        07) echo "Jul" ;;
+        08) echo "Aug" ;;
+        09) echo "Sep" ;;
+        10) echo "Oct" ;;
+        11) echo "Nov" ;;
+        12) echo "Dec" ;;
+        *) echo "Jan" ;;
+      esac
+    }
+
     # Environment variables
     PODCAST_ID="${PODCAST_ID:-}"
     PODCAST_DIR="${PODCAST_DIR:-}"
@@ -135,13 +168,22 @@ data:
         log "INFO: File date DOW ($FILE_DOW) != broadcast DOW ($BROADCAST_DOW), using previous day"
       fi
 
-      log "INFO: Setting title=$TITLE_DATE, publishedAt=$PUB_TIMESTAMP_MS"
+      # Generate RFC 2822 format pubDate string for RSS feed
+      # Format: "Day, DD Mon YYYY HH:MM:SS+0900"
+      # Remove leading zero from day for RFC 2822 compliance
+      DAY_NUM=$(echo "$DAY" | sed 's/^0//')
+      DOW_NAME=$(get_dow_name "$FILE_DOW")
+      MONTH_NAME=$(get_month_name "$MONTH")
+      PUB_DATE_RFC2822="${DOW_NAME}, ${DAY_NUM} ${MONTH_NAME} ${YEAR} ${PUBDATE_HOUR}:${PUBDATE_MIN}:00+0900"
+
+      log "INFO: Setting title=$TITLE_DATE, publishedAt=$PUB_TIMESTAMP_MS, pubDate=$PUB_DATE_RFC2822"
 
       # Update episode metadata via API
+      # Include both publishedAt (timestamp) and pubDate (RFC 2822 string for RSS)
       UPDATE_RESPONSE=$(curl -s -f -X PATCH \
         -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
         -H "Content-Type: application/json" \
-        -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}}" \
+        -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}, \"pubDate\": \"${PUB_DATE_RFC2822}\"}" \
         "${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${PODCAST_ID}/episode/${episode_id}") || {
         log "ERROR: Failed to update episode $episode_id"
         continue
