@@ -7,3 +7,4 @@ resources:
   - grafana-alloy/
   - kube-state-metrics/
   - metrics-server/
+  - cloudnative-pg/
