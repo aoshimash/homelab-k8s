@@ -22,6 +22,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 - N/A (manifest refactoring only) (010-apps-refactor)
 - YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in) (011-home-assistant)
 - Longhorn PVC (5Gi for /config) (011-home-assistant)
+- Longhorn (existing, configured) (012-cloudnative-pg)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -41,9 +42,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 012-cloudnative-pg: Added Longhorn (existing, configured)
 - 011-home-assistant: Added YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in)
 - 010-apps-refactor: Added YAML (Kubernetes manifests, Kustomize) + Kustomize, Flux CD, SOPS
-- 009-radigo-scheduler: Added Shell script (bash) for orchestration, radigo (Go binary) for recording + radigo Docker image (`yyoshiki41/radigo`), curl, jq for API calls
 
 
 <!-- MANUAL ADDITIONS START -->
