@@ -26,14 +26,14 @@
 
 **Purpose**: Create directory structure and base kustomization files
 
-- [ ] T001 Create directory structure `k8s/infrastructure/cloudnative-pg/`
-- [ ] T002 Create directory structure `k8s/configs/postgres/`
-- [ ] T003 [P] Create namespace manifest in `k8s/infrastructure/cloudnative-pg/namespace.yaml`
-- [ ] T004 [P] Create root kustomization in `k8s/infrastructure/cloudnative-pg/kustomization.yaml`
-- [ ] T005 Update infrastructure kustomization to include cloudnative-pg in `k8s/infrastructure/kustomization.yaml`
-- [ ] T006 [P] Create namespace manifest in `k8s/configs/postgres/namespace.yaml`
-- [ ] T007 [P] Create root kustomization in `k8s/configs/postgres/kustomization.yaml`
-- [ ] T008 Update configs kustomization to include postgres in `k8s/configs/kustomization.yaml`
+- [x] T001 Create directory structure `k8s/infrastructure/cloudnative-pg/`
+- [x] T002 Create directory structure `k8s/configs/postgres/`
+- [x] T003 [P] Create namespace manifest in `k8s/infrastructure/cloudnative-pg/namespace.yaml`
+- [x] T004 [P] Create root kustomization in `k8s/infrastructure/cloudnative-pg/kustomization.yaml`
+- [x] T005 Update infrastructure kustomization to include cloudnative-pg in `k8s/infrastructure/kustomization.yaml`
+- [x] T006 [P] Create namespace manifest in `k8s/configs/postgres/namespace.yaml`
+- [x] T007 [P] Create root kustomization in `k8s/configs/postgres/kustomization.yaml`
+- [x] T008 Update configs kustomization to include postgres in `k8s/configs/kustomization.yaml`
 
 **Checkpoint**: Directory structure ready for resource manifests
 
@@ -45,8 +45,8 @@
 
 **⚠️ CRITICAL**: Operator must be running and CRDs installed before PostgreSQL cluster can be deployed
 
-- [ ] T009 [P] Create HelmRepository manifest in `k8s/infrastructure/cloudnative-pg/helmrepository.yaml`
-- [ ] T010 [P] Create HelmRelease manifest for operator in `k8s/infrastructure/cloudnative-pg/helmrelease.yaml`
+- [x] T009 [P] Create HelmRepository manifest in `k8s/infrastructure/cloudnative-pg/helmrepository.yaml`
+- [x] T010 [P] Create HelmRelease manifest for operator in `k8s/infrastructure/cloudnative-pg/helmrelease.yaml`
 - [ ] T011 Verify operator deployment with `kubectl get deploy -n cnpg-system cnpg-controller-manager`
 - [ ] T012 Verify CRDs installed with `kubectl get crd clusters.postgresql.cnpg.io`
 
@@ -64,8 +64,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Create Cluster CRD manifest in `k8s/configs/postgres/cluster.yaml`
-- [ ] T014 [US1] Update postgres kustomization to include cluster.yaml in `k8s/configs/postgres/kustomization.yaml`
+- [x] T013 [P] [US1] Create Cluster CRD manifest in `k8s/configs/postgres/cluster.yaml`
+- [x] T014 [US1] Update postgres kustomization to include cluster.yaml in `k8s/configs/postgres/kustomization.yaml`
 - [ ] T015 [US1] Verify cluster status with `kubectl get cluster -n postgres postgres-cluster`
 - [ ] T016 [US1] Verify pod running with `kubectl get pods -n postgres -l cnpg.io/cluster=postgres-cluster`
 - [ ] T017 [US1] Verify PVC bound with `kubectl get pvc -n postgres`
@@ -88,9 +88,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T022 [P] [US4] Create R2 credentials secret (SOPS encrypted) in `k8s/configs/postgres/secret-r2-credentials.sops.yaml`
-- [ ] T023 [P] [US4] Create ScheduledBackup CRD manifest in `k8s/configs/postgres/scheduledbackup.yaml`
-- [ ] T024 [US4] Update postgres kustomization to include secret and scheduledbackup in `k8s/configs/postgres/kustomization.yaml`
+- [x] T022 [P] [US4] Create R2 credentials secret (SOPS encrypted) in `k8s/configs/postgres/secret-r2-credentials.sops.yaml`
+- [x] T023 [P] [US4] Create ScheduledBackup CRD manifest in `k8s/configs/postgres/scheduledbackup.yaml`
+- [x] T024 [US4] Update postgres kustomization to include secret and scheduledbackup in `k8s/configs/postgres/kustomization.yaml`
 - [ ] T025 [US4] Verify ScheduledBackup created with `kubectl get scheduledbackup -n postgres`
 - [ ] T026 [US4] Wait for first scheduled backup or trigger manual backup
 - [ ] T027 [US4] Verify backup completed with `kubectl get backup -n postgres`
@@ -104,11 +104,11 @@
 
 **Purpose**: Create operational documentation for cluster management
 
-- [ ] T029 Create operational documentation in `docs/cloudnative-pg.md`
-- [ ] T030 Document connection instructions for applications
-- [ ] T031 Document database/user provisioning procedure (for User Story 2)
-- [ ] T032 Document backup/restore procedures
-- [ ] T033 Document troubleshooting guide
+- [x] T029 Create operational documentation in `docs/cloudnative-pg.md`
+- [x] T030 Document connection instructions for applications
+- [x] T031 Document database/user provisioning procedure (for User Story 2)
+- [x] T032 Document backup/restore procedures
+- [x] T033 Document troubleshooting guide
 
 **Checkpoint**: Documentation complete - operators can manage cluster independently
 
