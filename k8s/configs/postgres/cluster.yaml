@@ -1,0 +1,27 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  storage:
+    size: 10Gi
+    storageClass: longhorn
+    # Exclude PostgreSQL PVC from Longhorn recurring backups
+    # PostgreSQL backups are handled directly by CloudNativePG to R2
+    annotations:
+      recurring-job-selector.longhorn.io: "[]"
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: "s3://homelab-postgres-backups@auto/cnpg/"
+      endpointURL: "https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com"
+      s3Credentials:
+        accessKeyId:
+          name: postgres-r2-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: postgres-r2-credentials
+          key: ACCESS_SECRET_KEY
