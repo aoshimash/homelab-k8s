@@ -1,0 +1,60 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+README.md
+LICENSE
+
+# CI/CD
+.github/
+.cursor/
+
+# Kubernetes manifests (not needed in Docker image)
+k8s/
+infra/
+
+# Secrets
+*.secret.yaml
+*.sops.yaml
+*.agekey
+secrets/
+.kube/
+kubeconfig*
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+*.log.*
+
+# Environment files
+.env
+.env.*
+
+# Build artifacts
+dist/
+build/
+*.tmp
+*.swp
+
+# Coverage
+coverage/
+
+# Node modules (if any)
+node_modules/
+
+# Python (if any)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.iml
