@@ -47,7 +47,7 @@
 
 - [x] T009 [P] Create HelmRepository manifest in `k8s/infrastructure/cloudnative-pg/helmrepository.yaml`
 - [x] T010 [P] Create HelmRelease manifest for operator in `k8s/infrastructure/cloudnative-pg/helmrelease.yaml`
-- [x] T011 Verify operator deployment with `kubectl get deploy -n cnpg-system cloudnative-pg` (Note: deployment name is `cloudnative-pg`, not `cnpg-controller-manager`)
+- [x] T011 Verify operator deployment with `kubectl get deploy -n cnpg-system cloudnative-pg` (deployment name is `cloudnative-pg`, not `cnpg-controller-manager`)
 - [x] T012 Verify CRDs installed with `kubectl get crd clusters.postgresql.cnpg.io`
 
 **Checkpoint**: Operator foundation ready - PostgreSQL cluster implementation can begin
@@ -66,13 +66,13 @@
 
 - [x] T013 [P] [US1] Create Cluster CRD manifest in `k8s/configs/postgres/cluster.yaml`
 - [x] T014 [US1] Update postgres kustomization to include cluster.yaml in `k8s/configs/postgres/kustomization.yaml`
-- [x] T015 [US1] Verify cluster status with `kubectl get cluster -n postgres postgres-cluster`
-- [x] T016 [US1] Verify pod running with `kubectl get pods -n postgres -l cnpg.io/cluster=postgres-cluster`
-- [x] T017 [US1] Verify PVC bound with `kubectl get pvc -n postgres`
-- [x] T018 [US1] Verify services created with `kubectl get svc -n postgres` (should show rw, r, ro services)
-- [x] T019 [US1] Get superuser credentials with `kubectl get secret -n postgres postgres-cluster-app -o jsonpath='{.data.password}' | base64 -d` (Note: secret name is `postgres-cluster-app`, not `postgres-cluster-superuser`)
-- [ ] T020 [US1] Test connection from within cluster using psql pod (Skipped: PodSecurity policy restrictions)
-- [x] T021 [US1] Verify cluster health status shows "Cluster in healthy state"
+- [x] T015 [US1] Verify cluster status with `kubectl get cluster -n postgres postgres-cluster` (STATUS: Cluster in healthy state)
+- [x] T016 [US1] Verify pod running with `kubectl get pods -n postgres -l cnpg.io/cluster=postgres-cluster` (postgres-cluster-1 Running)
+- [x] T017 [US1] Verify PVC bound with `kubectl get pvc -n postgres` (postgres-cluster-1 Bound, 10Gi)
+- [x] T018 [US1] Verify services created with `kubectl get svc -n postgres` (rw, r, ro services created)
+- [x] T019 [US1] Get app user credentials with `kubectl get secret -n postgres postgres-cluster-app` (superuser access disabled by default in newer versions)
+- [x] T020 [US1] Test connection from within cluster using psql pod (PostgreSQL 16.11 connection successful)
+- [x] T021 [US1] Verify cluster health status shows "Cluster in healthy state" (Ready: True)
 
 **Checkpoint**: User Story 1 complete - PostgreSQL cluster running, accepting connections, data persisted on Longhorn
 
@@ -91,10 +91,10 @@
 - [x] T022 [P] [US4] Create R2 credentials secret (SOPS encrypted) in `k8s/configs/postgres/secret-r2-credentials.sops.yaml`
 - [x] T023 [P] [US4] Create ScheduledBackup CRD manifest in `k8s/configs/postgres/scheduledbackup.yaml`
 - [x] T024 [US4] Update postgres kustomization to include secret and scheduledbackup in `k8s/configs/postgres/kustomization.yaml`
-- [x] T025 [US4] Verify ScheduledBackup created with `kubectl get scheduledbackup -n postgres`
-- [x] T026 [US4] Wait for first scheduled backup or trigger manual backup (Last backup: 5h3m ago, next scheduled: 2026-01-09T00:00:00Z)
-- [ ] T027 [US4] Verify backup completed with `kubectl get backup -n postgres` (Note: Backup resources may be cleaned up after retention period)
-- [ ] T028 [US4] Verify backup stored in R2 (check backup details) (Requires R2 access to verify)
+- [x] T025 [US4] Verify ScheduledBackup created with `kubectl get scheduledbackup -n postgres` (postgres-cluster-daily created)
+- [ ] T026 [US4] Wait for first scheduled backup or trigger manual backup (scheduled for 00:00 UTC daily)
+- [ ] T027 [US4] Verify backup completed with `kubectl get backup -n postgres` (waiting for first backup)
+- [ ] T028 [US4] Verify backup stored in R2 (check backup details after first backup)
 
 **Checkpoint**: User Story 4 complete - Automated backups configured and verified
 
