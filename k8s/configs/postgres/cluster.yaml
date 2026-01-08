@@ -14,7 +14,7 @@ spec:
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
-      destinationPath: "s3://homelab-postgres-backups@auto/cnpg/"
+      destinationPath: "s3://homelab-postgres-backups/cnpg/"
       endpointURL: "https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com"
       s3Credentials:
         accessKeyId:
