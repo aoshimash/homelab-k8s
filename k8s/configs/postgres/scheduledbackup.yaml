@@ -4,7 +4,7 @@ metadata:
   name: postgres-cluster-daily
   namespace: postgres
 spec:
-  schedule: "0 0 0 * * *"  # Daily at midnight UTC
+  schedule: "0 0 21 * * *"  # Daily at 21:00 UTC (06:00 JST)
   backupOwnerReference: cluster
   cluster:
     name: postgres-cluster
