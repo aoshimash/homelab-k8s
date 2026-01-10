@@ -11,3 +11,11 @@ data:
       db_url: !env_var DB_URL
       db_max_retries: 10
       db_retry_wait: 30
+
+    # HTTP configuration for reverse proxy (Tailscale Ingress)
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 10.244.0.0/16  # Kubernetes pod network CIDR
+        - 127.0.0.1
+        - ::1
