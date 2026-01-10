@@ -18,10 +18,16 @@ spec:
       retries: 3
   values:
     # Disable PostgreSQL subchart (use external CloudNativePG cluster)
+    # Provide empty postgresql structure to avoid nil pointer errors in chart templates
     postgresql:
       enabled: false
+      auth:
+        database: ""
     # Disable Redis subchart (not needed for single replica)
     redis:
+      enabled: false
+    # Disable Typesense subchart (not needed for basic deployment)
+    typesense:
       enabled: false
     vikunja:
       # Disable self-registration (admin-created users only)
