@@ -5,4 +5,5 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h0s
-  url: https://kolaente.dev/vikunja/helm-chart
+  type: oci
+  url: oci://ghcr.io/go-vikunja/helm-chart/vikunja
