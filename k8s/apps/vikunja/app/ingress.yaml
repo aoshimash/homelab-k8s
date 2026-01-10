@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vikunja
+  namespace: vikunja
+  annotations:
+    tailscale.com/proxy-group: ingress-proxies
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: vikunja
+      port:
+        number: 3456
+  tls:
+    - hosts:
+        - vikunja
