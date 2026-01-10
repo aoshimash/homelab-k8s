@@ -20,6 +20,9 @@ spec:
     # Disable PostgreSQL subchart (use external CloudNativePG cluster)
     postgresql:
       enabled: false
+    # Disable Redis subchart (not needed for single replica)
+    redis:
+      enabled: false
     vikunja:
       # Disable self-registration (admin-created users only)
       configMaps:
@@ -29,7 +32,7 @@ spec:
             config.yml: |
               service:
                 enableregistration: false
-      # Use external PostgreSQL (CloudNativePG)
+      # Use external PostgreSQL (CloudNativePG) via environment variables
       env:
         VIKUNJA_DATABASE_TYPE: postgres
         VIKUNJA_DATABASE_HOST:
