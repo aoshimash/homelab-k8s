@@ -40,10 +40,11 @@ spec:
               # Create pgloader command file
               # Note: SQLite migration has limited WITH options compared to PostgreSQL/MySQL
               # Use single quotes for heredoc to prevent variable expansion
+              # Use PLACEHOLDER_DOLLAR_DOLLAR to avoid sed replacement issues
               cat > /tmp/migrate.load <<'EOF'
               LOAD DATABASE
                 FROM sqlite:///mnt/sqlite/home-assistant_v2.db
-                INTO postgresql://$DB_URL
+                INTO postgresql://PLACEHOLDER_DB_URL
               WITH
                 include drop,
                 create tables,
@@ -54,12 +55,13 @@ spec:
                 work_mem to '256MB',
                 maintenance_work_mem to '512MB'
               BEFORE LOAD DO
-                $$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; $$,
-                $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$
+                PLACEHOLDER_DOLLAR_DOLLAR CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; PLACEHOLDER_DOLLAR_DOLLAR,
+                PLACEHOLDER_DOLLAR_DOLLAR CREATE EXTENSION IF NOT EXISTS "pg_trgm"; PLACEHOLDER_DOLLAR_DOLLAR
               ;
               EOF
-              # Replace $DB_URL placeholder with actual value
-              sed -i "s|\$DB_URL|$DB_URL|g" /tmp/migrate.load
+              # Replace placeholders with actual values
+              sed -i "s|PLACEHOLDER_DB_URL|$DB_URL|g" /tmp/migrate.load
+              sed -i "s|PLACEHOLDER_DOLLAR_DOLLAR|\$\$|g" /tmp/migrate.load
 
               echo "Migration script created. Executing pgloader..."
               pgloader /tmp/migrate.load
