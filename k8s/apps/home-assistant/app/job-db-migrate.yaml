@@ -39,12 +39,19 @@ spec:
 
               # Create pgloader command file
               # Note: SQLite migration has limited WITH options compared to PostgreSQL/MySQL
-              # Use single quotes for heredoc to prevent variable expansion
-              # Use PLACEHOLDER_DOLLAR_DOLLAR to avoid sed replacement issues
-              cat > /tmp/migrate.load <<'EOF'
+              # Parse DB_URL to extract components for pgloader
+              # pgloader may have issues with complex URLs, so we'll construct it explicitly
+              DB_HOST=$(echo "$DB_URL" | sed -n 's|.*@\([^:]*\):.*|\1|p')
+              DB_PORT=$(echo "$DB_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+              DB_NAME=$(echo "$DB_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
+              DB_USER=$(echo "$DB_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
+              DB_PASS=$(echo "$DB_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+              
+              # Create pgloader command file with explicit connection parameters
+              cat > /tmp/migrate.load <<'MIGRATE_EOF'
               LOAD DATABASE
                 FROM sqlite:///mnt/sqlite/home-assistant_v2.db
-                INTO postgresql://PLACEHOLDER_DB_URL
+                INTO pgsql://DB_USER_PLACEHOLDER:DB_PASS_PLACEHOLDER@DB_HOST_PLACEHOLDER:DB_PORT_PLACEHOLDER/DB_NAME_PLACEHOLDER
               WITH
                 include drop,
                 create tables,
@@ -55,13 +62,16 @@ spec:
                 work_mem to '256MB',
                 maintenance_work_mem to '512MB'
               BEFORE LOAD DO
-                PLACEHOLDER_DOLLAR_DOLLAR CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; PLACEHOLDER_DOLLAR_DOLLAR,
-                PLACEHOLDER_DOLLAR_DOLLAR CREATE EXTENSION IF NOT EXISTS "pg_trgm"; PLACEHOLDER_DOLLAR_DOLLAR
+                $$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; $$,
+                $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$
               ;
-              EOF
+              MIGRATE_EOF
               # Replace placeholders with actual values
-              sed -i "s|PLACEHOLDER_DB_URL|$DB_URL|g" /tmp/migrate.load
-              sed -i "s|PLACEHOLDER_DOLLAR_DOLLAR|\$\$|g" /tmp/migrate.load
+              sed -i "s|DB_USER_PLACEHOLDER|$DB_USER|g" /tmp/migrate.load
+              sed -i "s|DB_PASS_PLACEHOLDER|$DB_PASS|g" /tmp/migrate.load
+              sed -i "s|DB_HOST_PLACEHOLDER|$DB_HOST|g" /tmp/migrate.load
+              sed -i "s|DB_PORT_PLACEHOLDER|$DB_PORT|g" /tmp/migrate.load
+              sed -i "s|DB_NAME_PLACEHOLDER|$DB_NAME|g" /tmp/migrate.load
 
               echo "Migration script created. Executing pgloader..."
               pgloader /tmp/migrate.load
