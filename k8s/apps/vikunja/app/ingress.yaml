@@ -1,21 +1,17 @@
-# Note: Ingress is managed by Helm chart via helmrelease.yaml values
-# This file is kept as a reference but may not be needed if chart manages ingress
-# If chart ingress doesn't work with Tailscale, uncomment and use this instead:
-#
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: vikunja
-#   namespace: vikunja
-#   annotations:
-#     tailscale.com/proxy-group: ingress-proxies
-# spec:
-#   ingressClassName: tailscale
-#   defaultBackend:
-#     service:
-#       name: vikunja
-#       port:
-#         number: 3456
-#   tls:
-#     - hosts:
-#         - vikunja
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vikunja
+  namespace: vikunja
+  annotations:
+    tailscale.com/proxy-group: ingress-proxies
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: vikunja
+      port:
+        number: 3456
+  tls:
+    - hosts:
+        - vikunja
