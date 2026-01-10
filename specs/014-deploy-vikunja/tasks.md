@@ -15,9 +15,9 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create namespace resource in `k8s/apps/vikunja/namespace.yaml`
-- [ ] T002 [P] Create kustomization.yaml in `k8s/apps/vikunja/kustomization.yaml`
-- [ ] T003 [P] Wire vikunja namespace into `k8s/apps/kustomization.yaml`
+- [X] T001 Create namespace resource in `k8s/apps/vikunja/namespace.yaml`
+- [X] T002 [P] Create kustomization.yaml in `k8s/apps/vikunja/kustomization.yaml`
+- [X] T003 [P] Wire vikunja namespace into `k8s/apps/kustomization.yaml`
 
 ---
 
@@ -27,11 +27,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Create SOPS-encrypted Secret for Vikunja DB role credentials in `k8s/configs/postgres/secret-vikunja-db.sops.yaml` (type: kubernetes.io/basic-auth, keys: username, password)
-- [ ] T005 Update CloudNativePG Cluster spec to add managed role in `k8s/configs/postgres/cluster.yaml` (add spec.managed.roles[] entry for vikunja role with passwordSecret reference)
-- [ ] T006 [P] Create CNPG Database CRD for Vikunja database in `k8s/configs/postgres/database-vikunja.yaml` (name: vikunja, owner: vikunja role)
-- [ ] T007 [P] Create SOPS-encrypted Secret for Vikunja JWT secret in `k8s/apps/vikunja/app/secret-vikunja.sops.yaml`
-- [ ] T008 [P] Create SOPS-encrypted Secret for Vikunja DB connection info in `k8s/apps/vikunja/app/secret-db.sops.yaml` (if not reusing postgres secret)
+- [X] T004 [P] Create SOPS-encrypted Secret for Vikunja DB role credentials in `k8s/configs/postgres/secret-vikunja-db.sops.yaml` (type: kubernetes.io/basic-auth, keys: username, password) - ✅ Encrypted with SOPS
+- [X] T005 Update CloudNativePG Cluster spec to add managed role in `k8s/configs/postgres/cluster.yaml` (add spec.managed.roles[] entry for vikunja role with passwordSecret reference)
+- [X] T006 [P] Create CNPG Database CRD for Vikunja database in `k8s/configs/postgres/database-vikunja.yaml` (name: vikunja, owner: vikunja role)
+- [X] T007 [P] Create SOPS-encrypted Secret for Vikunja JWT secret in `k8s/apps/vikunja/app/secret-vikunja.sops.yaml` - ✅ Encrypted with SOPS
+- [X] T008 [P] Create SOPS-encrypted Secret for Vikunja DB connection info in `k8s/apps/vikunja/app/secret-db.sops.yaml` (if not reusing postgres secret) - ✅ Encrypted with SOPS
 
 **Checkpoint**: Foundation ready - database and secrets are provisioned, user story implementation can now begin
 
@@ -45,11 +45,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Create Longhorn PVC for file storage in `k8s/apps/vikunja/app/pvc.yaml` (storageClass: longhorn, annotation: recurring-job-selector.longhorn.io for daily backups)
-- [ ] T010 [P] [US1] Create HelmRepository resource for Vikunja chart in `k8s/apps/vikunja/app/helmrepository.yaml` (points to official Vikunja chart repository)
-- [ ] T011 [US1] Create HelmRelease resource for Vikunja in `k8s/apps/vikunja/app/helmrelease.yaml` (configured for external PostgreSQL, existing PVC, registration disabled, Tailscale ingress)
-- [ ] T012 [P] [US1] Create Tailscale Ingress resource in `k8s/apps/vikunja/app/ingress.yaml` (if chart ingress is not used, ingressClassName: tailscale, annotation: tailscale.com/proxy-group: ingress-proxies, host: vikunja)
-- [ ] T013 [US1] Create app kustomization.yaml in `k8s/apps/vikunja/app/kustomization.yaml` (references all app resources)
+- [X] T009 [P] [US1] Create Longhorn PVC for file storage in `k8s/apps/vikunja/app/pvc.yaml` (storageClass: longhorn, annotation: recurring-job-selector.longhorn.io for daily backups)
+- [X] T010 [P] [US1] Create HelmRepository resource for Vikunja chart in `k8s/apps/vikunja/app/helmrepository.yaml` (points to official Vikunja chart repository)
+- [X] T011 [US1] Create HelmRelease resource for Vikunja in `k8s/apps/vikunja/app/helmrelease.yaml` (configured for external PostgreSQL, existing PVC, registration disabled, Tailscale ingress)
+- [X] T012 [P] [US1] Create Tailscale Ingress resource in `k8s/apps/vikunja/app/ingress.yaml` (if chart ingress is not used, ingressClassName: tailscale, annotation: tailscale.com/proxy-group: ingress-proxies, host: vikunja)
+- [X] T013 [US1] Create app kustomization.yaml in `k8s/apps/vikunja/app/kustomization.yaml` (references all app resources)
 - [ ] T014 [US1] Verify Flux reconciliation: check Kustomization and HelmRelease status are Ready
 - [ ] T015 [US1] Verify pod readiness: check Vikunja pods are Running and Ready
 - [ ] T016 [US1] Verify PVC binding: confirm vikunja-files PVC is Bound
@@ -92,7 +92,7 @@
 - [ ] T027 [US3] Verify Longhorn volume backups: confirm daily backups exist for vikunja-files PVC (check Longhorn UI/API)
 - [ ] T028 [US3] Perform database restore drill: restore Vikunja DB from CNPG backup, verify restored DB contains expected sample data, verify application can connect and sign-in works
 - [ ] T029 [US3] Perform files restore drill: restore vikunja-files volume from Longhorn backup, verify restored volume is mountable, verify sample attachment file is present and accessible
-- [ ] T030 [US3] Document restore procedure: create runbook documenting restore steps per `contracts/backup-restore.md`
+- [X] T030 [US3] Document restore procedure: create runbook documenting restore steps per `contracts/backup-restore.md`
 
 **Checkpoint**: All user stories should now be independently functional - service is deployable, collaborative, and recoverable
 
