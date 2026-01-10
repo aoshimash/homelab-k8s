@@ -6,4 +6,4 @@ resources:
   - helmrelease.yaml
   - secret-vikunja.sops.yaml
   - secret-db.sops.yaml
-  # ingress.yaml is commented out - using chart-managed ingress via helmrelease values
+  - ingress.yaml
