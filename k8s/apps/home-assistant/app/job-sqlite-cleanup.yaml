@@ -38,15 +38,15 @@ spec:
               set -e
               echo "Starting SQLite database cleanup..."
               echo "Checking for SQLite file: /mnt/config/home-assistant_v2.db"
-              
+
               # Check if SQLite file exists
               if [ -f /mnt/config/home-assistant_v2.db ]; then
                 echo "SQLite file found. Getting file size..."
                 ls -lh /mnt/config/home-assistant_v2.db
-                
+
                 echo "Deleting SQLite database file..."
                 rm -f /mnt/config/home-assistant_v2.db
-                
+
                 # Verify deletion
                 if [ ! -f /mnt/config/home-assistant_v2.db ]; then
                   echo "SQLite database file deleted successfully"
@@ -58,7 +58,7 @@ spec:
                 echo "SQLite file not found (may have been already deleted)"
                 echo "Cleanup completed (no action needed)"
               fi
-              
+
               echo "Cleanup job completed successfully"
           volumeMounts:
             - name: config
