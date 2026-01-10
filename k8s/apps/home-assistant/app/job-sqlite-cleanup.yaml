@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: home-assistant-sqlite-cleanup
+  namespace: home-assistant
+  annotations:
+    # This job is temporary and should be removed after successful cleanup
+    # Remove from kustomization.yaml after cleanup is complete
+    description: "One-time cleanup job to remove SQLite database file after PostgreSQL migration"
+spec:
+  # Prevent automatic retries - cleanup should be idempotent but manual control is safer
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600 # Clean up after 1 hour
+  template:
+    metadata:
+      labels:
+        app: home-assistant-cleanup
+    spec:
+      restartPolicy: Never
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cleanup
+          image: busybox:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534 # nobody user
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Starting SQLite database cleanup..."
+              echo "Checking for SQLite file: /mnt/config/home-assistant_v2.db"
+
+              # Check if SQLite file exists
+              if [ -f /mnt/config/home-assistant_v2.db ]; then
+                echo "SQLite file found. Getting file size..."
+                ls -lh /mnt/config/home-assistant_v2.db
+
+                echo "Deleting SQLite database file..."
+                rm -f /mnt/config/home-assistant_v2.db
+
+                # Verify deletion
+                if [ ! -f /mnt/config/home-assistant_v2.db ]; then
+                  echo "SQLite database file deleted successfully"
+                else
+                  echo "ERROR: SQLite file still exists after deletion attempt"
+                  exit 1
+                fi
+              else
+                echo "SQLite file not found (may have been already deleted)"
+                echo "Cleanup completed (no action needed)"
+              fi
+
+              echo "Cleanup job completed successfully"
+          volumeMounts:
+            - name: config
+              mountPath: /mnt/config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: home-assistant-config
