@@ -38,18 +38,17 @@ spec:
               echo "Target: $DB_URL"
 
               # Create pgloader command file
+              # Note: SQLite migration has limited WITH options compared to PostgreSQL/MySQL
               cat > /tmp/migrate.load <<EOF
               LOAD DATABASE
                 FROM sqlite:///mnt/sqlite/home-assistant_v2.db
                 INTO postgresql://$DB_URL
               WITH
-                data only,
-                drop indexes,
+                include drop,
+                create tables,
+                create indexes,
                 reset sequences,
-                workers = 4,
-                concurrency = 2,
-                multiple readers per thread,
-                rows per range = 10000
+                disable triggers
               SET
                 work_mem to '256MB',
                 maintenance_work_mem to '512MB'
