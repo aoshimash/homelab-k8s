@@ -39,7 +39,8 @@ spec:
 
               # Create pgloader command file
               # Note: SQLite migration has limited WITH options compared to PostgreSQL/MySQL
-              cat > /tmp/migrate.load <<EOF
+              # Use single quotes for heredoc to prevent variable expansion
+              cat > /tmp/migrate.load <<'EOF'
               LOAD DATABASE
                 FROM sqlite:///mnt/sqlite/home-assistant_v2.db
                 INTO postgresql://$DB_URL
@@ -57,6 +58,8 @@ spec:
                 $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$
               ;
               EOF
+              # Replace $DB_URL placeholder with actual value
+              sed -i "s|\$DB_URL|$DB_URL|g" /tmp/migrate.load
 
               echo "Migration script created. Executing pgloader..."
               pgloader /tmp/migrate.load
