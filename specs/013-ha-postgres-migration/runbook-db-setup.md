@@ -1,6 +1,6 @@
 # Runbook: PostgreSQL Database and User Setup for Home Assistant
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Purpose
@@ -171,13 +171,13 @@ After creating the user, update `k8s/apps/home-assistant/app/secret-db-url.sops.
    ```bash
    # Set Age key file location (if not already set)
    export SOPS_AGE_KEY_FILE=$(pwd)/age.agekey
-   
+
    # Encrypt the Secret file
    sops -e -i k8s/apps/home-assistant/app/secret-db-url.sops.yaml
    ```
-   
+
    **Note**: If `age.agekey` is in a different location, adjust the path accordingly.
-   
+
 4. Verify encryption:
    ```bash
    # Should show ENC[...] patterns, not plaintext
