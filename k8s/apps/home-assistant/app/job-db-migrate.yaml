@@ -75,8 +75,8 @@ spec:
                 work_mem to '256MB',
                 maintenance_work_mem to '512MB'
               BEFORE LOAD DO
-                $$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; $$,
-                $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$
+                \$\$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; \$\$,
+                \$\$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; \$\$
               ;
               MIGRATE_EOF
               # Replace placeholders with actual values
