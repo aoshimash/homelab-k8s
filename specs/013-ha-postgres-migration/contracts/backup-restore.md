@@ -47,3 +47,7 @@ Define the minimum expected behavior for backups, rollback, and restores when mi
 - Longhorn: volume backup/snapshot is listed and restorable.
 - CloudNativePG: `Backup` objects complete successfully; restore procedure is documented and repeatable.
 - Rollback dry-run in a test environment (recommended) demonstrates feasibility within time bounds.
+
+## Restore Procedure
+
+See `runbook-restore.md` for detailed PostgreSQL backup restore and validation procedure.

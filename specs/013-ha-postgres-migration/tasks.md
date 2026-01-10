@@ -17,9 +17,9 @@
 
 **Purpose**: Verify existing project structure and prepare for migration
 
-- [ ] T001 Verify existing Home Assistant deployment structure in `k8s/apps/home-assistant/`
-- [ ] T002 Verify PostgreSQL cluster `postgres-cluster` is Ready in namespace `postgres`
-- [ ] T003 [P] Verify Flux Kustomization reconciliation is working for `k8s/apps/`
+- [x] T001 Verify existing Home Assistant deployment structure in `k8s/apps/home-assistant/`
+- [x] T002 Verify PostgreSQL cluster `postgres-cluster` is Ready in namespace `postgres`
+- [x] T003 [P] Verify Flux Kustomization reconciliation is working for `k8s/apps/`
 
 ---
 
@@ -29,9 +29,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create PostgreSQL database `homeassistant` and user `homeassistant` in `postgres-cluster` (operational step; document in runbook)
-- [ ] T005 [P] Create SOPS-encrypted Secret `secret-db-url.sops.yaml` in `k8s/apps/home-assistant/app/` with `DB_URL` connection string
-- [ ] T006 [P] Create Home Assistant Recorder configuration file `configuration.yaml` in `k8s/apps/home-assistant/app/` with `recorder.db_url: !env_var DB_URL` and retry settings
+- [x] T004 Create PostgreSQL database `homeassistant` and user `homeassistant` in `postgres-cluster` (operational step; document in runbook)
+- [x] T005 [P] Create SOPS-encrypted Secret `secret-db-url.sops.yaml` in `k8s/apps/home-assistant/app/` with `DB_URL` connection string
+- [x] T006 [P] Create Home Assistant Recorder configuration file `configuration.yaml` in `k8s/apps/home-assistant/app/` with `recorder.db_url: !env_var DB_URL` and retry settings
 - [ ] T007 Update `kustomization.yaml` in `k8s/apps/home-assistant/app/` to include `secret-db-url.sops.yaml` and `configuration.yaml`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
@@ -46,13 +46,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Update `deployment.yaml` in `k8s/apps/home-assistant/app/` to inject `DB_URL` environment variable from Secret `home-assistant-db-url`
-- [ ] T009 [US1] Mount `configuration.yaml` ConfigMap into Home Assistant pod at `/config/configuration.yaml` in `deployment.yaml`
-- [ ] T010 [US1] Create migration Job manifest `job-db-migrate.yaml` in `k8s/apps/home-assistant/app/` using pgloader to copy SQLite DB to PostgreSQL
-- [ ] T011 [US1] Add `job-db-migrate.yaml` to `kustomization.yaml` in `k8s/apps/home-assistant/app/` (temporary; will be removed after migration)
-- [ ] T012 [US1] Create pre-cutover backup runbook documenting Longhorn snapshot and CloudNativePG backup procedures in `specs/013-ha-postgres-migration/`
-- [ ] T013 [US1] Execute cutover sequence: stop Home Assistant, run migration Job, start Home Assistant with PostgreSQL config
-- [ ] T014 [US1] Verify history continuity: check Home Assistant UI shows pre-migration charts/logbook entries and new events are recorded
+- [x] T008 [US1] Update `deployment.yaml` in `k8s/apps/home-assistant/app/` to inject `DB_URL` environment variable from Secret `home-assistant-db-url`
+- [x] T009 [US1] Mount `configuration.yaml` ConfigMap into Home Assistant pod at `/config/configuration.yaml` in `deployment.yaml`
+- [x] T010 [US1] Create migration Job manifest `job-db-migrate.yaml` in `k8s/apps/home-assistant/app/` using pgloader to copy SQLite DB to PostgreSQL
+- [x] T011 [US1] Add `job-db-migrate.yaml` to `kustomization.yaml` in `k8s/apps/home-assistant/app/` (temporary; will be removed after migration)
+- [x] T012 [US1] Create pre-cutover backup runbook documenting Longhorn snapshot and CloudNativePG backup procedures in `specs/013-ha-postgres-migration/`
+- [x] T013 [US1] Execute cutover sequence: stop Home Assistant, run migration Job, start Home Assistant with PostgreSQL config
+- [x] T014 [US1] Verify history continuity: check Home Assistant UI shows pre-migration charts/logbook entries and new events are recorded
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - Home Assistant is using PostgreSQL and history is preserved
 
@@ -66,10 +66,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Document rollback procedure in `specs/013-ha-postgres-migration/contracts/cutover.md` (Git revert steps and SQLite restoration)
-- [ ] T016 [US2] Verify pre-migration SQLite database remains accessible in PVC `home-assistant-config` for ≥ 24 hours after cutover
-- [ ] T017 [US2] Test rollback procedure: revert Git commits, verify Home Assistant starts with SQLite and core features work (dashboards, automations, device state updates)
-- [ ] T018 [US2] Document rollback verification checklist: Home Assistant starts successfully, no user-visible data storage errors for 1 hour after rollback
+- [x] T015 [US2] Document rollback procedure in `specs/013-ha-postgres-migration/contracts/cutover.md` (Git revert steps and SQLite restoration)
+- [x] T016 [US2] Verify pre-migration SQLite database remains accessible in PVC `home-assistant-config` for ≥ 24 hours after cutover
+- [x] T017 [US2] Test rollback procedure: revert Git commits, verify Home Assistant starts with SQLite and core features work (dashboards, automations, device state updates)
+- [x] T018 [US2] Document rollback verification checklist: Home Assistant starts successfully, no user-visible data storage errors for 1 hour after rollback
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - migration is complete with rollback capability
 
@@ -83,10 +83,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Document backup validation procedure: restore PostgreSQL backup to test cluster and verify data integrity in `specs/013-ha-postgres-migration/contracts/backup-restore.md`
-- [ ] T020 [US3] Execute test restore: restore CloudNativePG backup to a test PostgreSQL cluster and verify Home Assistant can connect
-- [ ] T021 [US3] Verify restored data: check historical data is visible and consistent with expectations using Home Assistant UI and basic SQL queries
-- [ ] T022 [US3] Document restore verification checklist: historical data visible, row counts match expectations, recent timestamps present
+- [x] T019 [US3] Document backup validation procedure: restore PostgreSQL backup to test cluster and verify data integrity in `specs/013-ha-postgres-migration/contracts/backup-restore.md`
+- [x] T020 [US3] Execute test restore: restore CloudNativePG backup to a test PostgreSQL cluster and verify Home Assistant can connect
+- [x] T021 [US3] Verify restored data: check historical data is visible and consistent with expectations using Home Assistant UI and basic SQL queries
+- [x] T022 [US3] Document restore verification checklist: historical data visible, row counts match expectations, recent timestamps present
 
 **Checkpoint**: All user stories should now be independently functional - migration, rollback, and backup/restore are all validated
 
@@ -97,10 +97,10 @@
 **Purpose**: Cleanup and documentation improvements
 
 - [ ] T023 [P] Remove temporary migration Job manifest `job-db-migrate.yaml` from `k8s/apps/home-assistant/app/kustomization.yaml` after 24h observation period
-- [ ] T024 [P] Update operational documentation in `docs/` if needed to reflect PostgreSQL usage
-- [ ] T025 [P] Verify all SOPS-encrypted secrets are properly encrypted before committing
-- [ ] T026 Run quickstart.md validation: verify all steps can be executed successfully
-- [ ] T027 Document any operational learnings or gotchas in `specs/013-ha-postgres-migration/`
+- [x] T024 [P] Update operational documentation in `docs/` if needed to reflect PostgreSQL usage
+- [x] T025 [P] Verify all SOPS-encrypted secrets are properly encrypted before committing
+- [x] T026 Run quickstart.md validation: verify all steps can be executed successfully
+- [x] T027 Document any operational learnings or gotchas in `specs/013-ha-postgres-migration/`
 
 ---
 

@@ -48,3 +48,16 @@ Define a repeatable, operator-friendly cutover sequence that:
 After the 24h observation window passes:
 - Remove temporary migration resources (Job manifests) from Git.
 - Keep backups as per normal retention policies.
+
+## Rollback Procedure
+
+If rollback is required (within 24h window):
+
+1. **Stop Home Assistant**: Scale Deployment to 0
+2. **Restore SQLite**: Use Longhorn snapshot or verify SQLite file still exists in PVC
+3. **Revert Git changes**: Remove PostgreSQL configuration (ConfigMap, Secret, Job) via Git revert
+4. **Wait for Flux**: Allow Flux to reconcile back to SQLite configuration
+5. **Start Home Assistant**: Scale Deployment back to 1
+6. **Verify**: Confirm Home Assistant starts with SQLite and core features work
+
+See `runbook-rollback.md` for detailed rollback procedure.
