@@ -23,3 +23,11 @@ spec:
         secretAccessKey:
           name: postgres-r2-credentials
           key: ACCESS_SECRET_KEY
+  managed:
+    roles:
+      - name: vikunja
+        ensure: present
+        login: true
+        superuser: false
+        passwordSecret:
+          name: postgres-vikunja-user
