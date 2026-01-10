@@ -44,7 +44,6 @@ N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 ## Recent Changes
 - 012-cloudnative-pg: Added Longhorn (existing, configured)
 - 011-home-assistant: Added YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in)
-- 010-apps-refactor: Added YAML (Kubernetes manifests, Kustomize) + Kustomize, Flux CD, SOPS
 
 
 <!-- MANUAL ADDITIONS START -->
