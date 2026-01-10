@@ -1,6 +1,6 @@
 # homelab-k8s Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-02
+Auto-generated from all feature plans. Last updated: 2026-01-10
 
 ## Active Technologies
 - Kubernetes manifests (YAML) + Kustomize + Flux CD + Flux CD (Kustomize controller + Helm controller), Kustomize, HelmRelease/HelmRepository CRDs, Longhorn Helm chart, SOPS + age (002-longhorn-r2-backup)
@@ -23,6 +23,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-02
 - YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in) (011-home-assistant)
 - Longhorn PVC (5Gi for /config) (011-home-assistant)
 - Longhorn (existing, configured) (012-cloudnative-pg)
+- Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char (014-deploy-vikunja)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -42,6 +43,7 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 014-deploy-vikunja: Added Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char
 - 012-cloudnative-pg: Added Longhorn (existing, configured)
 - 011-home-assistant: Added YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in)
 

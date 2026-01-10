@@ -1,0 +1,87 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vikunja
+  namespace: vikunja
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: vikunja
+      sourceRef:
+        kind: HelmRepository
+        name: vikunja
+        namespace: flux-system
+      # Pinned to avoid automatic upgrades; adjust as needed after validating against the repo's upgrade policy.
+      version: 0.30.0
+  releaseName: vikunja
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    vikunja:
+      # Disable self-registration (admin-created users only)
+      configMaps:
+        api-config:
+          enabled: true
+          data:
+            config.yml: |
+              service:
+                enableregistration: false
+      # Use external PostgreSQL (CloudNativePG)
+      env:
+        VIKUNJA_DATABASE_TYPE: postgres
+        VIKUNJA_DATABASE_HOST:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja-db
+              key: VIKUNJA_DATABASE_HOST
+        VIKUNJA_DATABASE_PORT:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja-db
+              key: VIKUNJA_DATABASE_PORT
+        VIKUNJA_DATABASE_USER:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja-db
+              key: VIKUNJA_DATABASE_USER
+        VIKUNJA_DATABASE_PASSWORD:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja-db
+              key: VIKUNJA_DATABASE_PASSWORD
+        VIKUNJA_DATABASE_DATABASE:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja-db
+              key: VIKUNJA_DATABASE_DATABASE
+        VIKUNJA_SERVICE_JWTSECRET:
+          valueFrom:
+            secretKeyRef:
+              name: vikunja
+              key: VIKUNJA_SERVICE_JWTSECRET
+        VIKUNJA_SERVICE_ENABLEREGISTRATION: "false"
+      # Use existing PVC for file storage
+      persistence:
+        data:
+          enabled: true
+          existingClaim: vikunja-files
+      # Ingress configuration (Tailscale)
+      ingress:
+        main:
+          enabled: true
+          ingressClassName: tailscale
+          annotations:
+            tailscale.com/proxy-group: ingress-proxies
+          hosts:
+            - host: vikunja
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - hosts:
+                - vikunja
