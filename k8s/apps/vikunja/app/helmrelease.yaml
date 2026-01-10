@@ -17,6 +17,9 @@ spec:
     remediation:
       retries: 3
   values:
+    # Disable PostgreSQL subchart (use external CloudNativePG cluster)
+    postgresql:
+      enabled: false
     vikunja:
       # Disable self-registration (admin-created users only)
       configMaps:
