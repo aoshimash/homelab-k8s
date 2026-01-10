@@ -10,16 +10,24 @@ metadata:
 spec:
   # Prevent automatic retries - migration should be idempotent but manual control is safer
   backoffLimit: 0
-  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+  ttlSecondsAfterFinished: 86400 # Clean up after 24 hours
   template:
     metadata:
       labels:
         app: home-assistant-migration
     spec:
       restartPolicy: Never
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: pgloader
           image: dimitri/pgloader:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command:
             - /bin/bash
             - -c
@@ -28,7 +36,7 @@ spec:
               echo "Starting SQLite to PostgreSQL migration..."
               echo "Source: /mnt/sqlite/home-assistant_v2.db"
               echo "Target: $DB_URL"
-              
+
               # Create pgloader command file
               cat > /tmp/migrate.load <<EOF
               LOAD DATABASE
@@ -50,18 +58,18 @@ spec:
                 $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$
               ;
               EOF
-              
+
               echo "Migration script created. Executing pgloader..."
               pgloader /tmp/migrate.load
-              
+
               echo "Migration completed successfully!"
               echo "Verifying data..."
-              
+
               # Basic verification queries
               psql "$DB_URL" -c "SELECT COUNT(*) as total_events FROM events;" || true
               psql "$DB_URL" -c "SELECT COUNT(*) as total_states FROM states;" || true
               psql "$DB_URL" -c "SELECT MAX(created) as latest_event FROM events;" || true
-              
+
               echo "Verification complete."
           env:
             - name: DB_URL
