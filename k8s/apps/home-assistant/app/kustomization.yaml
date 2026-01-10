@@ -3,6 +3,10 @@ kind: Kustomization
 resources:
   - pvc.yaml
   - configmap.yaml
+  - configmap-recorder.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - secret-db-url.sops.yaml
+  # Temporary: Remove job-db-migrate.yaml from this list after successful migration and 24h observation
+  - job-db-migrate.yaml
