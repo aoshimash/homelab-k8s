@@ -23,6 +23,10 @@ spec:
       enabled: false
       auth:
         database: ""
+      global:
+        postgresql:
+          auth:
+            database: ""
     # Disable Redis subchart (not needed for single replica)
     redis:
       enabled: false
