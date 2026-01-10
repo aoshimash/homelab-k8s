@@ -61,7 +61,8 @@ spec:
               echo "  User: $DB_USER"
 
               # Create pgloader command file with explicit connection parameters
-              # Use echo instead of heredoc to avoid YAML parsing issues with $$
+              # Use echo with variable to avoid YAML parsing issues with $$
+              DOLLAR_DOLLAR='$$'
               {
                 echo "LOAD DATABASE"
                 echo "  FROM sqlite:///mnt/sqlite/home-assistant_v2.db"
@@ -76,8 +77,8 @@ spec:
                 echo "  work_mem to '256MB',"
                 echo "  maintenance_work_mem to '512MB'"
                 echo "BEFORE LOAD DO"
-                echo '  $$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; $$,'
-                echo '  $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$'
+                echo "  ${DOLLAR_DOLLAR} CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; ${DOLLAR_DOLLAR},"
+                echo "  ${DOLLAR_DOLLAR} CREATE EXTENSION IF NOT EXISTS \"pg_trgm\"; ${DOLLAR_DOLLAR}"
                 echo ";"
               } > /tmp/migrate.load
               # Replace placeholders with actual values
