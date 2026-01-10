@@ -40,13 +40,26 @@ spec:
               # Create pgloader command file
               # Note: SQLite migration has limited WITH options compared to PostgreSQL/MySQL
               # Parse DB_URL to extract components for pgloader
-              # pgloader may have issues with complex URLs, so we'll construct it explicitly
-              DB_HOST=$(echo "$DB_URL" | sed -n 's|.*@\([^:]*\):.*|\1|p')
-              DB_PORT=$(echo "$DB_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
-              DB_NAME=$(echo "$DB_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
-              DB_USER=$(echo "$DB_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
-              DB_PASS=$(echo "$DB_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
-              
+              # URL format: postgresql://user:password@host:port/database
+              # Remove scheme first to simplify parsing
+              URL_WITHOUT_SCHEME=$(echo "$DB_URL" | sed 's|^[^:]*://||')
+              # Extract user (before first :)
+              DB_USER=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|^\([^:]*\):.*|\1|p')
+              # Extract password (between first : and @)
+              DB_PASS=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|^[^:]*:\([^@]*\)@.*|\1|p')
+              # Extract host (between @ and :port)
+              DB_HOST=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|.*@\([^:]*\):.*|\1|p')
+              # Extract port (between host: and /)
+              DB_PORT=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+              # Extract database name (after last /)
+              DB_NAME=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|.*/\([^?]*\).*|\1|p')
+
+              echo "Parsed connection parameters:"
+              echo "  Host: $DB_HOST"
+              echo "  Port: $DB_PORT"
+              echo "  Database: $DB_NAME"
+              echo "  User: $DB_USER"
+
               # Create pgloader command file with explicit connection parameters
               cat > /tmp/migrate.load <<'MIGRATE_EOF'
               LOAD DATABASE
