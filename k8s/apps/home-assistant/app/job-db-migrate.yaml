@@ -61,24 +61,25 @@ spec:
               echo "  User: $DB_USER"
 
               # Create pgloader command file with explicit connection parameters
-              cat > /tmp/migrate.load <<'MIGRATE_EOF'
-              LOAD DATABASE
-                FROM sqlite:///mnt/sqlite/home-assistant_v2.db
-                INTO pgsql://DB_USER_PLACEHOLDER:DB_PASS_PLACEHOLDER@DB_HOST_PLACEHOLDER:DB_PORT_PLACEHOLDER/DB_NAME_PLACEHOLDER
-              WITH
-                include drop,
-                create tables,
-                create indexes,
-                reset sequences,
-                disable triggers
-              SET
-                work_mem to '256MB',
-                maintenance_work_mem to '512MB'
-              BEFORE LOAD DO
-                \$\$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; \$\$,
-                \$\$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; \$\$
-              ;
-              MIGRATE_EOF
+              # Use echo instead of heredoc to avoid YAML parsing issues with $$
+              {
+                echo "LOAD DATABASE"
+                echo "  FROM sqlite:///mnt/sqlite/home-assistant_v2.db"
+                echo "  INTO pgsql://DB_USER_PLACEHOLDER:DB_PASS_PLACEHOLDER@DB_HOST_PLACEHOLDER:DB_PORT_PLACEHOLDER/DB_NAME_PLACEHOLDER"
+                echo "WITH"
+                echo "  include drop,"
+                echo "  create tables,"
+                echo "  create indexes,"
+                echo "  reset sequences,"
+                echo "  disable triggers"
+                echo "SET"
+                echo "  work_mem to '256MB',"
+                echo "  maintenance_work_mem to '512MB'"
+                echo "BEFORE LOAD DO"
+                echo '  $$ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; $$,'
+                echo '  $$ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; $$'
+                echo ";"
+              } > /tmp/migrate.load
               # Replace placeholders with actual values
               sed -i "s|DB_USER_PLACEHOLDER|$DB_USER|g" /tmp/migrate.load
               sed -i "s|DB_PASS_PLACEHOLDER|$DB_PASS|g" /tmp/migrate.load
