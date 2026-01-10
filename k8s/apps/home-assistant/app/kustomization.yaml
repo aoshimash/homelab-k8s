@@ -8,4 +8,3 @@ resources:
   - service.yaml
   - ingress.yaml
   - secret-db-url.sops.yaml
-  - job-sqlite-cleanup.yaml
