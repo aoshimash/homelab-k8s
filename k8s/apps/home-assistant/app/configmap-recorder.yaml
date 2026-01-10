@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-assistant-recorder-config
+  namespace: home-assistant
+data:
+  configuration.yaml: |
+    # Home Assistant Recorder configuration
+    # The db_url uses !env_var to reference DB_URL from environment variable (injected from Secret)
+    recorder:
+      db_url: !env_var DB_URL
+      db_max_retries: 10
+      db_retry_wait: 30
