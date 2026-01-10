@@ -6,7 +6,8 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: vikunja
+    app.kubernetes.io/instance: vikunja
+    app.kubernetes.io/name: vikunja
   ports:
     - name: http
       port: 3456

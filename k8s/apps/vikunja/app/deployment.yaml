@@ -9,11 +9,13 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: vikunja
+      app.kubernetes.io/instance: vikunja
+      app.kubernetes.io/name: vikunja
   template:
     metadata:
       labels:
-        app: vikunja
+        app.kubernetes.io/instance: vikunja
+        app.kubernetes.io/name: vikunja
     spec:
       securityContext:
         fsGroup: 1000
