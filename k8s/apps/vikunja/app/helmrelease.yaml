@@ -5,15 +5,10 @@ metadata:
   namespace: vikunja
 spec:
   interval: 10m0s
-  chart:
-    spec:
-      chart: vikunja
-      sourceRef:
-        kind: HelmRepository
-        name: vikunja
-        namespace: flux-system
-      # Pinned to avoid automatic upgrades; adjust as needed after validating against the repo's upgrade policy.
-      version: 1.0.0
+  chartRef:
+    kind: OCIRepository
+    name: vikunja
+    namespace: flux-system
   releaseName: vikunja
   install:
     remediation:
