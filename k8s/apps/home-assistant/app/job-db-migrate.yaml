@@ -61,8 +61,7 @@ spec:
               echo "  User: $DB_USER"
 
               # Create pgloader command file with explicit connection parameters
-              # Use echo with variable to avoid YAML parsing issues with $$
-              DOLLAR_DOLLAR='$$'
+              # Use placeholder for $$ and replace with sed to avoid YAML parsing issues
               {
                 echo "LOAD DATABASE"
                 echo "  FROM sqlite:///mnt/sqlite/home-assistant_v2.db"
@@ -77,8 +76,8 @@ spec:
                 echo "  work_mem to '256MB',"
                 echo "  maintenance_work_mem to '512MB'"
                 echo "BEFORE LOAD DO"
-                echo "  ${DOLLAR_DOLLAR} CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; ${DOLLAR_DOLLAR},"
-                echo "  ${DOLLAR_DOLLAR} CREATE EXTENSION IF NOT EXISTS \"pg_trgm\"; ${DOLLAR_DOLLAR}"
+                echo "  DOLLAR_DOLLAR_PLACEHOLDER CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; DOLLAR_DOLLAR_PLACEHOLDER,"
+                echo "  DOLLAR_DOLLAR_PLACEHOLDER CREATE EXTENSION IF NOT EXISTS \"pg_trgm\"; DOLLAR_DOLLAR_PLACEHOLDER"
                 echo ";"
               } > /tmp/migrate.load
               # Replace placeholders with actual values
@@ -87,6 +86,7 @@ spec:
               sed -i "s|DB_HOST_PLACEHOLDER|$DB_HOST|g" /tmp/migrate.load
               sed -i "s|DB_PORT_PLACEHOLDER|$DB_PORT|g" /tmp/migrate.load
               sed -i "s|DB_NAME_PLACEHOLDER|$DB_NAME|g" /tmp/migrate.load
+              sed -i "s|DOLLAR_DOLLAR_PLACEHOLDER|\$\$|g" /tmp/migrate.load
 
               echo "Migration script created. Executing pgloader..."
               pgloader /tmp/migrate.load
