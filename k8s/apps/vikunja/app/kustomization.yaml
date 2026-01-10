@@ -6,4 +6,3 @@ resources:
   - helmrelease.yaml
   - secret-vikunja.sops.yaml
   - secret-db.sops.yaml
-  - ingress.yaml
