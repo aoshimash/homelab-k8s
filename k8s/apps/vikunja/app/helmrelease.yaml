@@ -82,8 +82,18 @@ spec:
           enabled: true
           existingClaim: vikunja-files
       # Ingress configuration (Tailscale)
-      # Disable chart-managed ingress and use custom ingress.yaml instead
-      # because Tailscale Ingress Operator requires defaultBackend, not rules
+      # Use Helm chart ingress with defaultBackend for Tailscale Ingress Operator
       ingress:
         main:
-          enabled: false
+          enabled: true
+          className: tailscale
+          annotations:
+            tailscale.com/proxy-group: ingress-proxies
+          defaultBackend:
+            service:
+              name: vikunja
+              port:
+                number: 3456
+          tls:
+            - hosts:
+                - vikunja
