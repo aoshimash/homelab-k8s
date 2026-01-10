@@ -1,6 +1,6 @@
 # Quickstart: Migrate Home Assistant DB to PostgreSQL Cluster
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Prerequisites

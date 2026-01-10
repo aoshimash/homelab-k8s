@@ -1,6 +1,6 @@
 # Runbook: PostgreSQL Backup Restore and Validation
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Purpose
@@ -98,14 +98,14 @@ UNION ALL
 SELECT 'states_meta', COUNT(*) FROM states_meta;
 
 -- Check date ranges
-SELECT 
+SELECT
   'events' as table_name,
   MIN(created) as earliest,
   MAX(created) as latest,
   COUNT(*) as total
 FROM events
 UNION ALL
-SELECT 
+SELECT
   'states',
   MIN(created) as earliest,
   MAX(created) as latest,
@@ -113,9 +113,9 @@ SELECT
 FROM states;
 
 -- Check recent entries
-SELECT created, event_type, event_data 
-FROM events 
-ORDER BY created DESC 
+SELECT created, event_type, event_data
+FROM events
+ORDER BY created DESC
 LIMIT 10;
 SQL
 ```

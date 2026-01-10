@@ -1,6 +1,6 @@
 # Operational Notes: Home Assistant PostgreSQL Migration
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Purpose

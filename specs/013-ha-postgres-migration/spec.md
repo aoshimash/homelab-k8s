@@ -1,8 +1,8 @@
 # Feature Specification: Migrate Home Assistant DB to PostgreSQL Cluster
 
-**Feature Branch**: `013-ha-postgres-migration`  
-**Created**: 2026-01-09  
-**Status**: Draft  
+**Feature Branch**: `013-ha-postgres-migration`
+**Created**: 2026-01-09
+**Status**: Draft
 **Input**: User description: "Home AssistantのSQLiteをPostgress-clusterに移行する"
 
 ## Clarifications

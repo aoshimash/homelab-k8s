@@ -1,6 +1,6 @@
 # Runbook: Cutover Execution (SQLite → PostgreSQL)
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Purpose
@@ -98,7 +98,7 @@ kubectl wait --for=condition=ready pod -n home-assistant -l app=home-assistant -
 kubectl logs -n home-assistant -l app=home-assistant -f | grep -i recorder
 ```
 
-**Expected**: 
+**Expected**:
 - Pod starts successfully
 - No persistent Recorder DB connection errors
 - Logs show successful PostgreSQL connection
@@ -107,7 +107,7 @@ kubectl logs -n home-assistant -l app=home-assistant -f | grep -i recorder
 
 Access Home Assistant UI and verify:
 
-1. **Historical Charts**: 
+1. **Historical Charts**:
    - Navigate to History/Lovelace dashboards
    - Verify pre-migration data is visible
    - Check date ranges match expectations

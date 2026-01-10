@@ -1,6 +1,6 @@
 # Research: Home Assistant SQLite → PostgreSQL Cluster Migration
 
-**Feature**: 013-ha-postgres-migration  
+**Feature**: 013-ha-postgres-migration
 **Date**: 2026-01-09
 
 ## Research Topics

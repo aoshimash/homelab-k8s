@@ -9,13 +9,13 @@ Migrate Home Assistant's Recorder database from the local SQLite file in the `/c
 
 ## Technical Context
 
-**Language/Version**: YAML (Kubernetes manifests), Home Assistant 2024.12  
-**Primary Dependencies**: Flux CD, Kustomize, CloudNativePG, pgloader  
-**Storage**: Longhorn PVC (`/config`) + PostgreSQL (CloudNativePG)  
-**Testing**: Manual verification via Home Assistant UI + `kubectl` logs/rollouts + basic SQL sanity checks  
-**Target Platform**: Kubernetes on Talos Linux  
-**Project Type**: GitOps-managed Kubernetes application + shared database config  
-**Performance Goals**: Planned downtime ≤ 30 minutes; UI returns to healthy state immediately after cutover  
+**Language/Version**: YAML (Kubernetes manifests), Home Assistant 2024.12
+**Primary Dependencies**: Flux CD, Kustomize, CloudNativePG, pgloader
+**Storage**: Longhorn PVC (`/config`) + PostgreSQL (CloudNativePG)
+**Testing**: Manual verification via Home Assistant UI + `kubectl` logs/rollouts + basic SQL sanity checks
+**Target Platform**: Kubernetes on Talos Linux
+**Project Type**: GitOps-managed Kubernetes application + shared database config
+**Performance Goals**: Planned downtime ≤ 30 minutes; UI returns to healthy state immediately after cutover
 **Constraints**:
 - Planned downtime (Home Assistant unavailable) **≤ 30 minutes**
 - Preserve **all** history (no intentional truncation)
