@@ -53,13 +53,13 @@ spec:
               DB_PORT=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
               # Extract database name (after last /)
               DB_NAME=$(echo "$URL_WITHOUT_SCHEME" | sed -n 's|.*/\([^?]*\).*|\1|p')
-              
+
               echo "Parsed connection parameters:"
               echo "  Host: $DB_HOST"
               echo "  Port: $DB_PORT"
               echo "  Database: $DB_NAME"
               echo "  User: $DB_USER"
-              
+
               # Create pgloader command file with explicit connection parameters
               cat > /tmp/migrate.load <<'MIGRATE_EOF'
               LOAD DATABASE
