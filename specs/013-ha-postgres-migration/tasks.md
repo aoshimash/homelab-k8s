@@ -32,7 +32,7 @@
 - [x] T004 Create PostgreSQL database `homeassistant` and user `homeassistant` in `postgres-cluster` (operational step; document in runbook)
 - [x] T005 [P] Create SOPS-encrypted Secret `secret-db-url.sops.yaml` in `k8s/apps/home-assistant/app/` with `DB_URL` connection string
 - [x] T006 [P] Create Home Assistant Recorder configuration file `configuration.yaml` in `k8s/apps/home-assistant/app/` with `recorder.db_url: !env_var DB_URL` and retry settings
-- [ ] T007 Update `kustomization.yaml` in `k8s/apps/home-assistant/app/` to include `secret-db-url.sops.yaml` and `configuration.yaml`
+- [x] T007 Update `kustomization.yaml` in `k8s/apps/home-assistant/app/` to include `secret-db-url.sops.yaml` and `configmap-recorder.yaml`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -96,7 +96,7 @@
 
 **Purpose**: Cleanup and documentation improvements
 
-- [ ] T023 [P] Remove temporary migration Job manifest `job-db-migrate.yaml` from `k8s/apps/home-assistant/app/kustomization.yaml` after 24h observation period
+- [x] T023 [P] Remove temporary migration Job manifest `job-db-migrate.yaml` from `k8s/apps/home-assistant/app/kustomization.yaml` after 24h observation period
 - [x] T024 [P] Update operational documentation in `docs/` if needed to reflect PostgreSQL usage
 - [x] T025 [P] Verify all SOPS-encrypted secrets are properly encrypted before committing
 - [x] T026 Run quickstart.md validation: verify all steps can be executed successfully

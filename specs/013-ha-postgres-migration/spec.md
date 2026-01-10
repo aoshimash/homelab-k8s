@@ -2,7 +2,8 @@
 
 **Feature Branch**: `013-ha-postgres-migration`
 **Created**: 2026-01-09
-**Status**: Draft
+**Status**: Complete
+**Completed**: 2026-01-10
 **Input**: User description: "Home AssistantのSQLiteをPostgress-clusterに移行する"
 
 ## Clarifications
