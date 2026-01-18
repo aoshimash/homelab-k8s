@@ -79,7 +79,18 @@ spec:
             }
             bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
             
+            forward_to = [prometheus.relabel.kubelet_filter.receiver]
+          }
+
+          // Keep only core kubelet metrics
+          prometheus.relabel "kubelet_filter" {
             forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex = "kubelet_running_pods|kubelet_running_containers|kubelet_node_name|kubelet_volume_stats_available_bytes|kubelet_volume_stats_capacity_bytes|kubelet_volume_stats_used_bytes|up"
+              action = "keep"
+            }
           }
 
           // Scrape cadvisor metrics (container-level)
@@ -96,7 +107,18 @@ spec:
             }
             bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
             
+            forward_to = [prometheus.relabel.cadvisor_filter.receiver]
+          }
+
+          // Keep only core cadvisor metrics
+          prometheus.relabel "cadvisor_filter" {
             forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex = "container_cpu_usage_seconds_total|container_cpu_cfs_throttled_seconds_total|container_memory_working_set_bytes|container_memory_usage_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_fs_reads_bytes_total|container_fs_writes_bytes_total|up"
+              action = "keep"
+            }
           }
 
           // Scrape kube-state-metrics
