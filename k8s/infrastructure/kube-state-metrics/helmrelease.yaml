@@ -20,3 +20,12 @@ spec:
   upgrade:
     remediation:
       retries: 3
+  values:
+    collectors:
+      - pods
+      - nodes
+      - deployments
+      - persistentvolumeclaims
+      - persistentvolumes
+      - statefulsets
+      - daemonsets
