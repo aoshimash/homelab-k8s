@@ -66,7 +66,8 @@ Create `.sops.yaml` in the repository root:
 ```yaml
 creation_rules:
   - path_regex: infra/talos/talenv.sops.yaml
-    encrypted_regex: ^(cluster|certs|secrets|trustdinfo)$
+    # Include Tailscale auth key so it never lands in Git plaintext.
+    encrypted_regex: ^(cluster|certs|secrets|trustdinfo|TAILSCALE_AUTH_KEY)$
     key_groups:
       - age:
           - <your-age-public-key>

@@ -137,6 +137,52 @@ talosctl apply-config \
 talosctl get machinestatus --nodes 192.168.0.10
 ```
 
+## Rotating the Tailscale Auth Key (Talos)
+
+Tailscale auth keys (`tskey-auth-...`) **cannot be retrieved after creation**.
+If the key is lost, revoked, expired, or the node needs to re-authenticate, you must generate a new key and update Talos.
+
+### 1. Create a new Auth Key in the Tailscale Admin Console
+
+Use an auth key appropriate for a long-lived node:
+- Prefer **Reusable: ON** and **Ephemeral: OFF**
+- Consider **Pre-approved: ON** to avoid manual approval during bootstrap
+
+### 2. Update the SOPS-managed environment file
+
+Update `infra/talos/talenv.sops.yaml` (encrypted) with the new key.
+
+> Tip: Prefer updating via SOPS so plaintext doesn't accidentally land in Git.
+
+### 3. Regenerate and apply Talos configuration
+
+```bash
+cd infra/talos
+
+# Regenerate configs (requires SOPS_AGE_KEY_FILE)
+talhelper genconfig
+
+# Apply to the node
+talosctl apply-config --nodes 192.168.0.10 \
+  --file clusterconfig/homelab-cluster-homelab-node-01.yaml
+```
+
+### 4. Verify Tailscale is logged in and stable
+
+```bash
+# Confirm the tailscale extension is loaded
+talosctl get extensions --nodes 192.168.0.10
+
+# Confirm the auth key is injected into the extension service config
+talosctl get extensionserviceconfigs --nodes 192.168.0.10 -o yaml
+
+# Restart tailscale extension service (optional, but speeds up troubleshooting)
+talosctl service ext-tailscale restart --nodes 192.168.0.10
+
+# Check tailscale logs for "Running" state and assigned 100.x address
+talosctl logs ext-tailscale --nodes 192.168.0.10
+```
+
 ## Image Factory Reference
 
 ### Current Schematic
