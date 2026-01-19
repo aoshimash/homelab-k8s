@@ -1,7 +1,7 @@
 creation_rules:
   # Talos environment variables (Tailscale auth key, etc.)
   - path_regex: infra/talos/talenv.sops.yaml
-    encrypted_regex: ^(cluster|certs|secrets|trustdinfo)$
+    encrypted_regex: ^(cluster|certs|secrets|trustdinfo|TAILSCALE_AUTH_KEY)$
     key_groups:
       - age:
           - age1ey9qstwaadrajnmu3q2aqzazk57dywfkzf74gfp5qqmq9ph7yq9s5zpxaa
