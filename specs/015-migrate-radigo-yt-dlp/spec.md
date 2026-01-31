@@ -105,7 +105,7 @@ As a homelab administrator, I want to monitor the recording jobs' success and fa
 ### Measurable Outcomes
 
 - **SC-001**: All four configured programs (ijuin, audrey, arco, ariyoshi) can be recorded successfully
-- **SC-002**: Recording success rate is 95% or higher (excluding radiko service outages)
+- **SC-002**: Recording should succeed reliably under normal conditions (target: 95%+ when manually audited)
 - **SC-003**: Audio files are playable and contain complete program content
 - **SC-004**: Recording failures produce actionable error messages within 30 seconds of failure
 - **SC-005**: Migration can be completed with zero data loss for existing scheduled recordings
