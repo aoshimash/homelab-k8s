@@ -25,8 +25,8 @@
 
 **Purpose**: Create new yt-dlp-rajiko container image
 
-- [ ] T001 Create directory structure for new image at `images/yt-dlp-rajiko/`
-- [ ] T002 Create Dockerfile at `images/yt-dlp-rajiko/Dockerfile` with python:3.12-slim base, ffmpeg, yt-dlp, and yt-dlp-rajiko
+- [x] T001 Create directory structure for new image at `images/yt-dlp-rajiko/`
+- [x] T002 Create Dockerfile at `images/yt-dlp-rajiko/Dockerfile` with python:3.12-slim base, ffmpeg, yt-dlp, and yt-dlp-rajiko
 
 **Checkpoint**: Docker image definition ready for build
 
