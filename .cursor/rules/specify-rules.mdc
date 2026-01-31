@@ -24,6 +24,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-10
 - Longhorn PVC (5Gi for /config) (011-home-assistant)
 - Longhorn (existing, configured) (012-cloudnative-pg)
 - Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char (014-deploy-vikunja)
+- Shell script (bash), Dockerfile + yt-dlp (2025.02.19+), yt-dlp-rajiko plugin (v1.11), ffmpeg (015-migrate-radigo-yt-dlp)
+- Existing PersistentVolumeClaim (audiobookshelf-podcasts) (015-migrate-radigo-yt-dlp)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -43,9 +45,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 015-migrate-radigo-yt-dlp: Added Shell script (bash), Dockerfile + yt-dlp (2025.02.19+), yt-dlp-rajiko plugin (v1.11), ffmpeg
 - 014-deploy-vikunja: Added Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char
 - 012-cloudnative-pg: Added Longhorn (existing, configured)
-- 011-home-assistant: Added YAML (Kubernetes manifests), Home Assistant 2024.x+ + Home Assistant Container, Matter integration (built-in)
 
 
 <!-- MANUAL ADDITIONS START -->
