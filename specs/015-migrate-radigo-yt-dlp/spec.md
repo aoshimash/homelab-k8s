@@ -2,7 +2,7 @@
 
 **Feature Branch**: `015-migrate-radigo-yt-dlp`  
 **Created**: 2026-01-31  
-**Status**: Draft  
+**Status**: Implementation Complete  
 **Input**: User description: "issue#126に対応 - Migrate radigo recorder to yt-dlp-rajiko due to radiko API changes"  
 **Related Issue**: [#126](https://github.com/aoshimash/homelab-k8s/issues/126)
 

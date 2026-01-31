@@ -98,11 +98,11 @@
 
 **Purpose**: Final cleanup and deployment preparation
 
-- [ ] T015 [P] Build and push Docker image to ghcr.io/aoshimash/homelab-k8s/yt-dlp-rajiko:v1.0.0
-- [ ] T016 Verify GitHub Actions workflow handles new image (check `.github/workflows/`)
+- [x] T015 [P] Build and push Docker image to ghcr.io/aoshimash/homelab-k8s/yt-dlp-rajiko:v1.0.0
+- [x] T016 Verify GitHub Actions workflow handles new image (check `.github/workflows/`)
 - [ ] T017 Run manual test recording for one program (ijuin) to validate end-to-end
 - [ ] T018 Run quickstart.md validation steps
-- [ ] T019 Update spec.md status from Draft to Complete
+- [x] T019 Update spec.md status from Draft to Complete
 
 ---
 
