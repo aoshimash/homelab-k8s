@@ -38,9 +38,9 @@
 
 **⚠️ CRITICAL**: Recording script is the foundation for all user stories
 
-- [ ] T003 Rewrite recording script in `k8s/apps/audiobookshelf/radigo-recorder/configmap-record-script.yaml` to use yt-dlp CLI
-- [ ] T004 Implement date calculation logic for timefree URL construction in record.sh
-- [ ] T005 Add yt-dlp command with --embed-metadata --embed-thumbnail -N 10 options in record.sh
+- [x] T003 Rewrite recording script in `k8s/apps/audiobookshelf/radigo-recorder/configmap-record-script.yaml` to use yt-dlp CLI
+- [x] T004 Implement date calculation logic for timefree URL construction in record.sh
+- [x] T005 Add yt-dlp command with --embed-metadata --embed-thumbnail -N 10 options in record.sh
 
 **Checkpoint**: Foundation ready - recording script complete with yt-dlp integration
 

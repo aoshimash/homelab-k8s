@@ -8,13 +8,13 @@ data:
     #!/bin/sh
     set -e
 
-    # 元の録音スクリプトを実行
+    # Execute recording script
     /bin/bash /scripts/record.sh
   record.sh: |
     #!/bin/bash
     set -euo pipefail
 
-    # Logging function
+    # Logging function with timestamps
     log() {
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
     }
@@ -30,6 +30,7 @@ data:
     if [[ -z "$STATION_ID" ]] || [[ -z "$DAY_OF_WEEK" ]] || [[ -z "$START_TIME" ]] || \
        [[ -z "$EXPECTED_TITLE" ]] || [[ -z "$OUTPUT_DIR" ]]; then
       log "ERROR: Missing required environment variables"
+      log "ERROR: Required: STATION_ID, DAY_OF_WEEK, START_TIME, EXPECTED_TITLE, OUTPUT_DIR"
       exit 1
     fi
 
@@ -38,7 +39,7 @@ data:
     # Calculate target date based on DAY_OF_WEEK (must be in the PAST for timefree)
     # DAY_OF_WEEK: 0=Sunday, 1=Monday, 2=Tuesday, ..., 6=Saturday
     # START_TIME format: HH:MM (e.g., "01:00")
-    # radiko API ft format: YYYYMMDDHHMMSS (14 digits)
+    # radiko timefree URL format: https://radiko.jp/#!/ts/{STATION_ID}/{YYYYMMDDHHMMSS}
     #
     # Timefree recording requires a PAST broadcast date.
     # The target timestamp must be BEFORE current time.
@@ -53,12 +54,6 @@ data:
     #
     # Key rule: The broadcast START_TIME must be in the past.
     # If same day but START_TIME hasn't passed yet, go back 7 days.
-    #
-    # Examples (assuming START_TIME=01:00):
-    #   - Today=Sunday(0) 03:05, Target=Sunday(0) -> 0 days (01:00 already passed)
-    #   - Today=Sunday(0) 00:30, Target=Sunday(0) -> 7 days (01:00 not yet, use last week)
-    #   - Today=Thursday(4), Target=Tuesday(2) -> 2 days ago
-    #   - Today=Sunday(0), Target=Tuesday(2) -> 5 days ago (last Tuesday)
 
     if [[ $CURRENT_DOW -eq $TARGET_DOW ]]; then
       # Same day - check if START_TIME has passed
@@ -84,88 +79,60 @@ data:
     fi
 
     START_TIMESTAMP="${TARGET_DATE}${START_TIME_NUMERIC}00"
-
+    
     log "INFO: Calculated target date: $TARGET_DATE (${DAYS_TO_SUBTRACT} days ago), timestamp=$START_TIMESTAMP"
 
-    # Fetch radiko program schedule API
-    log "INFO: Fetching program schedule from radiko API"
-    SCHEDULE_URL="http://radiko.jp/v3/program/station/weekly/${STATION_ID}.xml"
-
-    if ! SCHEDULE_XML=$(curl -s --fail "$SCHEDULE_URL"); then
-      log "ERROR: Failed to fetch radiko schedule API"
-      exit 1
-    fi
-
-    # Parse XML to find program with exact timestamp
-    # Use xmllint if available for reliable XML parsing
-    ACTUAL_TITLE=""
-    END_TIME=""
-
-    if command -v xmllint &> /dev/null; then
-      log "INFO: Using xmllint for XML parsing"
-      ACTUAL_TITLE=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/title)" - 2>/dev/null || echo "")
-      END_TIME=$(echo "$SCHEDULE_XML" | xmllint --xpath "string(//prog[@ft='${START_TIMESTAMP}']/@to)" - 2>/dev/null || echo "")
-    else
-      # Fallback to grep-based parsing
-      log "WARNING: xmllint not available, using grep-based parsing"
-      PROGRAM_BLOCK=$(echo "$SCHEDULE_XML" | grep -A 20 "ft=\"${START_TIMESTAMP}" | head -25 || echo "")
-      if [[ -n "$PROGRAM_BLOCK" ]]; then
-        ACTUAL_TITLE=$(echo "$PROGRAM_BLOCK" | grep -oP '<title>([^<]+)</title>' | sed 's/<title>\(.*\)<\/title>/\1/' | head -1 || echo "")
-        END_TIME=$(echo "$PROGRAM_BLOCK" | grep -oP 'to="([^"]+)"' | sed 's/to="\(.*\)"/\1/' | head -1 || echo "")
-      fi
-    fi
-
-    if [[ -z "$END_TIME" ]] || [[ -z "$ACTUAL_TITLE" ]]; then
-      log "ERROR: Failed to parse program info from schedule XML"
-      log "DEBUG: START_TIMESTAMP=$START_TIMESTAMP, TARGET_DATE=$TARGET_DATE, EXPECTED_TITLE=$EXPECTED_TITLE"
-      exit 1
-    fi
-
-    log "INFO: Found program: title='$ACTUAL_TITLE', end_time=$END_TIME"
-
-    # Validate title
-    if [[ "$ACTUAL_TITLE" != *"$EXPECTED_TITLE"* ]]; then
-      log "WARNING: Title mismatch - expected pattern '$EXPECTED_TITLE' not found in actual title '$ACTUAL_TITLE'"
-      log "INFO: Skipping recording (program may be on hiatus or replaced)"
-      exit 0  # Exit successfully - this is expected behavior
-    fi
-
-    log "INFO: Title validation passed, proceeding with recording"
+    # Construct radiko timefree URL for yt-dlp
+    RADIKO_URL="https://radiko.jp/#!/ts/${STATION_ID}/${START_TIMESTAMP}"
+    
+    log "INFO: Radiko URL: $RADIKO_URL"
 
     # Create output directory if it doesn't exist
     mkdir -p "$OUTPUT_DIR"
 
-    # Execute radigo timefree recording
-    # Format: radigo rec -id=STATION_ID -s=START_TIMESTAMP
-    log "INFO: Starting radigo recording"
-    RADIGO_OUTPUT=$(radigo rec -id="$STATION_ID" -s="$START_TIMESTAMP" 2>&1) || {
-      log "ERROR: radigo recording failed: $RADIGO_OUTPUT"
+    # Execute yt-dlp recording with metadata embedding and multi-threaded download
+    # Options:
+    #   --embed-metadata: Embed program metadata (title, description)
+    #   --embed-thumbnail: Embed cover art if available
+    #   -N 10: Use 10 threads for faster download
+    #   -o: Output filename template using yt-dlp default format
+    log "INFO: Starting yt-dlp recording"
+    
+    if ! yt-dlp \
+      --embed-metadata \
+      --embed-thumbnail \
+      -N 10 \
+      -o "${OUTPUT_DIR}/%(title)s %(timestamp>%Y-%m-%d)s [%(id)s].%(ext)s" \
+      "$RADIKO_URL" 2>&1 | tee /tmp/yt-dlp.log; then
+      
+      log "ERROR: yt-dlp recording failed"
+      log "ERROR: Check logs above for details"
+      
+      # Check common failure scenarios
+      if grep -q "Network is unreachable\|Connection refused" /tmp/yt-dlp.log; then
+        log "ERROR: Network connectivity issue - cannot reach radiko.jp"
+      elif grep -q "No space left on device" /tmp/yt-dlp.log; then
+        log "ERROR: Storage full - cannot save recording"
+      elif grep -q "HTTP Error 404\|Video unavailable" /tmp/yt-dlp.log; then
+        log "ERROR: Program not found - check STATION_ID and START_TIMESTAMP"
+      fi
+      
       exit 1
-    }
-
-    # Find the output file (radigo outputs to RADIGO_HOME or current directory)
-    # Default output pattern: {TIMESTAMP}-{STATION_ID}.aac
-    OUTPUT_FILE=$(find /output -name "${START_TIMESTAMP}-${STATION_ID}.aac" -type f 2>/dev/null | head -1)
-
-    if [[ -z "$OUTPUT_FILE" ]]; then
-      # Try to find any .aac file created recently
-      OUTPUT_FILE=$(find /output -name "*.aac" -type f -newermt "$(date -d @$(($(date +%s) - 3600)) '+%Y-%m-%d %H:%M:%S')" 2>/dev/null | head -1)
     fi
 
-    if [[ -z "$OUTPUT_FILE" ]] || [[ ! -f "$OUTPUT_FILE" ]]; then
+    # Verify output file was created
+    if ! find "$OUTPUT_DIR" -name "*.m4a" -o -name "*.aac" -type f -newer /tmp/yt-dlp.log 2>/dev/null | grep -q .; then
       log "ERROR: Output file not found after recording"
-      log "DEBUG: Searched in /output, START_TIMESTAMP=$START_TIMESTAMP"
+      log "ERROR: Expected M4A or AAC file in $OUTPUT_DIR"
       exit 1
     fi
 
-    log "INFO: Recording completed: $OUTPUT_FILE"
-
-    # Generate final filename: YYYYMMDD-STATION_ID.aac
-    FINAL_FILENAME="${TARGET_DATE}-${STATION_ID}.aac"
-    FINAL_PATH="${OUTPUT_DIR}/${FINAL_FILENAME}"
-
-    # Move file to target directory
-    mv "$OUTPUT_FILE" "$FINAL_PATH"
-    log "INFO: File saved to $FINAL_PATH"
+    log "INFO: Recording completed successfully"
+    log "INFO: Files saved to $OUTPUT_DIR"
+    
+    # List created files for verification
+    find "$OUTPUT_DIR" -type f -newer /tmp/yt-dlp.log -ls 2>/dev/null | while read -r line; do
+      log "INFO: Created: $line"
+    done
 
     log "INFO: Recording workflow completed successfully"
