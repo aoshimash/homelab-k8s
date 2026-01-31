@@ -86,9 +86,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T012 [US3] Add structured logging with timestamps to record.sh
-- [ ] T013 [US3] Add error message output for common failure scenarios (network, auth, storage) in record.sh
-- [ ] T014 [US3] Ensure non-zero exit code on failure for Kubernetes Job status tracking in record.sh
+- [x] T012 [US3] Add structured logging with timestamps to record.sh
+- [x] T013 [US3] Add error message output for common failure scenarios (network, auth, storage) in record.sh
+- [x] T014 [US3] Ensure non-zero exit code on failure for Kubernetes Job status tracking in record.sh
 
 **Checkpoint**: User Story 3 complete - job logs provide actionable error information
 
