@@ -54,10 +54,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Update image reference in `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml` to `ghcr.io/aoshimash/homelab-k8s/yt-dlp-rajiko:v1.0.0`
-- [ ] T007 [P] [US1] Update backoffLimit to 3 in `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml`
-- [ ] T008 [P] [US1] Remove RADIGO_HOME environment variable from `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml`
-- [ ] T009 [US1] Delete old radigo image directory `images/radigo/`
+- [x] T006 [P] [US1] Update image reference in `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml` to `ghcr.io/aoshimash/homelab-k8s/yt-dlp-rajiko:v1.0.0`
+- [x] T007 [P] [US1] Update backoffLimit to 3 in `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml`
+- [x] T008 [P] [US1] Remove RADIGO_HOME environment variable from `k8s/apps/audiobookshelf/radigo-recorder/base/cronjob.yaml`
+- [x] T009 [US1] Delete old radigo image directory `images/radigo/`
 
 **Checkpoint**: User Story 1 complete - recording jobs can successfully download audio files
 

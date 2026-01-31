@@ -10,7 +10,7 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      backoffLimit: 2
+      backoffLimit: 3
       ttlSecondsAfterFinished: 86400 # Clean up after 24 hours
       template:
         metadata:
@@ -34,7 +34,7 @@ spec:
                   topologyKey: kubernetes.io/hostname
           containers:
             - name: radigo
-              image: ghcr.io/aoshimash/homelab-k8s/radigo:v0.12.0
+              image: ghcr.io/aoshimash/homelab-k8s/yt-dlp-rajiko:v1.0.0
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
@@ -55,8 +55,6 @@ spec:
                   value: "PLACEHOLDER"
                 - name: OUTPUT_DIR
                   value: "/podcasts/PLACEHOLDER"
-                - name: RADIGO_HOME
-                  value: "/output"
               volumeMounts:
                 - name: podcasts
                   mountPath: /podcasts
