@@ -44,6 +44,9 @@ spec:
                 - /bin/sh
                 - /scripts/entrypoint.sh
               env:
+                # yt-dlp cache directory (writable by non-root user)
+                - name: XDG_CACHE_HOME
+                  value: "/output/.cache"
                 # Program-specific env vars (override in program overlay)
                 - name: STATION_ID
                   value: "PLACEHOLDER"
