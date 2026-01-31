@@ -71,8 +71,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Verify yt-dlp metadata flags (--embed-metadata, --embed-thumbnail) are correctly set in record.sh
-- [ ] T011 [US2] Add output filename template using yt-dlp default format in record.sh
+- [x] T010 [US2] Verify yt-dlp metadata flags (--embed-metadata, --embed-thumbnail) are correctly set in record.sh
+- [x] T011 [US2] Add output filename template using yt-dlp default format in record.sh
 
 **Checkpoint**: User Story 2 complete - audio files contain embedded metadata
 
