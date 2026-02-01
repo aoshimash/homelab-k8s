@@ -35,12 +35,11 @@ spec:
     # Enable Docker-in-Docker within runner container
     dockerdWithinRunnerContainer: true
     
-    # Runner pod template
+    # Resource limits for runner container
     template:
       spec:
         containers:
         - name: runner
-          image: ghcr.io/actions/actions-runner:latest
           resources:
             limits:
               cpu: "4"
