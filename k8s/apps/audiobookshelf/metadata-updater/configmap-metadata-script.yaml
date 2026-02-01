@@ -68,6 +68,23 @@ data:
 
     log "INFO: Starting metadata update for podcast=$PODCAST_ID, dir=$PODCAST_DIR, broadcast_dow=$BROADCAST_DOW, time=$PUBDATE_TIME"
 
+    # Trigger library scan to detect new files
+    log "INFO: Triggering library scan to detect new episodes"
+    LIBRARY_ID=$(echo "$PODCAST_ID" | cut -d'-' -f1)  # Extract library ID from podcast ID
+    SCAN_RESPONSE=$(curl -s -f -X POST \
+      -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+      "${AUDIOBOOKSHELF_BASE_URL}/api/libraries/${LIBRARY_ID}/scan" 2>&1) || {
+      log "WARNING: Library scan request failed (library may not support scanning): $SCAN_RESPONSE"
+      # Continue anyway - scan failure should not block metadata updates
+    }
+    
+    if echo "$SCAN_RESPONSE" | grep -q "started"; then
+      log "INFO: Library scan started successfully, waiting 5 seconds for scan to complete"
+      sleep 5
+    else
+      log "INFO: Library scan response: $SCAN_RESPONSE"
+    fi
+
     # Fetch podcast episodes from Audiobookshelf API
     log "INFO: Fetching podcast episodes from Audiobookshelf"
     PODCAST_DATA=$(curl -s -f \
@@ -89,11 +106,15 @@ data:
       exit 0
     fi
 
+    # Save episodes to temp file to avoid subshell issue in pipe
+    EPISODES_FILE="/tmp/episodes.$$"
+    echo "$EPISODES" > "$EPISODES_FILE"
+
     UPDATED_COUNT=0
     SKIPPED_COUNT=0
 
     # Process each episode
-    echo "$EPISODES" | while IFS='|' read -r episode_id filename; do
+    while IFS='|' read -r episode_id filename; do
       if [ -z "$episode_id" ] || [ -z "$filename" ]; then
         continue
       fi
@@ -180,17 +201,27 @@ data:
 
       # Update episode metadata via API
       # Include both publishedAt (timestamp) and pubDate (RFC 2822 string for RSS)
-      UPDATE_RESPONSE=$(curl -s -f -X PATCH \
+      UPDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
         -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}, \"pubDate\": \"${PUB_DATE_RFC2822}\"}" \
         "${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${PODCAST_ID}/episode/${episode_id}") || {
-        log "ERROR: Failed to update episode $episode_id"
+        log "ERROR: Failed to update episode $episode_id (curl failed)"
         continue
       }
 
-      log "INFO: Successfully updated episode: $filename -> title=$TITLE_DATE"
-      UPDATED_COUNT=$((UPDATED_COUNT + 1))
-    done
+      HTTP_CODE=$(echo "$UPDATE_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+      RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | grep -v "HTTP_CODE:")
+      
+      if [ "$HTTP_CODE" = "200" ]; then
+        log "INFO: Successfully updated episode: $filename -> title=$TITLE_DATE"
+        UPDATED_COUNT=$((UPDATED_COUNT + 1))
+      else
+        log "ERROR: Failed to update episode $episode_id (HTTP $HTTP_CODE): $RESPONSE_BODY"
+      fi
+    done < "$EPISODES_FILE"
+    
+    # Cleanup temp file
+    rm -f "$EPISODES_FILE"
 
     log "INFO: Metadata update completed. Updated: $UPDATED_COUNT, Skipped: $SKIPPED_COUNT"
