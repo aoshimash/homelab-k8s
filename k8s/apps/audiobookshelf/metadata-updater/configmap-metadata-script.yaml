@@ -219,10 +219,11 @@ data:
 
       # Update episode metadata via API
       # Include both publishedAt (timestamp) and pubDate (RFC 2822 string for RSS)
+      # Clear description field (yt-dlp sets it to radiko URL which is not useful)
       UPDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
         -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
         -H "Content-Type: application/json" \
-        -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}, \"pubDate\": \"${PUB_DATE_RFC2822}\"}" \
+        -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}, \"pubDate\": \"${PUB_DATE_RFC2822}\", \"description\": \"\"}" \
         "${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${PODCAST_ID}/episode/${episode_id}") || {
         log "ERROR: Failed to update episode $episode_id (curl failed)"
         continue
