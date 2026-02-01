@@ -62,7 +62,7 @@
 - [x] T013 [US1] Create HelmRelease for runner scale set with homelab label in k8s/configs/arc-runners/helmrelease.yaml
 - [x] T014 [US1] Create Kustomization for arc-runners directory in k8s/configs/arc-runners/kustomization.yaml
 - [x] T015 [US1] Update configs kustomization to include arc-runners in k8s/configs/kustomization.yaml
-- [ ] T016 [US1] Commit and push changes to trigger FluxCD reconciliation
+- [x] T016 [US1] Commit and push changes to trigger FluxCD reconciliation
 - [ ] T017 [US1] Verify controller pod is running in arc-systems namespace
 - [ ] T018 [US1] Verify listener pod is running in arc-runners namespace
 - [ ] T019 [US1] Create test workflow in a repository with runs-on: homelab
