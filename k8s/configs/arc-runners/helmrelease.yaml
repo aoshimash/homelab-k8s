@@ -33,13 +33,15 @@ spec:
     maxRunners: 3
     
     # Enable Docker-in-Docker within runner container
-    dockerdWithinRunnerContainer: true
+    containerMode:
+      type: "dind"
     
-    # Resource limits for runner container
+    # Runner pod template
     template:
       spec:
         containers:
         - name: runner
+          image: ghcr.io/actions/actions-runner:latest
           resources:
             limits:
               cpu: "4"
@@ -47,6 +49,17 @@ spec:
             requests:
               cpu: "2"
               memory: "4Gi"
+        - name: dind
+          image: docker:dind
+          securityContext:
+            privileged: true
+          resources:
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+            requests:
+              cpu: "1"
+              memory: "2Gi"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
