@@ -40,9 +40,9 @@
 - [ ] T004 Create GitHub App in organization with required permissions (Self-hosted runners: Read/Write, Metadata: Read-only)
 - [ ] T005 Install GitHub App to target organization and note App ID and Installation ID
 - [ ] T006 Generate and download GitHub App private key (.pem file)
-- [ ] T007 [P] Create arc-systems namespace manifest in k8s/infrastructure/actions-runner-controller/namespace.yaml
-- [ ] T008 [P] Create arc-runners namespace manifest in k8s/configs/arc-runners/namespace.yaml
-- [ ] T009 Create SOPS-encrypted secret with GitHub App credentials in k8s/configs/arc-runners/secret-github-app.sops.yaml
+- [x] T007 [P] Create arc-systems namespace manifest in k8s/infrastructure/actions-runner-controller/namespace.yaml
+- [x] T008 [P] Create arc-runners namespace manifest in k8s/configs/arc-runners/namespace.yaml
+- [x] T009 Create SOPS-encrypted secret with GitHub App credentials in k8s/configs/arc-runners/secret-github-app.sops.yaml
 
 **Checkpoint**: Foundation ready - GitHub App configured, namespaces defined, secret encrypted
 
