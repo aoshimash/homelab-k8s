@@ -1,6 +1,7 @@
 # Program-specific configuration for 有吉弘行のSUNDAY NIGHT DREAMER
-# Broadcast: Sunday 20:00-21:55 JST
+# Broadcast: Sunday 20:00-20:55 + 21:00-21:55 JST (news break at 20:55-21:00)
 # Station: AFB (FM Aomori) - using area-free feature of yt-dlp-rajiko
+# Note: This program requires two-part download due to JFN NEWS break
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -22,8 +23,19 @@ spec:
                 - name: DAY_OF_WEEK
                   value: "0" # Sunday
                 - name: START_TIME
-                  value: "20:00" # JST
+                  value: "20:00" # JST (first part)
+                - name: SECOND_PART_START
+                  value: "21:00" # JST (second part after news break)
                 - name: EXPECTED_TITLE
-                  value: "有吉弘行"
+                  value: "有吉弘行のSUNDAY NIGHT DREAMER"
                 - name: OUTPUT_DIR
                   value: "/podcasts/ariyoshi"
+              volumeMounts:
+                - name: record-script
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: record-script
+              configMap:
+                name: ariyoshi-ariyoshi-record-script
+                defaultMode: 0755
