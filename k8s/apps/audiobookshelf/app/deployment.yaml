@@ -65,7 +65,8 @@ spec:
           persistentVolumeClaim:
             claimName: audiobookshelf-config
         - name: metadata
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: audiobookshelf-metadata
         - name: podcasts
           persistentVolumeClaim:
             claimName: audiobookshelf-podcasts
