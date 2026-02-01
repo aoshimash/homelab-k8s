@@ -56,12 +56,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Create HelmRelease for ARC controller in k8s/infrastructure/actions-runner-controller/helmrelease.yaml
-- [ ] T011 [US1] Create Kustomization for controller directory in k8s/infrastructure/actions-runner-controller/kustomization.yaml
-- [ ] T012 [US1] Update infrastructure kustomization to include ARC controller in k8s/infrastructure/kustomization.yaml
-- [ ] T013 [US1] Create HelmRelease for runner scale set with homelab label in k8s/configs/arc-runners/helmrelease.yaml
-- [ ] T014 [US1] Create Kustomization for arc-runners directory in k8s/configs/arc-runners/kustomization.yaml
-- [ ] T015 [US1] Update configs kustomization to include arc-runners in k8s/configs/kustomization.yaml
+- [x] T010 [US1] Create HelmRelease for ARC controller in k8s/infrastructure/actions-runner-controller/helmrelease.yaml
+- [x] T011 [US1] Create Kustomization for controller directory in k8s/infrastructure/actions-runner-controller/kustomization.yaml
+- [x] T012 [US1] Update infrastructure kustomization to include ARC controller in k8s/infrastructure/kustomization.yaml
+- [x] T013 [US1] Create HelmRelease for runner scale set with homelab label in k8s/configs/arc-runners/helmrelease.yaml
+- [x] T014 [US1] Create Kustomization for arc-runners directory in k8s/configs/arc-runners/kustomization.yaml
+- [x] T015 [US1] Update configs kustomization to include arc-runners in k8s/configs/kustomization.yaml
 - [ ] T016 [US1] Commit and push changes to trigger FluxCD reconciliation
 - [ ] T017 [US1] Verify controller pod is running in arc-systems namespace
 - [ ] T018 [US1] Verify listener pod is running in arc-runners namespace

@@ -8,3 +8,4 @@ resources:
   - kube-state-metrics/
   - metrics-server/
   - cloudnative-pg/
+  - actions-runner-controller/
