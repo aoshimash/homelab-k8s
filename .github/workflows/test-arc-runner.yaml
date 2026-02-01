@@ -5,7 +5,7 @@ on:
 
 jobs:
   test-runner:
-    runs-on: homelab-k8s
+    runs-on: homelab-homelab-k8s
     steps:
       - name: Echo test message
         run: echo "Running on self-hosted runner!"

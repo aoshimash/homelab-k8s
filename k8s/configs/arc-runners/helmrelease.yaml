@@ -23,7 +23,7 @@ spec:
   values:
     githubConfigUrl: "https://github.com/aoshimash/homelab-k8s"
     githubConfigSecret: arc-github-app
-    runnerScaleSetName: homelab-k8s
+    runnerScaleSetName: homelab-homelab-k8s
     minRunners: 0
     maxRunners: 3
     
@@ -73,7 +73,7 @@ spec:
   values:
     githubConfigUrl: "https://github.com/aoshimash/optel-workout"
     githubConfigSecret: arc-github-app
-    runnerScaleSetName: optel-workout
+    runnerScaleSetName: homelab-optel-workout
     minRunners: 0
     maxRunners: 3
     
