@@ -53,15 +53,15 @@ data:
     TITLE=$(echo "$METADATA" | sed -n 's/.*"title": *"\([^"]*\)".*/\1/p' | head -1)
     # artist -> author/station
     AUTHOR=$(echo "$METADATA" | sed -n 's/.*"artist": *"\([^"]*\)".*/\1/p' | head -1)
-    # description, synopsis -> podcast description  
-    DESCRIPTION=$(echo "$METADATA" | sed -n 's/.*"description": *"\([^"]*\)".*/\1/p' | head -1)
     # genre -> genres (comma separated)
     GENRES=$(echo "$METADATA" | sed -n 's/.*"genre": *"\([^"]*\)".*/\1/p' | head -1)
+    # Note: We intentionally skip description as Radiko descriptions often contain
+    # problematic characters (quotes, special chars) that cause issues.
+    # Library-level description is not critical and can be set manually if needed.
 
     log "INFO: Extracted metadata:"
     log "INFO:   Title: $TITLE"
     log "INFO:   Author: $AUTHOR"
-    log "INFO:   Description: $DESCRIPTION"
     log "INFO:   Genres: $GENRES"
 
     if [ -z "$TITLE" ]; then
@@ -108,9 +108,6 @@ data:
     fi
 
     # Build JSON payload for podcast update
-    # Escape special characters in description
-    ESCAPED_DESCRIPTION=$(echo "$DESCRIPTION" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g')
-
     # Convert genres to array format (split by comma)
     GENRES_ARRAY=""
     if [ -n "$GENRES" ]; then
@@ -122,6 +119,7 @@ data:
     log "INFO: Updating podcast metadata via API"
 
     # Update podcast metadata
+    # Note: description is set to null to clear any problematic values
     UPDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
       -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
       -H "Content-Type: application/json" \
@@ -129,7 +127,7 @@ data:
         \"metadata\": {
           \"title\": \"${TITLE}\",
           \"author\": \"${AUTHOR}\",
-          \"description\": \"${ESCAPED_DESCRIPTION}\",
+          \"description\": null,
           \"genres\": ${GENRES_ARRAY}
         }
       }" \
