@@ -32,6 +32,9 @@ spec:
     minRunners: 0
     maxRunners: 3
     
+    # Enable Docker-in-Docker within runner container
+    dockerdWithinRunnerContainer: true
+    
     # Runner pod template
     template:
       spec:
