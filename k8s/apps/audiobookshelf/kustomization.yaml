@@ -6,3 +6,4 @@ resources:
   - shared-secrets/
   - radigo-recorder/
   - metadata-updater/
+  - podcast-info-updater/
