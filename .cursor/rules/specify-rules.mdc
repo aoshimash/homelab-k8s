@@ -26,6 +26,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-10
 - Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char (014-deploy-vikunja)
 - Shell script (bash), Dockerfile + yt-dlp (2025.02.19+), yt-dlp-rajiko plugin (v1.11), ffmpeg (015-migrate-radigo-yt-dlp)
 - Existing PersistentVolumeClaim (audiobookshelf-podcasts) (015-migrate-radigo-yt-dlp)
+- YAML (Kubernetes manifests), Helm charts via FluxCD HelmRelease (016-deploy-arc)
+- N/A (ephemeral runners, no persistent storage required) (016-deploy-arc)
 
 - N/A (YAML manifests; Kubernetes CRDs) + Flux CD (source/kustomize/helm controllers), Kustomize, Helm chart (Cilium) (001-cilium-flux)
 
@@ -45,9 +47,9 @@ tests/
 N/A (YAML manifests; Kubernetes CRDs): Follow standard conventions
 
 ## Recent Changes
+- 016-deploy-arc: Added YAML (Kubernetes manifests), Helm charts via FluxCD HelmRelease
 - 015-migrate-radigo-yt-dlp: Added Shell script (bash), Dockerfile + yt-dlp (2025.02.19+), yt-dlp-rajiko plugin (v1.11), ffmpeg
 - 014-deploy-vikunja: Added Kubernetes manifests (YAML), Flux CD + Kustomize + Flux CD, Kustomize, SOPS + age, Tailscale Ingress, CloudNativePG, Longhorn, Vikunja Helm char
-- 012-cloudnative-pg: Added Longhorn (existing, configured)
 
 
 <!-- MANUAL ADDITIONS START -->
