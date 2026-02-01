@@ -33,15 +33,18 @@ spec:
     maxRunners: 3
     
     # Enable Docker-in-Docker mode
-    # ARC Helm chart automatically configures DinD sidecar
     containerMode:
       type: "dind"
     
-    # Runner pod template - only specify resource overrides
+    # Runner pod template with required images
     template:
       spec:
+        initContainers:
+        - name: init-dind-externals
+          image: ghcr.io/actions/actions-runner:latest
         containers:
         - name: runner
+          image: ghcr.io/actions/actions-runner:latest
           resources:
             limits:
               cpu: "4"
@@ -50,6 +53,7 @@ spec:
               cpu: "2"
               memory: "4Gi"
         - name: dind
+          image: docker:dind
           resources:
             limits:
               cpu: "2"
