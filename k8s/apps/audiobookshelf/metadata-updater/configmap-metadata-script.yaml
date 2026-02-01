@@ -49,8 +49,8 @@ data:
     # Environment variables
     PODCAST_ID="${PODCAST_ID:-}"
     PODCAST_DIR="${PODCAST_DIR:-}"
-    BROADCAST_DOW="${BROADCAST_DOW:-6}"  # Broadcast day of week (0=Sun, 1=Mon, ..., 6=Sat)
-    PUBDATE_TIME="${PUBDATE_TIME:-03:00}"  # HH:MM format for pubDate time
+    BROADCAST_DOW="${BROADCAST_DOW:-6}"  # Only used for legacy radigo filenames (0=Sun, 1=Mon, ..., 6=Sat)
+    PUBDATE_TIME="${PUBDATE_TIME:-03:00}"  # HH:MM format for pubDate time (when episode was published)
     AUDIOBOOKSHELF_API_KEY="${AUDIOBOOKSHELF_API_KEY:-}"
     AUDIOBOOKSHELF_BASE_URL="${AUDIOBOOKSHELF_BASE_URL:-}"
 
@@ -67,6 +67,23 @@ data:
     PUBDATE_MIN=$(echo "$PUBDATE_TIME" | cut -d: -f2)
 
     log "INFO: Starting metadata update for podcast=$PODCAST_ID, dir=$PODCAST_DIR, broadcast_dow=$BROADCAST_DOW, time=$PUBDATE_TIME"
+
+    # Trigger library scan to detect new files
+    log "INFO: Triggering library scan to detect new episodes"
+    LIBRARY_ID=$(echo "$PODCAST_ID" | cut -d'-' -f1)  # Extract library ID from podcast ID
+    SCAN_RESPONSE=$(curl -s -f -X POST \
+      -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
+      "${AUDIOBOOKSHELF_BASE_URL}/api/libraries/${LIBRARY_ID}/scan" 2>&1) || {
+      log "WARNING: Library scan request failed (library may not support scanning): $SCAN_RESPONSE"
+      # Continue anyway - scan failure should not block metadata updates
+    }
+    
+    if echo "$SCAN_RESPONSE" | grep -q "started"; then
+      log "INFO: Library scan started successfully, waiting 5 seconds for scan to complete"
+      sleep 5
+    else
+      log "INFO: Library scan response: $SCAN_RESPONSE"
+    fi
 
     # Fetch podcast episodes from Audiobookshelf API
     log "INFO: Fetching podcast episodes from Audiobookshelf"
@@ -89,57 +106,101 @@ data:
       exit 0
     fi
 
+    # Save episodes to temp file to avoid subshell issue in pipe
+    EPISODES_FILE="/tmp/episodes.$$"
+    echo "$EPISODES" > "$EPISODES_FILE"
+
     UPDATED_COUNT=0
     SKIPPED_COUNT=0
 
     # Process each episode
-    echo "$EPISODES" | while IFS='|' read -r episode_id filename; do
+    while IFS='|' read -r episode_id filename; do
       if [ -z "$episode_id" ] || [ -z "$filename" ]; then
         continue
       fi
 
       log "INFO: Processing episode: $filename (id: $episode_id)"
 
-      # Extract date from filename (YYYYMMDD pattern)
-      FILE_DATE=$(echo "$filename" | grep -o '[0-9]\{8\}' | head -1)
-
-      if [ -z "$FILE_DATE" ]; then
-        log "WARNING: No date found in filename: $filename, skipping"
-        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
-        continue
+      # Extract date from filename
+      # Supports two formats:
+      #   1. yt-dlp format: "番組名 YYYY-MM-DD [ID].m4a" -> extracts YYYY-MM-DD
+      #   2. Legacy radigo format: "YYYYMMDD-STATION.aac" -> extracts YYYYMMDD
+      # yt-dlp's %(timestamp>%Y-%m-%d)s already provides the broadcast date
+      # following late-night convention (e.g., 01:00 on 1/28 -> 1/27)
+      
+      # Try YYYY-MM-DD format first (yt-dlp)
+      TITLE_DATE=$(echo "$filename" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+      
+      if [ -n "$TITLE_DATE" ]; then
+        # yt-dlp format: date is already the correct broadcast date
+        YEAR=$(echo "$TITLE_DATE" | cut -d'-' -f1)
+        MONTH=$(echo "$TITLE_DATE" | cut -d'-' -f2)
+        DAY=$(echo "$TITLE_DATE" | cut -d'-' -f3)
+        log "INFO: Extracted date from yt-dlp format: $TITLE_DATE"
+      else
+        # Try legacy YYYYMMDD format (radigo)
+        FILE_DATE=$(echo "$filename" | grep -o '[0-9]\{8\}' | head -1)
+        
+        if [ -z "$FILE_DATE" ]; then
+          log "WARNING: No date found in filename: $filename, skipping"
+          SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+          continue
+        fi
+        
+        # Parse date components
+        YEAR=$(echo "$FILE_DATE" | cut -c1-4)
+        MONTH=$(echo "$FILE_DATE" | cut -c5-6)
+        DAY=$(echo "$FILE_DATE" | cut -c7-8)
+        
+        # For legacy format, apply day-of-week conversion
+        # (file date may be the day after broadcast for late-night shows)
+        FILE_DOW=""
+        if command -v date >/dev/null 2>&1; then
+          FILE_DOW=$(date -d "${YEAR}-${MONTH}-${DAY}" +%w 2>/dev/null || \
+            date -D "%Y-%m-%d" -d "${YEAR}-${MONTH}-${DAY}" +%w 2>/dev/null || \
+            echo "")
+        fi
+        
+        if [ -n "$FILE_DOW" ] && [ "$FILE_DOW" = "$BROADCAST_DOW" ]; then
+          TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+          log "INFO: Legacy format, DOW matches broadcast day: $TITLE_DATE"
+        else
+          # Calculate timestamp for subtraction
+          PUB_TS=$(date -d "${YEAR}-${MONTH}-${DAY} ${PUBDATE_HOUR}:${PUBDATE_MIN}:00" +%s 2>/dev/null || \
+            date -D "%Y-%m-%d %H:%M:%S" -d "${YEAR}-${MONTH}-${DAY} ${PUBDATE_HOUR}:${PUBDATE_MIN}:00" +%s 2>/dev/null || \
+            echo "")
+          if [ -n "$PUB_TS" ]; then
+            TITLE_TIMESTAMP=$((PUB_TS - 86400))
+            TITLE_DATE=$(date -d "@${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+              date -r "${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
+              echo "${YEAR}-${MONTH}-${DAY}")
+            # Update YEAR/MONTH/DAY from calculated TITLE_DATE
+            YEAR=$(echo "$TITLE_DATE" | cut -d'-' -f1)
+            MONTH=$(echo "$TITLE_DATE" | cut -d'-' -f2)
+            DAY=$(echo "$TITLE_DATE" | cut -d'-' -f3)
+          else
+            TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
+          fi
+          log "INFO: Legacy format, adjusted to broadcast day: $TITLE_DATE"
+        fi
       fi
 
-      # Parse date components
-      YEAR=$(echo "$FILE_DATE" | cut -c1-4)
-      MONTH=$(echo "$FILE_DATE" | cut -c5-6)
-      DAY=$(echo "$FILE_DATE" | cut -c7-8)
-
-      # Calculate pubDate timestamp (file date at PUBDATE_TIME)
-      # Convert to Unix timestamp (seconds since epoch)
-      # Note: date command in Alpine uses different syntax
-      PUB_DATE_STR="${YEAR}-${MONTH}-${DAY}T${PUBDATE_TIME}:00+09:00"
-      
-      # Try to get Unix timestamp
+      # Calculate pubDate timestamp (broadcast date at PUBDATE_TIME)
       if command -v date >/dev/null 2>&1; then
-        # Try GNU date syntax first
         PUB_TIMESTAMP=$(date -d "${YEAR}-${MONTH}-${DAY} ${PUBDATE_HOUR}:${PUBDATE_MIN}:00" +%s 2>/dev/null || \
           date -D "%Y-%m-%d %H:%M:%S" -d "${YEAR}-${MONTH}-${DAY} ${PUBDATE_HOUR}:${PUBDATE_MIN}:00" +%s 2>/dev/null || \
           echo "")
       fi
 
       if [ -z "$PUB_TIMESTAMP" ]; then
-        # Fallback: calculate manually (approximate, assumes UTC)
-        # Days since 1970-01-01 * 86400 + hours * 3600 + minutes * 60
-        # This is a simplified calculation
         log "WARNING: Could not calculate timestamp, using approximate value"
-        # Use a simple epoch calculation (may be off by timezone)
         PUB_TIMESTAMP=$(( (YEAR - 1970) * 31536000 + (MONTH - 1) * 2592000 + (DAY - 1) * 86400 + PUBDATE_HOUR * 3600 + PUBDATE_MIN * 60 ))
       fi
 
       # Convert to milliseconds for Audiobookshelf API
       PUB_TIMESTAMP_MS="${PUB_TIMESTAMP}000"
 
-      # Get the day of week for the file date (0=Sun, 1=Mon, ..., 6=Sat)
+      # Get day of week for RFC 2822 format
       FILE_DOW=""
       if command -v date >/dev/null 2>&1; then
         FILE_DOW=$(date -d "${YEAR}-${MONTH}-${DAY}" +%w 2>/dev/null || \
@@ -147,30 +208,8 @@ data:
           echo "")
       fi
 
-      # Calculate title date based on broadcast day of week
-      # If file date's DOW matches BROADCAST_DOW, use as-is (already correct)
-      # If not, subtract 1 day (file date is the day after broadcast)
-      if [ -n "$FILE_DOW" ] && [ "$FILE_DOW" = "$BROADCAST_DOW" ]; then
-        # File date is already the broadcast day
-        TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
-        log "INFO: File date DOW ($FILE_DOW) matches broadcast DOW ($BROADCAST_DOW), using date as-is"
-      else
-        # File date is not the broadcast day, subtract 1 day
-        TITLE_TIMESTAMP=$((PUB_TIMESTAMP - 86400))
-        
-        if command -v date >/dev/null 2>&1; then
-          TITLE_DATE=$(date -d "@${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
-            date -r "${TITLE_TIMESTAMP}" +%Y-%m-%d 2>/dev/null || \
-            echo "${YEAR}-${MONTH}-${DAY}")
-        else
-          TITLE_DATE="${YEAR}-${MONTH}-${DAY}"
-        fi
-        log "INFO: File date DOW ($FILE_DOW) != broadcast DOW ($BROADCAST_DOW), using previous day"
-      fi
-
       # Generate RFC 2822 format pubDate string for RSS feed
       # Format: "Day, DD Mon YYYY HH:MM:SS+0900"
-      # Remove leading zero from day for RFC 2822 compliance
       DAY_NUM=$(echo "$DAY" | sed 's/^0//')
       DOW_NAME=$(get_dow_name "$FILE_DOW")
       MONTH_NAME=$(get_month_name "$MONTH")
@@ -180,17 +219,27 @@ data:
 
       # Update episode metadata via API
       # Include both publishedAt (timestamp) and pubDate (RFC 2822 string for RSS)
-      UPDATE_RESPONSE=$(curl -s -f -X PATCH \
+      UPDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X PATCH \
         -H "Authorization: Bearer ${AUDIOBOOKSHELF_API_KEY}" \
         -H "Content-Type: application/json" \
         -d "{\"title\": \"${TITLE_DATE}\", \"publishedAt\": ${PUB_TIMESTAMP_MS}, \"pubDate\": \"${PUB_DATE_RFC2822}\"}" \
         "${AUDIOBOOKSHELF_BASE_URL}/api/podcasts/${PODCAST_ID}/episode/${episode_id}") || {
-        log "ERROR: Failed to update episode $episode_id"
+        log "ERROR: Failed to update episode $episode_id (curl failed)"
         continue
       }
 
-      log "INFO: Successfully updated episode: $filename -> title=$TITLE_DATE"
-      UPDATED_COUNT=$((UPDATED_COUNT + 1))
-    done
+      HTTP_CODE=$(echo "$UPDATE_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+      RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | grep -v "HTTP_CODE:")
+      
+      if [ "$HTTP_CODE" = "200" ]; then
+        log "INFO: Successfully updated episode: $filename -> title=$TITLE_DATE"
+        UPDATED_COUNT=$((UPDATED_COUNT + 1))
+      else
+        log "ERROR: Failed to update episode $episode_id (HTTP $HTTP_CODE): $RESPONSE_BODY"
+      fi
+    done < "$EPISODES_FILE"
+    
+    # Cleanup temp file
+    rm -f "$EPISODES_FILE"
 
     log "INFO: Metadata update completed. Updated: $UPDATED_COUNT, Skipped: $SKIPPED_COUNT"
