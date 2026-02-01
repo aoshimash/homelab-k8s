@@ -1,0 +1,31 @@
+# Contract: ARC Controller HelmRelease
+# This is the reference configuration for the gha-runner-scale-set-controller
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-controller
+  namespace: arc-systems
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: gha-runner-scale-set-controller
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+      # Pin version for stability after initial deployment
+      # version: "0.x.x"
+  releaseName: arc-controller
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Controller runs with default settings
+    # No custom configuration required for basic setup
+    replicaCount: 1

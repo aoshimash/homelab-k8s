@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: homelab-runners
+  namespace: arc-runners
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+  releaseName: homelab-runners
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # GitHub configuration
+    githubConfigUrl: "https://github.com/aoshimash"
+    githubConfigSecret: arc-github-app
+    
+    # Runner scale set name (used in runs-on: homelab)
+    runnerScaleSetName: homelab
+    
+    # Scaling configuration
+    minRunners: 0
+    maxRunners: 3
+    
+    # Container mode: kubernetes (no Docker daemon)
+    containerMode:
+      type: kubernetes
+      kubernetesModeWorkVolumeClaim:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "longhorn"
+        resources:
+          requests:
+            storage: 10Gi
+    
+    # Runner pod template
+    template:
+      spec:
+        containers:
+        - name: runner
+          image: ghcr.io/actions/actions-runner:latest
+          resources:
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+            requests:
+              cpu: "2"
+              memory: "4Gi"
