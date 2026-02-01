@@ -1,7 +1,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: homelab-runners
+  name: homelab-k8s-runners
   namespace: arc-runners
 spec:
   interval: 10m0s
@@ -12,7 +12,7 @@ spec:
         kind: HelmRepository
         name: actions-runner-controller
         namespace: flux-system
-  releaseName: homelab-runners
+  releaseName: homelab-k8s-runners
   install:
     createNamespace: false
     remediation:
@@ -22,11 +22,69 @@ spec:
       retries: 3
   values:
     # GitHub configuration
-    githubConfigUrl: "https://github.com/aoshimash"
+    githubConfigUrl: "https://github.com/aoshimash/homelab-k8s"
     githubConfigSecret: arc-github-app
     
-    # Runner scale set name (used in runs-on: homelab)
-    runnerScaleSetName: homelab
+    # Runner scale set name (used in runs-on: homelab-k8s)
+    runnerScaleSetName: homelab-k8s
+    
+    # Scaling configuration
+    minRunners: 0
+    maxRunners: 3
+    
+    # Container mode: kubernetes (no Docker daemon)
+    containerMode:
+      type: kubernetes
+      kubernetesModeWorkVolumeClaim:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "longhorn"
+        resources:
+          requests:
+            storage: 10Gi
+    
+    # Runner pod template
+    template:
+      spec:
+        containers:
+        - name: runner
+          image: ghcr.io/actions/actions-runner:latest
+          resources:
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: optel-workout-runners
+  namespace: arc-runners
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+  releaseName: optel-workout-runners
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # GitHub configuration
+    githubConfigUrl: "https://github.com/aoshimash/optel-workout"
+    githubConfigSecret: arc-github-app
+    
+    # Runner scale set name (used in runs-on: optel-workout)
+    runnerScaleSetName: optel-workout
     
     # Scaling configuration
     minRunners: 0
