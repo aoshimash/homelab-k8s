@@ -25,9 +25,9 @@
 
 **Purpose**: Create directory structure and shared resources for ARC deployment
 
-- [ ] T001 Create controller directory structure at k8s/infrastructure/actions-runner-controller/
-- [ ] T002 Create runner config directory structure at k8s/configs/arc-runners/
-- [ ] T003 [P] Create HelmRepository for ARC OCI charts in k8s/infrastructure/actions-runner-controller/helmrepository.yaml
+- [x] T001 Create controller directory structure at k8s/infrastructure/actions-runner-controller/
+- [x] T002 Create runner config directory structure at k8s/configs/arc-runners/
+- [x] T003 [P] Create HelmRepository for ARC OCI charts in k8s/infrastructure/actions-runner-controller/helmrepository.yaml
 
 ---
 
