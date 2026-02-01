@@ -96,10 +96,21 @@ data:
 
     # Extract episodes using basic JSON parsing with sed/grep
     # Format: id|filename pairs
+    # Note: Episodes contain nested objects like chapters array, so we need careful parsing
+    # Strategy: Split by episode boundaries, then extract id and filename separately
     EPISODES=$(echo "$PODCAST_DATA" | \
-      sed 's/},/}\n/g' | \
-      grep -o '"id":"[^"]*"[^}]*"filename":"[^"]*"' | \
-      sed 's/"id":"\([^"]*\)".*"filename":"\([^"]*\)"/\1|\2/')
+      tr '\n' ' ' | \
+      sed 's/"podcastId"/\n"podcastId"/g' | \
+      grep '"podcastId"' | \
+      while read -r line; do
+        # Extract episode id (first "id" field after podcastId)
+        ep_id=$(echo "$line" | sed 's/.*"id":"\([^"]*\)".*/\1/' | head -c 36)
+        # Extract filename from audioFile.metadata.filename
+        fname=$(echo "$line" | sed 's/.*"audioFile".*"metadata":{"filename":"\([^"]*\)".*/\1/')
+        if [ -n "$ep_id" ] && [ -n "$fname" ] && echo "$fname" | grep -qE '\.(m4a|aac|mp3)$'; then
+          echo "${ep_id}|${fname}"
+        fi
+      done | grep '|')
 
     if [ -z "$EPISODES" ]; then
       log "WARNING: No episodes found or failed to parse episodes"

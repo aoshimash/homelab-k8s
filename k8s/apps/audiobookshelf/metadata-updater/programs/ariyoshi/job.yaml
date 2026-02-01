@@ -1,6 +1,6 @@
 # Program-specific configuration for 有吉弘行のSUNDAY NIGHT DREAMER metadata
 # Podcast ID: 434221f7-db1c-422d-9860-78d9193d8e45
-# Broadcast: Sunday 25:00 (BROADCAST_DOW=0=Sunday)
+# Broadcast: Sunday 20:00-21:55 JST (BROADCAST_DOW=0=Sunday)
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -20,3 +20,5 @@ spec:
                   value: "/podcasts/ariyoshi"
                 - name: BROADCAST_DOW
                   value: "0" # Sunday (title should be Sunday's date)
+                - name: PUBDATE_TIME
+                  value: "20:00" # Broadcast start time (20:00-21:55 JST)
