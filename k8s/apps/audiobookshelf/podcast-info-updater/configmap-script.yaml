@@ -69,16 +69,42 @@ data:
       exit 1
     fi
 
-    # Extract cover image from audio file
-    COVER_FILE="/tmp/cover_$$.jpg"
-    ffmpeg -y -i "$LATEST_FILE" -an -vcodec copy "$COVER_FILE" 2>/dev/null || {
-      log "WARNING: No embedded cover art found in audio file"
-      COVER_FILE=""
-    }
+    # Try to find cover image
+    # 1. First check for a separate thumbnail file (yt-dlp --write-thumbnail)
+    # 2. If not found, try to extract embedded cover art from audio file
+    COVER_FILE=""
+    
+    # Check for thumbnail file with same base name as audio file
+    THUMBNAIL_FILE="${LATEST_FILE%.m4a}.jpg"
+    if [ -f "$THUMBNAIL_FILE" ]; then
+      COVER_FILE="$THUMBNAIL_FILE"
+      log "INFO: Found thumbnail file: $COVER_FILE"
+    else
+      # Also check for .webp (some yt-dlp versions use this)
+      THUMBNAIL_FILE="${LATEST_FILE%.m4a}.webp"
+      if [ -f "$THUMBNAIL_FILE" ]; then
+        COVER_FILE="$THUMBNAIL_FILE"
+        log "INFO: Found thumbnail file: $COVER_FILE"
+      fi
+    fi
+
+    # If no separate thumbnail, try to extract embedded cover
+    if [ -z "$COVER_FILE" ]; then
+      EXTRACTED_COVER="/tmp/cover_$$.jpg"
+      if ffmpeg -y -i "$LATEST_FILE" -an -vcodec copy "$EXTRACTED_COVER" 2>/dev/null; then
+        if [ -f "$EXTRACTED_COVER" ] && [ -s "$EXTRACTED_COVER" ]; then
+          COVER_FILE="$EXTRACTED_COVER"
+          log "INFO: Extracted embedded cover art"
+        fi
+      fi
+      if [ -z "$COVER_FILE" ]; then
+        log "WARNING: No cover art found (no thumbnail file or embedded art)"
+      fi
+    fi
 
     if [ -n "$COVER_FILE" ] && [ -f "$COVER_FILE" ]; then
       COVER_SIZE=$(stat -c %s "$COVER_FILE" 2>/dev/null || stat -f %z "$COVER_FILE" 2>/dev/null || echo "0")
-      log "INFO: Extracted cover image: $COVER_FILE ($COVER_SIZE bytes)"
+      log "INFO: Using cover image: $COVER_FILE ($COVER_SIZE bytes)"
     fi
 
     # Build JSON payload for podcast update
@@ -136,8 +162,10 @@ data:
         log "ERROR: Failed to upload cover image (HTTP $COVER_HTTP_CODE): $COVER_RESPONSE_BODY"
       fi
 
-      # Cleanup
-      rm -f "$COVER_FILE"
+      # Cleanup only temporary extracted files (not original thumbnail files)
+      case "$COVER_FILE" in
+        /tmp/*) rm -f "$COVER_FILE" ;;
+      esac
     fi
 
     log "INFO: Podcast info update completed"
