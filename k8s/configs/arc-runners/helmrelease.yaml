@@ -21,46 +21,32 @@ spec:
     remediation:
       retries: 3
   values:
-    # GitHub configuration
     githubConfigUrl: "https://github.com/aoshimash/homelab-k8s"
     githubConfigSecret: arc-github-app
-    
-    # Runner scale set name (used in runs-on: homelab-k8s)
     runnerScaleSetName: homelab-k8s
-    
-    # Scaling configuration
     minRunners: 0
     maxRunners: 3
     
-    # Enable Docker-in-Docker mode
+    # Kubernetes mode - no Docker daemon required
     containerMode:
-      type: "dind"
+      type: kubernetes
+      kubernetesModeWorkVolumeClaim:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "longhorn"
+        resources:
+          requests:
+            storage: 1Gi
     
-    # Runner pod template with required images
+    # Allow jobs without container specification
     template:
       spec:
-        initContainers:
-        - name: init-dind-externals
-          image: ghcr.io/actions/actions-runner:latest
         containers:
         - name: runner
           image: ghcr.io/actions/actions-runner:latest
-          resources:
-            limits:
-              cpu: "4"
-              memory: "8Gi"
-            requests:
-              cpu: "2"
-              memory: "4Gi"
-        - name: dind
-          image: docker:dind
-          resources:
-            limits:
-              cpu: "2"
-              memory: "4Gi"
-            requests:
-              cpu: "1"
-              memory: "2Gi"
+          command: ["/home/runner/run.sh"]
+          env:
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: "false"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -85,18 +71,13 @@ spec:
     remediation:
       retries: 3
   values:
-    # GitHub configuration
     githubConfigUrl: "https://github.com/aoshimash/optel-workout"
     githubConfigSecret: arc-github-app
-    
-    # Runner scale set name (used in runs-on: optel-workout)
     runnerScaleSetName: optel-workout
-    
-    # Scaling configuration
     minRunners: 0
     maxRunners: 3
     
-    # Container mode: kubernetes (no Docker daemon)
+    # Kubernetes mode - no Docker daemon required
     containerMode:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
@@ -104,18 +85,15 @@ spec:
         storageClassName: "longhorn"
         resources:
           requests:
-            storage: 10Gi
+            storage: 1Gi
     
-    # Runner pod template
+    # Allow jobs without container specification
     template:
       spec:
         containers:
         - name: runner
           image: ghcr.io/actions/actions-runner:latest
-          resources:
-            limits:
-              cpu: "4"
-              memory: "8Gi"
-            requests:
-              cpu: "2"
-              memory: "4Gi"
+          command: ["/home/runner/run.sh"]
+          env:
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: "false"
