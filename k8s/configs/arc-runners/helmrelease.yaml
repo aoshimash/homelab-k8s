@@ -32,16 +32,6 @@ spec:
     minRunners: 0
     maxRunners: 3
     
-    # Container mode: kubernetes (no Docker daemon)
-    containerMode:
-      type: kubernetes
-      kubernetesModeWorkVolumeClaim:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: "longhorn"
-        resources:
-          requests:
-            storage: 10Gi
-    
     # Runner pod template
     template:
       spec:
