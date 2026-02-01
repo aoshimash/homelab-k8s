@@ -27,7 +27,6 @@ spec:
     minRunners: 0
     maxRunners: 3
     
-    # Kubernetes mode - no Docker daemon required
     containerMode:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
@@ -37,9 +36,10 @@ spec:
           requests:
             storage: 1Gi
     
-    # Allow jobs without container specification
     template:
       spec:
+        securityContext:
+          fsGroup: 1001
         containers:
         - name: runner
           image: ghcr.io/actions/actions-runner:latest
@@ -77,7 +77,6 @@ spec:
     minRunners: 0
     maxRunners: 3
     
-    # Kubernetes mode - no Docker daemon required
     containerMode:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
@@ -87,9 +86,10 @@ spec:
           requests:
             storage: 1Gi
     
-    # Allow jobs without container specification
     template:
       spec:
+        securityContext:
+          fsGroup: 1001
         containers:
         - name: runner
           image: ghcr.io/actions/actions-runner:latest
