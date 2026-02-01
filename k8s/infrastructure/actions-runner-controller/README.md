@@ -14,7 +14,7 @@ This directory contains the Kubernetes manifests for deploying Actions Runner Co
    - Go to your GitHub organization settings
    - Navigate to Developer settings → GitHub Apps → New GitHub App
    - Configure:
-     - Name: `homelab-arc-runner`
+     - Name: Use a unique name like `homelab-arc-aoshimash` or `arc-runner-homelab-[random]`
      - Homepage URL: `https://github.com/actions/actions-runner-controller`
      - Webhook: Uncheck "Active"
    - Set permissions:
