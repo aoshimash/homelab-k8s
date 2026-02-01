@@ -27,7 +27,7 @@ spec:
           command: ["/bin/sh", "/scripts/update-podcast-info.sh"]
           env:
             - name: PODCAST_ID
-              value: "PLACEHOLDER"  # TODO: Update after creating podcast in Audiobookshelf
+              value: "434221f7-db1c-422d-9860-78d9193d8e45"
             - name: PODCAST_DIR
               value: "/podcasts/ariyoshi"
             - name: AUDIOBOOKSHELF_API_KEY
