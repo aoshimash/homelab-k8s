@@ -93,16 +93,16 @@ data:
     # Execute yt-dlp recording with metadata embedding and multi-threaded download
     # Options:
     #   --embed-metadata: Embed program metadata (title, description)
-    #   --embed-thumbnail: Embed cover art if available
+    #   --write-thumbnail: Save thumbnail as separate file (embedding may fail)
     #   -N 10: Use 10 threads for faster download
-    #   -o: Output filename template using yt-dlp default format
+    #   -o: Output filename template using yt-dlp format with program title
     log "INFO: Starting yt-dlp recording"
     
     if ! yt-dlp \
       --embed-metadata \
-      --embed-thumbnail \
+      --write-thumbnail \
       -N 10 \
-      -o "${OUTPUT_DIR}/${TARGET_DATE}-${STATION_ID}.%(ext)s" \
+      -o "${OUTPUT_DIR}/%(title)s %(timestamp>%Y-%m-%d)s [%(id)s].%(ext)s" \
       "$RADIKO_URL" 2>&1 | tee /tmp/yt-dlp.log; then
       
       log "ERROR: yt-dlp recording failed"

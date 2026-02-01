@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - configmap-script.yaml
-  - programs/ijuin
   - programs/arco
+  - programs/ariyoshi
   - programs/audrey
+  - programs/ijuin

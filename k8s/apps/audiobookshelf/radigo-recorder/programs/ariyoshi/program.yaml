@@ -1,0 +1,29 @@
+# Program-specific configuration for 有吉弘行のSUNDAY NIGHT DREAMER
+# Broadcast: Sunday 20:00-21:55 JST
+# Station: AFB (FM Aomori) - using area-free feature of yt-dlp-rajiko
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: radigo
+  namespace: audiobookshelf
+spec:
+  # Target: Sunday 22:05 JST -> Sunday 13:05 UTC (JST = UTC+9)
+  # Scheduled after broadcast ends (21:55) with some buffer
+  schedule: "5 13 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: radigo
+              env:
+                - name: STATION_ID
+                  value: "AFB"
+                - name: DAY_OF_WEEK
+                  value: "0" # Sunday
+                - name: START_TIME
+                  value: "20:00" # JST
+                - name: EXPECTED_TITLE
+                  value: "有吉弘行"
+                - name: OUTPUT_DIR
+                  value: "/podcasts/ariyoshi"
