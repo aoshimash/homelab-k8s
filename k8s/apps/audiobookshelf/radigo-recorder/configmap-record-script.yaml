@@ -102,7 +102,7 @@ data:
       --embed-metadata \
       --embed-thumbnail \
       -N 10 \
-      -o "${OUTPUT_DIR}/%(title)s %(timestamp>%Y-%m-%d)s [%(id)s].%(ext)s" \
+      -o "${OUTPUT_DIR}/${TARGET_DATE}-${STATION_ID}.%(ext)s" \
       "$RADIKO_URL" 2>&1 | tee /tmp/yt-dlp.log; then
       
       log "ERROR: yt-dlp recording failed"
