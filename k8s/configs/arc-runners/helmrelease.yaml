@@ -22,8 +22,7 @@ spec:
       retries: 3
   values:
     # GitHub configuration
-    # REPLACE: Update githubConfigUrl with your organization name
-    githubConfigUrl: "https://github.com/REPLACE_WITH_YOUR_ORG"
+    githubConfigUrl: "https://github.com/aoshimash"
     githubConfigSecret: arc-github-app
     
     # Runner scale set name (used in runs-on: homelab)
