@@ -7,3 +7,5 @@ resources:
   - secret-r2-credentials.sops.yaml
   - database-vikunja.yaml
   - secret-vikunja-db.sops.yaml
+  - database-paperless.yaml
+  - secret-paperless-db.sops.yaml
