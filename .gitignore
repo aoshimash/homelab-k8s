@@ -8,6 +8,9 @@ infra/talos/clusterconfig/
 # Generated talhelper schema (can be regenerated with `talhelper genschema`)
 infra/talos/talconfig.json
 
+# Claude Code (local settings are per-user)
+.claude/settings.local.json
+
 # macOS
 .DS_Store
 
