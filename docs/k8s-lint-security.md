@@ -29,7 +29,7 @@ brew install go-task kubeconform trivy
 ```bash
 task --version      # v3.x
 kubeconform -v      # v0.6.x
-trivy --version     # 0.50.x
+trivy --version     # 0.69.x
 ```
 
 ## Local Usage
@@ -98,10 +98,8 @@ curl -L -o kubeconform.tar.gz \
 tar xzf kubeconform.tar.gz
 sudo mv kubeconform /usr/local/bin/
 
-# Trivy: Use latest (CI uses aquasecurity/trivy-action@0.28.0)
+# Trivy: Use latest (CI uses v0.69.2)
 brew install trivy
-# Or use aqua version manager:
-aqua install trivy@0.50.0
 ```
 
 ## Troubleshooting
@@ -136,7 +134,7 @@ trivy --version
 
 # Install CI versions
 # kubeconform: v0.6.7
-# trivy: v0.50.x
+# trivy: v0.69.x
 ```
 
 ## Excluded Resources
