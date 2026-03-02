@@ -19,6 +19,8 @@ spec:
         fsGroup: 1000
       containers:
         - name: paperless-ngx
+          # NOTE: paperless-ngx entrypoint requires root for chown and user switching,
+          # so allowPrivilegeEscalation and capabilities cannot be restricted here.
           image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7
           imagePullPolicy: IfNotPresent
           ports:
@@ -63,11 +65,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+            seccompProfile:
+              type: RuntimeDefault
         - name: redis
+          # NOTE: redis-alpine entrypoint uses su-exec requiring root
           image: redis:7-alpine
           imagePullPolicy: IfNotPresent
           ports:
@@ -81,12 +82,10 @@ spec:
               cpu: 200m
               memory: 128Mi
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+            seccompProfile:
+              type: RuntimeDefault
         - name: tika
-          image: apache/tika:3.1.0
+          image: apache/tika:3.1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9998
