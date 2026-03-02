@@ -23,21 +23,13 @@ jobs:
         with:
           version: 3.x
 
-      - name: Install kubeconform
-        run: |
-          KUBECONFORM_VERSION="v0.6.7"
-          curl -L -o kubeconform.tar.gz \
-            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
-          tar xzf kubeconform.tar.gz
-          sudo mv kubeconform /usr/local/bin/
+      - name: Install aqua
+        uses: aquaproj/aqua-installer@e2d0136abcf70b7a2f6f505720640750557c4b33 # v3.1.1
+        with:
+          aqua_version: v2.45.1
 
-      - name: Install Trivy
-        run: |
-          TRIVY_VERSION="0.69.2"
-          curl -L -o trivy.tar.gz \
-            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
-          tar xzf trivy.tar.gz
-          sudo mv trivy /usr/local/bin/
+      - name: Install tools
+        run: aqua install
 
       - name: Run checks
         run: task check

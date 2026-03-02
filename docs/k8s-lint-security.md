@@ -16,21 +16,21 @@ This repository uses automated lint and security checks for Kubernetes manifests
 |------|---------|---------|
 | [aqua](https://aquaproj.github.io/) | CLI version manager | See [aqua docs](https://aquaproj.github.io/docs/install) |
 | go-task | Task orchestration | `brew install go-task` |
-| kubeconform | K8s schema validation | `brew install kubeconform` |
+| kubeconform | K8s schema validation | Managed by aqua (see `aqua.yaml`) |
 | trivy | Security scanning | Managed by aqua (see `aqua.yaml`) |
 
 ### Quick Install (macOS)
 
 ```bash
-brew install go-task kubeconform
-aqua install  # installs trivy (version pinned in aqua.yaml)
+brew install go-task
+aqua install  # installs kubeconform and trivy (versions pinned in aqua.yaml)
 ```
 
 ### Verify Installation
 
 ```bash
 task --version      # v3.x
-kubeconform -v      # v0.6.x
+kubeconform -v      # v0.7.x (managed by aqua)
 trivy --version     # v0.69.x (managed by aqua)
 ```
 
@@ -123,7 +123,7 @@ Always verify that the flagged configuration is truly necessary before skipping.
 If local and CI results differ, sync tool versions:
 
 ```bash
-# Sync trivy version from aqua.yaml
+# Sync tool versions from aqua.yaml
 aqua install
 
 # Check versions
