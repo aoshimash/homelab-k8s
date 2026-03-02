@@ -8,6 +8,7 @@ on:
       - ".github/workflows/k8s-lint-security.yaml"
       - "trivy.yaml"
       - "trivy-secret.yaml"
+      - "aqua.yaml"
 
 jobs:
   check:
