@@ -14,22 +14,23 @@ This repository uses automated lint and security checks for Kubernetes manifests
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| go-task | Task orchestration | `brew install go-task` |
-| kubeconform | K8s schema validation | `brew install kubeconform` |
-| trivy | Security scanning | `brew install trivy` |
+| [aqua](https://aquaproj.github.io/) | CLI version manager | See [aqua docs](https://aquaproj.github.io/docs/install) |
+| go-task | Task orchestration | Managed by aqua (see `aqua.yaml`) |
+| kubeconform | K8s schema validation | Managed by aqua (see `aqua.yaml`) |
+| trivy | Security scanning | Managed by aqua (see `aqua.yaml`) |
 
-### Quick Install (macOS)
+### Quick Install
 
 ```bash
-brew install go-task kubeconform trivy
+aqua install  # installs all tools (versions pinned in aqua.yaml)
 ```
 
 ### Verify Installation
 
 ```bash
-task --version      # v3.x
-kubeconform -v      # v0.6.x
-trivy --version     # 0.50.x
+task --version
+kubeconform -v
+trivy --version
 ```
 
 ## Local Usage
@@ -89,19 +90,10 @@ To ensure identical results between local and CI environments:
 
 ### Version Alignment
 
-For exact parity, use the same tool versions locally as in CI:
+Tool versions are pinned in `aqua.yaml` to ensure local/CI parity. Run `aqua install` to sync:
 
 ```bash
-# kubeconform: v0.6.7 (CI version)
-curl -L -o kubeconform.tar.gz \
-  "https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-darwin-amd64.tar.gz"
-tar xzf kubeconform.tar.gz
-sudo mv kubeconform /usr/local/bin/
-
-# Trivy: Use latest (CI uses aquasecurity/trivy-action@0.28.0)
-brew install trivy
-# Or use aqua version manager:
-aqua install trivy@0.50.0
+aqua install  # installs pinned versions from aqua.yaml
 ```
 
 ## Troubleshooting
@@ -127,16 +119,15 @@ Always verify that the flagged configuration is truly necessary before skipping.
 
 ### Issue: Tool Version Mismatch
 
-If local and CI results differ, check tool versions:
+If local and CI results differ, sync tool versions:
 
 ```bash
+# Sync tool versions from aqua.yaml
+aqua install
+
 # Check versions
 kubeconform -v
 trivy --version
-
-# Install CI versions
-# kubeconform: v0.6.7
-# trivy: v0.50.x
 ```
 
 ## Excluded Resources
