@@ -57,8 +57,9 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 
 - Encrypted files must be named `*.sops.yaml`
 - Pattern `k8s/.*\.sops\.yaml$` encrypts `data` and `stringData` fields
-- Age key file: `age.agekey` (gitignored, never commit)
-- Encrypt: `sops -e -i <file>` / Decrypt: `sops -d -i <file>`
+- Age key file: `age.agekey` at project root (gitignored, never commit)
+- **SOPS commands require** `SOPS_AGE_KEY_FILE=age.agekey` environment variable (or export it before running sops)
+- Encrypt: `SOPS_AGE_KEY_FILE=age.agekey sops -e -i <file>` / Decrypt: `SOPS_AGE_KEY_FILE=age.agekey sops -d -i <file>`
 - Flux Kustomizations reference `sops-age` secret for automatic decryption
 
 ## CI/CD
