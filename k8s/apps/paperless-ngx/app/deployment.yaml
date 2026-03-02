@@ -17,6 +17,22 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: download-jpn-tessdata
+          image: busybox:1.37
+          command:
+            - wget
+            - -O
+            - /tessdata/jpn.traineddata
+            - https://github.com/tesseract-ocr/tessdata/raw/main/jpn.traineddata
+          volumeMounts:
+            - name: tessdata
+              mountPath: /tessdata
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: paperless-ngx
           # NOTE: paperless-ngx entrypoint requires root for chown and user switching,
@@ -39,6 +55,10 @@ spec:
               mountPath: /usr/src/paperless/data
             - name: media
               mountPath: /usr/src/paperless/media
+            - name: tessdata
+              mountPath: /usr/share/tesseract-ocr/5/tessdata/jpn.traineddata
+              subPath: jpn.traineddata
+              readOnly: true
           resources:
             requests:
               cpu: 200m
@@ -132,3 +152,5 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: paperless-media
+        - name: tessdata
+          emptyDir: {}
