@@ -1,4 +1,5 @@
 *.agekey
+*.log
 
 # Generated Talos configs (contain secrets, regenerated from talsecret.sops.yaml)
 # - Node configs (*.yaml): machine configuration for each node

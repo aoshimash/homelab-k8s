@@ -15,7 +15,7 @@ spec:
     retentionPolicy: "7d"
     barmanObjectStore:
       destinationPath: "s3://homelab-postgres-backups/cnpg/"
-      endpointURL: "https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com"
+      endpointURL: "REPLACED_BY_KUSTOMIZE"
       s3Credentials:
         accessKeyId:
           name: postgres-r2-credentials

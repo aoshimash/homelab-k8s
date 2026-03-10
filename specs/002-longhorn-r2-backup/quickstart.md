@@ -33,7 +33,7 @@ Notes:
 
 For this cluster:
 - Bucket: `homelab-longhorn-backups`
-- Endpoint: `https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com`
+- Endpoint: `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`
 
 ## Validate manifests render (local)
 
