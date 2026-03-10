@@ -16,9 +16,6 @@ task check
 task lint              # kubeconform schema validation
 task security          # Trivy HIGH/CRITICAL scan
 task security:all      # Trivy all severities (informational)
-
-# Trigger podcast metadata update job
-task radigo:update-metadata PROGRAM=audrey
 ```
 
 **Prerequisites**: `brew install go-task kubeconform trivy`
@@ -31,7 +28,8 @@ Flux reconciles three layers from `k8s/` in dependency order:
 
 1. **`k8s/infrastructure/`** — Cluster infrastructure (Helm-based): Cilium CNI, Longhorn storage, Tailscale operator, Grafana Alloy, kube-state-metrics, metrics-server, CloudNativePG, Actions Runner Controller
 2. **`k8s/configs/`** — Post-infrastructure configuration: Tailscale ingress/proxy, PostgreSQL cluster + databases, ARC runner definitions. Depends on `infrastructure` and waits for Tailscale operator health.
-3. **`k8s/apps/`** — User applications: Audiobookshelf (podcast recording/serving), Home Assistant, Vikunja. Depends on `configs`.
+3. **`k8s/apps/`** — User applications: Audiobookshelf, Home Assistant, Vikunja. Depends on `configs`.
+4. **Private apps** (`homelab-k8s-private` repo) — Components with private configuration (e.g., radigo-recorder). Deployed via Flux multi-source reconciliation with `dependsOn: apps`.
 
 Orchestrated via `k8s/flux/` Kustomizations with explicit `dependsOn` chains.
 
@@ -65,7 +63,6 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 ## CI/CD
 
 - **PR checks** (`.github/workflows/k8s-lint-security.yaml`): Runs `task check` on changes to `k8s/**`, `Taskfile.yaml`, or Trivy configs
-- **Image builds**: Workflows for radigo and yt-dlp-rajiko container images
 - **ARC runner tests**: Workflow to validate Actions Runner Controller setup
 - **Renovate**: Automated dependency updates for Helm chart versions in `k8s/infrastructure/` and GitHub Action versions
 

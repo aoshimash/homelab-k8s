@@ -48,7 +48,7 @@ For security, we use a fine-grained PAT which allows repository-specific permiss
    | Token name | `flux-homelab-k8s` |
    | Expiration | No expiration (or your preference) |
    | Resource owner | Your account (`aoshimash`) |
-   | Repository access | **Only select repositories** → `homelab-k8s` |
+   | Repository access | **Only select repositories** → `homelab-k8s`, `homelab-k8s-private` |
 
 4. Set **Repository permissions**:
 
@@ -299,6 +299,58 @@ kubectl -n flux-system get secret sops-age
 kubectl -n flux-system get kustomization infrastructure -o yaml | sed -n '1,120p'
 ```
 
+## Multi-Source Reconciliation (Private Repository)
+
+Flux can reconcile manifests from multiple Git repositories. The `homelab-k8s-private` repository contains components with private configuration (e.g., radigo-recorder) that are deployed into the same cluster.
+
+### How It Works
+
+Two additional resources in `k8s/flux/` enable this:
+
+- **`private-gitrepository.yaml`** — A `GitRepository` source pointing to `homelab-k8s-private`, using the same `flux-system` secret for authentication
+- **`private-apps-kustomization.yaml`** — A `Kustomization` that deploys from the private repository with `dependsOn: apps` to ensure correct ordering and SOPS decryption enabled
+
+### PAT Requirements
+
+The fine-grained PAT used by Flux (`flux-system` secret) must have access to **both** repositories:
+
+- `homelab-k8s` (public — main infrastructure)
+- `homelab-k8s-private` (private — personal configuration)
+
+If the PAT was originally created with access only to `homelab-k8s`, update it:
+
+1. Go to GitHub: **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+2. Edit the `flux-homelab-k8s` token
+3. Under **Repository access**, add `homelab-k8s-private` to the selected repositories
+4. Save the token
+
+If the token value changes, update the `flux-system` secret in the cluster:
+
+```bash
+# Re-bootstrap Flux with the updated token
+export GITHUB_TOKEN=<updated-pat>
+flux bootstrap github \
+  --token-auth \
+  --owner=aoshimash \
+  --repository=homelab-k8s \
+  --branch=main \
+  --path=k8s/flux \
+  --personal
+```
+
+### Verify Private Repository Reconciliation
+
+```bash
+# Check GitRepository source
+flux get sources git homelab-k8s-private
+
+# Check Kustomization status
+flux get kustomization private-apps
+
+# Describe for detailed error if not Ready
+kubectl -n flux-system describe gitrepository homelab-k8s-private
+```
+
 ## Useful Commands
 
 ### Reconciliation
@@ -311,6 +363,7 @@ flux reconcile source git flux-system
 flux reconcile kustomization flux-system
 flux reconcile kustomization infrastructure
 flux reconcile kustomization apps
+flux reconcile kustomization private-apps
 ```
 
 ### Debugging
