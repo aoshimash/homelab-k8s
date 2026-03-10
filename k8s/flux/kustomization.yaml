@@ -5,3 +5,5 @@ resources:
   - infrastructure-kustomization.yaml
   - configs-kustomization.yaml
   - apps-kustomization.yaml
+  - private-gitrepository.yaml
+  - private-apps-kustomization.yaml
