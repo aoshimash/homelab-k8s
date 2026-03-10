@@ -9,3 +9,4 @@ resources:
   - metrics-server/
   - cloudnative-pg/
   - actions-runner-controller/
+  - reloader/

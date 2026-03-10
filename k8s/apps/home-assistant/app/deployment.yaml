@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: home-assistant
   namespace: home-assistant
+  annotations:
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:
