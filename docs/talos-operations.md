@@ -100,6 +100,128 @@ If the upgrade fails, Talos automatically boots from the previous image. To manu
 talosctl rollback --nodes 192.168.0.10
 ```
 
+## Renovate upgrade flow
+
+Renovate opens PRs to bump the Talos OS image and Kubernetes versions referenced
+in `infra/talos/talconfig.yaml`. These PRs do **not** apply the upgrade to the
+cluster — they only update the desired state in Git. The operator must run the
+relevant `task` targets manually after merge.
+
+### PR review criteria
+
+Before merging a Renovate PR, verify:
+
+- **CHANGELOG / release notes**: Read the upstream Talos and Kubernetes release
+  notes for the proposed version. Look for breaking changes, deprecated flags,
+  and new minimum requirements.
+- **Cilium compatibility**: Confirm the new Kubernetes version is supported by
+  the currently deployed Cilium release. Cross-check the Cilium support matrix
+  before approving Kubernetes minor-version bumps.
+- **Breaking-change scan**: Search the diff for changes to `talconfig.yaml`
+  schema, machine config keys, or extension references that imply a manual
+  follow-up step.
+
+### Manual operation after merge
+
+Once the PR is merged on `main`, apply the change to the cluster promptly:
+
+```bash
+git pull
+task talos:upgrade        # for Talos OS
+task talos:upgrade-k8s    # for Kubernetes
+```
+
+> **Important**: Apply promptly after merge to prevent drift between Git and
+> cluster state. The longer the desired state in Git diverges from the running
+> cluster, the harder it is to reason about subsequent PRs.
+
+### Verification
+
+```bash
+task talos:health
+kubectl get nodes
+```
+
+Confirm the node is `Ready`, the reported Talos and Kubernetes versions match
+the merged PR, and all critical workloads return to a healthy state.
+
+## Rollback strategy
+
+This is a **single-node cluster**, so an upgrade failure brings the entire
+cluster down. Always plan for rollback before applying a Renovate PR.
+
+### Take an etcd snapshot before upgrading
+
+```bash
+talosctl etcd snapshot db.snapshot
+```
+
+Store the snapshot off-node. If the upgrade corrupts cluster state beyond what
+A/B partition rollback can recover, the snapshot is the last line of defense.
+
+### Immediate rollback (within ~30 min of upgrade)
+
+Talos preserves the previous install image in the secondary A/B partition. If
+the new image fails to boot or the node is misbehaving immediately after
+upgrade, revert to the previous partition:
+
+```bash
+talosctl rollback --nodes 192.168.0.10
+```
+
+This is the fastest and safest rollback path. It does **not** require any Git
+changes — the running image simply switches back.
+
+### Late rollback (after the previous partition is gone)
+
+Once another upgrade has overwritten the secondary partition, `talosctl
+rollback` can no longer recover the prior version. Roll back via Git instead:
+
+1. Revert the merged Renovate PR:
+   ```bash
+   git revert <merge-commit>
+   # or, after the PR was merged, open a revert PR:
+   gh pr revert <pr-number>
+   ```
+2. Re-run the upgrade against the now-restored older version:
+   ```bash
+   task talos:upgrade
+   ```
+3. Reboot manually if the node does not pick up the change automatically:
+   ```bash
+   talosctl reboot --nodes 192.168.0.10
+   ```
+
+### Single-node warning
+
+A failed upgrade on this cluster equals **full cluster downtime** — there is no
+peer node to keep workloads running. Always:
+
+- Take an etcd snapshot (`talosctl etcd snapshot db.snapshot`) before applying
+  a Renovate upgrade PR.
+- Schedule upgrades during a maintenance window when downtime is acceptable.
+- Keep a console / out-of-band path to the node so a stuck boot can be
+  diagnosed without the network.
+
+## Future automation options
+
+The current flow is intentionally manual: Renovate proposes the version bump
+in Git, an operator reviews and applies it. The options below are recorded for
+future consideration but are **not** implemented today.
+
+- **tuppr controller (multi-node)**: CRD-based rolling Talos upgrades driven
+  by an in-cluster controller. Reconsider when the cluster grows beyond a
+  single node — rolling upgrades have no benefit on a single-node cluster and
+  add operational surface area.
+- **Drift detection automation**: A GitHub Actions cron job that compares the
+  desired Talos / Kubernetes version in Git against the live cluster and files
+  an issue when drift is detected. Estimated setup: ~1–2 hours. Useful as a
+  safety net for the "apply promptly after merge" rule above.
+- **Full automation**: A `workflow_dispatch` button (or tuppr) that applies
+  Renovate-merged upgrades automatically. Considered too risky for a
+  single-node cluster — keep the human gate until there is a multi-node
+  failure domain.
+
 ## Adding System Extensions
 
 ### Common Extensions
