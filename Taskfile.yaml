@@ -75,10 +75,14 @@ tasks:
     desc: Upgrade Talos OS to the version pinned in talconfig.yaml (requires yq)
     deps: [talos:genconfig]
     vars:
-      IMAGE_URL:
+      # talosImageURL holds only the schematic (factory.talos.dev/installer/<hash>);
+      # the version tag comes from talosVersion. Concatenate to build the full image.
+      TALOS_IMAGE:
         sh: yq '.nodes[0].talosImageURL' {{.TALOS_DIR}}/talconfig.yaml
+      TALOS_VERSION:
+        sh: yq '.talosVersion' {{.TALOS_DIR}}/talconfig.yaml
     cmds:
-      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade --image {{.IMAGE_URL}} --preserve --wait
+      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade --image {{.TALOS_IMAGE}}:{{.TALOS_VERSION}} --preserve --wait
 
   talos:upgrade-k8s:
     desc: Upgrade Kubernetes to the version pinned in talconfig.yaml (requires yq)
