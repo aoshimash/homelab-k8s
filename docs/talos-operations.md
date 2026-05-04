@@ -104,8 +104,16 @@ talosctl rollback --nodes 192.168.0.10
 
 Renovate opens PRs to bump the Talos OS image and Kubernetes versions referenced
 in `infra/talos/talconfig.yaml`. These PRs do **not** apply the upgrade to the
-cluster — they only update the desired state in Git. The operator must run the
-relevant `task` targets manually after merge.
+cluster — they only update the desired state in Git. The operator must apply
+the change manually with `talosctl` after merge.
+
+Talos OS and Kubernetes upgrades are kept as **separate Renovate PRs** because
+their apply procedures and blast radius differ:
+
+- A Talos OS bump (`talosVersion`) reboots the node — full control plane is
+  unavailable for the duration of the reboot.
+- A Kubernetes bump (`kubernetesVersion`) updates control-plane static pods
+  and kubelet — the apiserver bounces briefly but the node stays up.
 
 ### PR review criteria
 
@@ -121,29 +129,66 @@ Before merging a Renovate PR, verify:
   schema, machine config keys, or extension references that imply a manual
   follow-up step.
 
-### Manual operation after merge
+### Manual operation after merge — Talos OS bump
 
-Once the PR is merged on `main`, apply the change to the cluster promptly:
+Once a `talosVersion` Renovate PR is merged on `main`:
 
 ```bash
 git pull
-task talos:upgrade        # for Talos OS
-task talos:upgrade-k8s    # for Kubernetes
+cd infra/talos
+
+# Regenerate clusterconfig from the updated talconfig.yaml
+SOPS_AGE_KEY_FILE=../../age.agekey talhelper genconfig
+
+# Build the full image URL (talosImageURL holds only the schematic; the version
+# tag comes from talosVersion).
+TALOS_IMAGE=$(yq '.nodes[0].talosImageURL' talconfig.yaml)
+TALOS_VERSION=$(yq '.talosVersion' talconfig.yaml)
+
+talosctl --talosconfig clusterconfig/talosconfig \
+  --endpoints 192.168.0.10 --nodes 192.168.0.10 \
+  upgrade --image "${TALOS_IMAGE}:${TALOS_VERSION}" --preserve --wait
+```
+
+After `talosctl` reports `post check passed`, the kube-apiserver still needs a
+moment to come back up. Block until ready before running anything else against
+the cluster:
+
+```bash
+task talos:health      # blocks until Talos and K8s control plane are ready
+kubectl get nodes      # node should show the new Talos version
+```
+
+> Note: `--preserve` is deprecated in `talosctl` 1.13.0+ but still required
+> when the server is on Talos 1.12.x (legacy `MachineService.Upgrade` API
+> fallback). Drop the flag once the cluster is on 1.13.0 or later.
+
+### Manual operation after merge — Kubernetes bump
+
+Once a `kubernetesVersion` Renovate PR is merged on `main`:
+
+```bash
+git pull
+cd infra/talos
+
+K8S_VERSION=$(yq '.kubernetesVersion' talconfig.yaml)
+
+talosctl --talosconfig clusterconfig/talosconfig \
+  --endpoints 192.168.0.10 --nodes 192.168.0.10 \
+  upgrade-k8s --to "${K8S_VERSION}"
+```
+
+Verification:
+
+```bash
+task talos:health
+kubectl get nodes      # node version reflects the new K8s release
+kubectl -n kube-system get pods   # control-plane pods all Running
 ```
 
 > **Important**: Apply promptly after merge to prevent drift between Git and
 > cluster state. The longer the desired state in Git diverges from the running
 > cluster, the harder it is to reason about subsequent PRs.
-
-### Verification
-
-```bash
-task talos:health
-kubectl get nodes
-```
-
-Confirm the node is `Ready`, the reported Talos and Kubernetes versions match
-the merged PR, and all critical workloads return to a healthy state.
 
 ## Rollback strategy
 
@@ -183,10 +228,10 @@ rollback` can no longer recover the prior version. Roll back via Git instead:
    # or, after the PR was merged, open a revert PR:
    gh pr revert <pr-number>
    ```
-2. Re-run the upgrade against the now-restored older version:
-   ```bash
-   task talos:upgrade
-   ```
+2. Re-run the upgrade against the now-restored older version. The
+   command is documented in the
+   [Manual operation after merge — Talos OS bump](#manual-operation-after-merge--talos-os-bump)
+   section above (`talosctl ... upgrade --image ...`).
 3. Reboot manually if the node does not pick up the change automatically:
    ```bash
    talosctl reboot --nodes 192.168.0.10
