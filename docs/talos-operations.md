@@ -159,6 +159,43 @@ task talos:health      # blocks until Talos and K8s control plane are ready
 kubectl get nodes      # node should show the new Talos version
 ```
 
+#### Verify all workloads recovered
+
+A Talos OS upgrade reboots the node, which means every Cilium agent restarts
+and re-attaches its eBPF programs to the new kernel. On a kernel-version bump
+(e.g. Talos 1.12 → 1.13) this re-attach can land in an inconsistent state
+that breaks pod-to-external SNAT or kubelet → pod liveness probes, even
+though `task talos:health` shows the cluster as healthy. Always sweep for
+unhealthy pods before walking away:
+
+```bash
+kubectl get pods -A | grep -vE 'Running|Completed'
+```
+
+Expect this to be empty. If anything stays in `CrashLoopBackOff`,
+`Init:CrashLoopBackOff`, or stuck `0/N Ready`:
+
+1. Restart the Cilium DaemonSet so the agent re-attaches eBPF cleanly:
+   ```bash
+   kubectl -n kube-system rollout restart ds/cilium
+   kubectl -n kube-system rollout status ds/cilium
+   ```
+2. If pods are still flapping after Cilium recovers, check the agent log
+   for backend incompatibilities introduced by the new kernel:
+   ```bash
+   kubectl -n kube-system logs ds/cilium --tail=100 | grep -iE 'error|fail|incompat'
+   ```
+   On Talos 1.13 specifically, look for `iptables ... (nf_tables): table
+   incompatible` — the kernel switched its iptables backend to nftables, and
+   Cilium needs `bpf.masquerade=true` and `installIptablesRules: false` to
+   bypass iptables management entirely (see the current Cilium HelmRelease
+   for the working values).
+3. If kubelet liveness probes are timing out for specific Flux / app pods
+   under stricter Cilium NetworkPolicy enforcement, confirm no NetworkPolicy
+   selects the pod with `from` clauses that exclude the host network
+   (`namespaceSelector: {}` or `podSelector: {}` does not match host probes
+   in Cilium 1.19+).
+
 > Note: `--preserve` is deprecated in `talosctl` 1.13.0+ but still required
 > when the server is on Talos 1.12.x (legacy `MachineService.Upgrade` API
 > fallback). Drop the flag once the cluster is on 1.13.0 or later.
