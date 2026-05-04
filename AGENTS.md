@@ -74,3 +74,4 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 - Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes), `KSV0009` (hostNetwork — Home Assistant needs it for Matter/mDNS)
 - The `docs/` directory contains operational documentation for each component
 - `specs/` is a historical archive of feature planning documents — read-only reference, do not edit
+- Talos OS / Kubernetes versions are managed by Renovate via customManagers in `renovate.json5`. After merging a Renovate PR, apply the change manually with `task talos:upgrade` (or `task talos:upgrade-k8s`). See `docs/talos-operations.md` for the full procedure and rollback strategy.
