@@ -30,15 +30,14 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$"],
+      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$/"],
       "matchStrings": ["talosVersion:\\s*(?<currentValue>v[\\d.]+)"],
       "depNameTemplate": "siderolabs/talos",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>.+)$"
+      "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$"],
+      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$/"],
       "matchStrings": ["kubernetesVersion:\\s*(?<currentValue>v[\\d.]+)"],
       "depNameTemplate": "kubernetes/kubernetes",
       "datasourceTemplate": "github-releases"
