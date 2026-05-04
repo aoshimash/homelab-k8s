@@ -167,7 +167,27 @@ spec:
           // Process and add labels
           loki.process "add_labels" {
             forward_to = [loki.write.grafana_cloud.receiver]
-            
+
+            // Drop the Cilium iptables/nftables incompatibility line that
+            // fires from `module=agent.datapath.iptables` every 10 seconds
+            // on Talos 1.13. It is cosmetic — pod-to-external SNAT runs in
+            // eBPF (bpf.masquerade=true) and Service routing runs in eBPF
+            // (kubeProxyReplacement=true), so the iptables manager's failed
+            // probe has no effect on the dataplane. The line is dropped
+            // here, before forwarding to Grafana Cloud Loki, so it does not
+            // count toward ingestion billing.
+            //
+            // Alloy emits loki_process_dropped_lines_total{reason="..."}
+            // for every drop, so the count remains observable in
+            // Grafana Cloud Prometheus even though the lines themselves
+            // are not stored. See docs/incidents/2026-05-04-... for the
+            // full root cause analysis; remove this stage once upstream
+            // Cilium ships an iptables-free mode (cilium/cilium#12879).
+            stage.drop {
+              expression          = "iptables.*\\(nf_tables\\):.*table.*is incompatible"
+              drop_counter_reason = "cilium_iptables_nft_incompat"
+            }
+
             stage.static_labels {
               values = {
                 cluster = "homelab",
