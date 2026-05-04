@@ -34,20 +34,24 @@ nodes:
             wipe: true
       # Tailscale extension service configuration.
       #
-      # TS_NETFILTER_MODE=iptables forces tailscaled to manage host firewall
-      # rules through the iptables-nft binary instead of writing nftables
-      # rules natively. The default ("auto") picks nftables-native on Talos
-      # 1.13+ because the kernel supports nf_tables, but those rules end up
-      # in a format Cilium's iptables manager cannot read back via
-      # `iptables -t nat -S` — the agent then logs "table 'nat' is
-      # incompatible, use 'nft' tool" every 10 seconds. Pinning to iptables
-      # mode keeps the same Tailscale connectivity (filter + nat rules are
-      # equivalent) while making both Tailscale and Cilium speak the same
-      # netfilter dialect, so Cilium's probe succeeds and the noise stops.
+      # TS_DEBUG_FIREWALL_MODE=iptables forces tailscaled to manage host
+      # firewall rules through the iptables-nft binary instead of writing
+      # nftables rules natively (see util/linuxfw/detector.go upstream — the
+      # accepted values are "auto", "iptables", "nftables"). The "Debug"
+      # prefix is misleading; this is the supported way to pin the runner.
+      #
+      # The default ("auto") picks nftables-native on Talos 1.13+ because
+      # the kernel supports nf_tables, but those rules end up in a format
+      # Cilium's iptables manager cannot read back via `iptables -t nat -S`
+      # — the agent then logs "table 'nat' is incompatible, use 'nft' tool"
+      # every 10 seconds. Pinning to iptables keeps the same Tailscale
+      # connectivity (filter + nat rules are equivalent) while making both
+      # Tailscale and Cilium speak the same netfilter dialect, so Cilium's
+      # probe succeeds and the noise stops.
       - |-
         apiVersion: v1alpha1
         kind: ExtensionServiceConfig
         name: tailscale
         environment:
           - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
-          - TS_NETFILTER_MODE=iptables
+          - TS_DEBUG_FIREWALL_MODE=iptables
