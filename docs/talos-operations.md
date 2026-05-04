@@ -166,7 +166,7 @@ the new image fails to boot or the node is misbehaving immediately after
 upgrade, revert to the previous partition:
 
 ```bash
-talosctl rollback -n 192.168.0.10
+talosctl rollback --nodes 192.168.0.10
 ```
 
 This is the fastest and safest rollback path. It does **not** require any Git
@@ -180,7 +180,7 @@ rollback` can no longer recover the prior version. Roll back via Git instead:
 1. Revert the merged Renovate PR:
    ```bash
    git revert <merge-commit>
-   # or, if the PR is still open
+   # or, after the PR was merged, open a revert PR:
    gh pr revert <pr-number>
    ```
 2. Re-run the upgrade against the now-restored older version:
