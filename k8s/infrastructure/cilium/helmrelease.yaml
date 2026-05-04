@@ -28,15 +28,15 @@ spec:
     # kernel's nat table state, breaking iptables-based masquerade and pod
     # egress entirely. With bpf.masquerade=true Cilium does SNAT in eBPF and
     # bypasses iptables for pod egress.
+    #
+    # Cilium's agent will still log a "table 'nat' is incompatible, use 'nft'
+    # tool" error every 10s as its iptables manager probes the nat table. This
+    # is cosmetic noise — the dataplane (eBPF SNAT, eBPF Service routing) is
+    # unaffected. We tried `installIptablesRules: false` to silence it but the
+    # 1.19.3 chart silently drops the value (see PR #206 / #208). Live with
+    # the noise until upstream Cilium ships a real nf_tables-only mode.
     bpf:
       masquerade: true
-    # Stop Cilium from trying to manage iptables rules at all. Without this,
-    # the agent logs a "table 'nat' is incompatible, use 'nft' tool" error
-    # every 10 seconds because it cannot read the nat table back. With
-    # kubeProxyReplacement=true and bpf.masquerade=true above, Cilium does
-    # not need iptables for Service routing or pod-to-external SNAT, so
-    # disabling iptables management is safe and silences the noise.
-    installIptablesRules: false
     loadBalancer:
       acceleration: disabled
     socketLB:

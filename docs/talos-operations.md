@@ -185,11 +185,15 @@ Expect this to be empty. If anything stays in `CrashLoopBackOff`,
    ```bash
    kubectl -n kube-system logs ds/cilium --tail=100 | grep -iE 'error|fail|incompat'
    ```
-   On Talos 1.13 specifically, look for `iptables ... (nf_tables): table
-   incompatible` — the kernel switched its iptables backend to nftables, and
-   Cilium needs `bpf.masquerade=true` and `installIptablesRules: false` to
-   bypass iptables management entirely (see the current Cilium HelmRelease
-   for the working values).
+   On Talos 1.13+, the agent logs `iptables ... (nf_tables): table 'nat'
+   is incompatible` every 10 seconds. This is **cosmetic noise** — the
+   kernel switched its iptables backend to nftables but Cilium 1.19.x still
+   probes the legacy table. Pod-to-external SNAT runs in eBPF via
+   `bpf.masquerade=true` and is not affected. The Helm value
+   `installIptablesRules: false` silently has no effect in 1.19.3, so the
+   noise is tolerated until upstream Cilium ships a real nf_tables-only
+   mode. Treat the line as expected and grep around it when investigating
+   real failures.
 3. If kubelet liveness probes are timing out for specific Flux / app pods
    under stricter Cilium NetworkPolicy enforcement, confirm no NetworkPolicy
    selects the pod with `from` clauses that exclude the host network
