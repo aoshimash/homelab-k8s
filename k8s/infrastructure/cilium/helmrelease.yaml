@@ -23,6 +23,8 @@ spec:
     ipam:
       mode: kubernetes
     kubeProxyReplacement: true
+    loadBalancer:
+      acceleration: disabled
     socketLB:
       hostNamespaceOnly: true
     # Explicitly set MTU to prevent Cilium from using tailscale0's lower MTU (1280).
