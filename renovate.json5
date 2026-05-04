@@ -24,5 +24,43 @@
   },
 
   // PR labels
-  "labels": ["dependencies", "renovate"]
+  "labels": ["dependencies", "renovate"],
+
+  // Custom managers for Talos / Kubernetes versions in talconfig.yaml
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$/"],
+      "matchStrings": ["talosVersion:\\s*(?<currentValue>v[\\d.]+)"],
+      "depNameTemplate": "siderolabs/talos",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/infra/talos/talconfig\\.yaml$/"],
+      "matchStrings": ["kubernetesVersion:\\s*(?<currentValue>v[\\d.]+)"],
+      "depNameTemplate": "kubernetes/kubernetes",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+
+  // Manual-apply instructions injected into PR bodies for Talos / Kubernetes upgrades
+  "packageRules": [
+    {
+      "matchPackageNames": ["siderolabs/talos"],
+      "prBodyNotes": [
+        "**Manual action required after merge** — this PR does not auto-apply.",
+        "After merging, run `task talos:upgrade` locally to apply the new Talos version.",
+        "See [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow) for the full procedure and rollback strategy."
+      ]
+    },
+    {
+      "matchPackageNames": ["kubernetes/kubernetes"],
+      "prBodyNotes": [
+        "**Manual action required after merge** — this PR does not auto-apply.",
+        "After merging, run `task talos:upgrade-k8s` locally to upgrade Kubernetes.",
+        "See [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow) for the full procedure and rollback strategy."
+      ]
+    }
+  ]
 }
