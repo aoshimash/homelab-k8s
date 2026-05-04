@@ -23,6 +23,13 @@ spec:
     ipam:
       mode: kubernetes
     kubeProxyReplacement: true
+    # Use eBPF for pod-to-external SNAT. Required on Talos 1.13+ because the
+    # bundled iptables binary uses the nf_tables backend and cannot manage the
+    # kernel's nat table state, breaking iptables-based masquerade and pod
+    # egress entirely. With bpf.masquerade=true Cilium does SNAT in eBPF and
+    # bypasses iptables for pod egress.
+    bpf:
+      masquerade: true
     loadBalancer:
       acceleration: disabled
     socketLB:
