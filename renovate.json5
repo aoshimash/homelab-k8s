@@ -44,18 +44,22 @@
     }
   ],
 
-  // Group Talos OS and Kubernetes upgrades into a single PR — both target
-  // infra/talos/talconfig.yaml and share the same manual-apply workflow.
+  // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
+  // upgrades are kept as separate rules (and therefore separate PRs) because
+  // their apply procedures, blast radius, and verification differ.
   "packageRules": [
     {
-      "matchPackageNames": ["siderolabs/talos", "kubernetes/kubernetes"],
-      "groupName": "Talos cluster versions",
+      "matchPackageNames": ["siderolabs/talos"],
       "prBodyNotes": [
         "**Manual action required after merge** — this PR does not auto-apply.",
-        "After merging, run the relevant tasks locally for whichever versions changed:",
-        "- `task talos:upgrade` for the Talos OS version",
-        "- `task talos:upgrade-k8s` for the Kubernetes version",
-        "See [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow) for the full procedure and rollback strategy."
+        "After merging, follow the Talos OS upgrade procedure in [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow). The procedure includes the `talosctl upgrade` invocation, health-check gate, and rollback strategy."
+      ]
+    },
+    {
+      "matchPackageNames": ["kubernetes/kubernetes"],
+      "prBodyNotes": [
+        "**Manual action required after merge** — this PR does not auto-apply.",
+        "After merging, follow the Kubernetes upgrade procedure in [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow). The procedure includes the `talosctl upgrade-k8s` invocation and verification."
       ]
     }
   ]

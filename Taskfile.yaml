@@ -71,27 +71,6 @@ tasks:
     cmds:
       - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} health
 
-  talos:upgrade:
-    desc: Upgrade Talos OS to the version pinned in talconfig.yaml (requires yq)
-    deps: [talos:genconfig]
-    vars:
-      # talosImageURL holds only the schematic (factory.talos.dev/installer/<hash>);
-      # the version tag comes from talosVersion. Concatenate to build the full image.
-      TALOS_IMAGE:
-        sh: yq '.nodes[0].talosImageURL' {{.TALOS_DIR}}/talconfig.yaml
-      TALOS_VERSION:
-        sh: yq '.talosVersion' {{.TALOS_DIR}}/talconfig.yaml
-    cmds:
-      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade --image {{.TALOS_IMAGE}}:{{.TALOS_VERSION}} --preserve --wait
-
-  talos:upgrade-k8s:
-    desc: Upgrade Kubernetes to the version pinned in talconfig.yaml (requires yq)
-    vars:
-      K8S_VERSION:
-        sh: yq '.kubernetesVersion' {{.TALOS_DIR}}/talconfig.yaml
-    cmds:
-      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade-k8s --to {{.K8S_VERSION}}
-
   talos:apply-config:
     desc: Apply machine config changes (non-version, e.g. extensions/patches)
     deps: [talos:genconfig]
