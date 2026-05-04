@@ -13,33 +13,16 @@ metadata:
     pod-security.kubernetes.io/warn-version: latest
   name: flux-system
 ---
-# NOTE: Removed `allow-egress` and `allow-scraping` NetworkPolicies that
-# Flux bootstrap installs by default. Their `podSelector: {}` covered every
-# pod in flux-system and only allowed ingress on port 8080 (or intra-namespace
-# pods), which under stricter Cilium 1.19+ NetworkPolicy enforcement blocks
-# kubelet liveness/readiness probes on ports 9440 and 9090, putting all four
-# Flux controllers into CrashLoopBackOff after the Talos OS / Cilium upgrade.
-# `allow-webhooks` remains because it only selects notification-controller and
-# does not restrict ports.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  labels:
-    app.kubernetes.io/instance: flux-system
-    app.kubernetes.io/part-of: flux
-    app.kubernetes.io/version: v2.7.5
-  name: allow-webhooks
-  namespace: flux-system
-spec:
-  ingress:
-  - from:
-    - namespaceSelector: {}
-  podSelector:
-    matchLabels:
-      app: notification-controller
-  policyTypes:
-  - Ingress
----
+# NOTE: Removed all three NetworkPolicies that Flux bootstrap installs by
+# default (`allow-egress`, `allow-scraping`, `allow-webhooks`). Each selected
+# pods with an `ingress` rule whose `from` clause only matches pods or
+# namespaces — never the host network — so under stricter Cilium 1.19+
+# NetworkPolicy enforcement they block kubelet liveness/readiness probes on
+# ports 9440 / 9090 and trip the affected controller into CrashLoopBackOff
+# after the Talos 1.13 / Cilium 1.19 upgrade. `allow-webhooks` was assumed
+# safe in PR #204 because it does not restrict ports, but its `from:
+# namespaceSelector: {}` still excludes the host, so kubelet probes against
+# notification-controller stay blocked.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
