@@ -30,6 +30,13 @@ spec:
     # bypasses iptables for pod egress.
     bpf:
       masquerade: true
+    # Stop Cilium from trying to manage iptables rules at all. Without this,
+    # the agent logs a "table 'nat' is incompatible, use 'nft' tool" error
+    # every 10 seconds because it cannot read the nat table back. With
+    # kubeProxyReplacement=true and bpf.masquerade=true above, Cilium does
+    # not need iptables for Service routing or pod-to-external SNAT, so
+    # disabling iptables management is safe and silences the noise.
+    installIptablesRules: false
     loadBalancer:
       acceleration: disabled
     socketLB:
