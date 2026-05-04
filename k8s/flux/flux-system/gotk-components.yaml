@@ -13,46 +13,14 @@ metadata:
     pod-security.kubernetes.io/warn-version: latest
   name: flux-system
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  labels:
-    app.kubernetes.io/instance: flux-system
-    app.kubernetes.io/part-of: flux
-    app.kubernetes.io/version: v2.7.5
-  name: allow-egress
-  namespace: flux-system
-spec:
-  egress:
-  - {}
-  ingress:
-  - from:
-    - podSelector: {}
-  podSelector: {}
-  policyTypes:
-  - Ingress
-  - Egress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  labels:
-    app.kubernetes.io/instance: flux-system
-    app.kubernetes.io/part-of: flux
-    app.kubernetes.io/version: v2.7.5
-  name: allow-scraping
-  namespace: flux-system
-spec:
-  ingress:
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 8080
-      protocol: TCP
-  podSelector: {}
-  policyTypes:
-  - Ingress
----
+# NOTE: Removed `allow-egress` and `allow-scraping` NetworkPolicies that
+# Flux bootstrap installs by default. Their `podSelector: {}` covered every
+# pod in flux-system and only allowed ingress on port 8080 (or intra-namespace
+# pods), which under stricter Cilium 1.19+ NetworkPolicy enforcement blocks
+# kubelet liveness/readiness probes on ports 9440 and 9090, putting all four
+# Flux controllers into CrashLoopBackOff after the Talos OS / Cilium upgrade.
+# `allow-webhooks` remains because it only selects notification-controller and
+# does not restrict ports.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
