@@ -34,26 +34,24 @@ nodes:
             wipe: true
       # Tailscale extension service configuration.
       #
-      # TS_DEBUG_FIREWALL_MODE=iptables forces tailscaled to manage host
-      # firewall rules through the iptables-nft binary instead of writing
-      # nftables rules natively. The accepted values are "auto",
-      # "iptables", "nftables" (see util/linuxfw/detector.go upstream).
-      # The "Debug" prefix is historical and misleading — this is the
-      # supported public knob, used by Tailscale's own Kubernetes
-      # operator/sidecar/subnet manifests in docs/k8s/*.yaml.
+      # NOTE: We tried `TS_DEBUG_FIREWALL_MODE=iptables` (PRs #209/#210) to
+      # silence Cilium's "table 'nat' is incompatible, use 'nft' tool" log
+      # noise by making tailscaled write rules via iptables-nft instead of
+      # libnftnl. It does not work on Talos: the siderolabs/tailscale
+      # extension image does not bundle the `iptables` binary, so tailscaled
+      # immediately crashes on startup with:
       #
-      # The default ("auto") picks nftables-native on Talos 1.13+ because
-      # the kernel supports nf_tables, but those rules end up in a format
-      # Cilium's iptables manager cannot read back via `iptables -t nat -S`
-      # — the agent then logs "table 'nat' is incompatible, use 'nft' tool"
-      # every 10 seconds. Pinning to iptables keeps the same Tailscale
-      # connectivity (filter + nat rules are equivalent) while making both
-      # Tailscale and Cilium speak the same netfilter dialect, so Cilium's
-      # probe succeeds and the noise stops.
+      #   router.Up: setting netfilter mode: could not create new netfilter:
+      #   exec: "iptables": executable file not found in $PATH
+      #
+      # Tailscale connectivity (incl. talosctl/kubectl access via the tailnet
+      # IP) is broken until the env var is removed. Until siderolabs/extensions
+      # ships iptables in this image, leaving tailscaled in default `auto`
+      # mode is the only working option. Cilium's iptables-incompatibility
+      # noise is documented in docs/talos-operations.md as known/cosmetic.
       - |-
         apiVersion: v1alpha1
         kind: ExtensionServiceConfig
         name: tailscale
         environment:
           - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
-          - TS_DEBUG_FIREWALL_MODE=iptables
