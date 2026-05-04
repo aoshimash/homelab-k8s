@@ -14,7 +14,7 @@ spec:
         kind: HelmRepository
         name: cilium
         namespace: flux-system
-      version: 1.19.3
+      version: 1.18.6
   releaseName: cilium
   # WARNING: These values are based on documentation and may not match the actual running cluster.
   # Before deploying, T009 and T010 must be completed to capture and verify the current Helm release
@@ -23,6 +23,10 @@ spec:
     ipam:
       mode: kubernetes
     kubeProxyReplacement: true
+    bpf:
+      lbMapMax: 65536
+    loadBalancer:
+      acceleration: native
     socketLB:
       hostNamespaceOnly: true
     # Explicitly set MTU to prevent Cilium from using tailscale0's lower MTU (1280).
