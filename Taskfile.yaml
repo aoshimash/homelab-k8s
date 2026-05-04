@@ -4,6 +4,9 @@ vars:
   K8S_DIR: k8s
   # CRDs that don't have official Kubernetes schemas
   SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy
+  TALOS_NODE: 192.168.0.10
+  TALOS_DIR: infra/talos
+  TALOS_CONFIG: '{{.TALOS_DIR}}/clusterconfig/talosconfig'
 
 tasks:
   lint:
@@ -54,3 +57,39 @@ tasks:
     cmds:
       - task: lint
       - task: security
+
+  talos:genconfig:
+    desc: Generate Talos cluster config via talhelper (decrypts SOPS secrets)
+    dir: '{{.TALOS_DIR}}'
+    env:
+      SOPS_AGE_KEY_FILE: '{{.ROOT_DIR}}/age.agekey'
+    cmds:
+      - talhelper genconfig
+
+  talos:health:
+    desc: Check Talos and Kubernetes cluster health
+    cmds:
+      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} health
+
+  talos:upgrade:
+    desc: Upgrade Talos OS to the version pinned in talconfig.yaml (requires yq)
+    deps: [talos:genconfig]
+    vars:
+      IMAGE_URL:
+        sh: yq '.nodes[0].talosImageURL' {{.TALOS_DIR}}/talconfig.yaml
+    cmds:
+      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade --image {{.IMAGE_URL}} --preserve --wait
+
+  talos:upgrade-k8s:
+    desc: Upgrade Kubernetes to the version pinned in talconfig.yaml (requires yq)
+    vars:
+      K8S_VERSION:
+        sh: yq '.kubernetesVersion' {{.TALOS_DIR}}/talconfig.yaml
+    cmds:
+      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} upgrade-k8s --to {{.K8S_VERSION}}
+
+  talos:apply-config:
+    desc: Apply machine config changes (non-version, e.g. extensions/patches)
+    deps: [talos:genconfig]
+    cmds:
+      - talosctl --talosconfig {{.TALOS_CONFIG}} --endpoints {{.TALOS_NODE}} --nodes {{.TALOS_NODE}} apply-config -f {{.TALOS_DIR}}/clusterconfig/homelab-cluster-homelab-node-01.yaml
