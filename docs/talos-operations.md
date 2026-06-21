@@ -11,6 +11,15 @@ export TALOSCONFIG=/path/to/infra/talos/clusterconfig/talosconfig
 export SOPS_AGE_KEY_FILE=/path/to/age.agekey
 ```
 
+> **Reaching the node — LAN vs Tailscale**: The commands below use the node's
+> LAN address `192.168.0.10` (the value baked into `talconfig.yaml` and the
+> generated `talosconfig`). That only works from the home LAN. When operating
+> from outside the LAN (i.e. over the tailnet — the common case for a laptop),
+> the LAN address is unreachable (`dial tcp 192.168.0.10:50000: connect: no
+> route to host`). Override the endpoint and node with the node's **tailnet IP**
+> instead, e.g. `--endpoints <tailnet-ip> --nodes <tailnet-ip>`. Find it with
+> `kubectl get node -o wide` (INTERNAL-IP) or `tailscale status`.
+
 ## Upgrading Talos Linux
 
 ### When to Upgrade
@@ -48,28 +57,39 @@ If adding/removing extensions, create a new schematic at [Talos Image Factory](h
 
 #### 3. Perform the Upgrade
 
-> ⚠️ **Single Node Cluster Warning**: By default, `talosctl upgrade` stops all pods
-> before upgrading, which can cause issues on single-node clusters. The control plane
-> components (kube-apiserver, etcd) will also be stopped, potentially causing the
-> upgrade to hang waiting for kubelet lifecycle finalizers.
+> ⚠️ **Single Node Cluster Warning**: By default, `talosctl upgrade` cordons the
+> node and drains its pods before rebooting. On a single-node cluster the drain
+> cannot succeed — there is nowhere to move the pods, and any PodDisruptionBudget
+> with `ALLOWED DISRUPTIONS = 0` (Longhorn `instance-manager`, the CloudNativePG
+> primary) blocks eviction until the drain times out. The upgrade can also hang
+> waiting for kubelet lifecycle finalizers.
 > See [GitHub Issue #11775](https://github.com/siderolabs/talos/issues/11775) for details.
 
-**For single-node clusters, always use the `--preserve` flag:**
+**For single-node clusters, skip the drain with `--drain=false`:**
 
 ```bash
 # Upgrade the node with new image (single-node cluster)
 talosctl upgrade --nodes 192.168.0.10 \
-  --image factory.talos.dev/installer/<schematic-id>:v1.12.0 \
-  --preserve
+  --image factory.talos.dev/installer/<schematic-id>:v1.13.4 \
+  --drain=false
 
 # Monitor the upgrade progress
 talosctl dmesg -f --nodes 192.168.0.10
 ```
 
-The `--preserve` flag:
-- Skips the cordon/drain process
-- Does not stop pods before upgrade
-- Allows the upgrade to proceed without waiting for pod termination
+`--drain=false`:
+- Skips the cordon/drain process entirely, so the upgrade does not stall on the
+  un-satisfiable single-node drain or on blocking PodDisruptionBudgets.
+- Is not a "hard kill": Talos still runs its graceful shutdown sequence, sending
+  SIGTERM + grace period to pods during the reboot. Stateful workloads
+  (CloudNativePG, Longhorn) recover via normal crash recovery on restart.
+
+> **Note — `--preserve` is gone:** Older docs and Talos guides told single-node
+> operators to pass `--preserve`. That flag controlled *ephemeral-partition data
+> preservation* (not the drain), and it was **removed in `talosctl` 1.13.0+** —
+> passing it now errors with `unknown flag: --preserve`. Data preservation is the
+> default in 1.13+, and the single-node concern (skipping the drain) is handled by
+> `--drain=false`. Do not add `--preserve`.
 
 The node will:
 1. Download the new image
@@ -147,8 +167,12 @@ TALOS_VERSION=$(yq '.talosVersion' talconfig.yaml)
 
 talosctl --talosconfig clusterconfig/talosconfig \
   --endpoints 192.168.0.10 --nodes 192.168.0.10 \
-  upgrade --image "${TALOS_IMAGE}:${TALOS_VERSION}" --preserve --wait
+  upgrade --image "${TALOS_IMAGE}:${TALOS_VERSION}" --drain=false --wait
 ```
+
+> Operating over the tailnet? Replace `192.168.0.10` with the node's tailnet IP
+> in both `--endpoints` and `--nodes` (see the note under
+> [Prerequisites](#prerequisites)).
 
 After `talosctl` reports `post check passed`, the kube-apiserver still needs a
 moment to come back up. Block until ready before running anything else against
@@ -172,8 +196,28 @@ unhealthy pods before walking away:
 kubectl get pods -A | grep -vE 'Running|Completed'
 ```
 
-Expect this to be empty. If anything stays in `CrashLoopBackOff`,
-`Init:CrashLoopBackOff`, or stuck `0/N Ready`:
+After a reboot this is usually **not** empty, and that is normal: the reboot
+(especially with `--drain=false`) leaves `Failed`-phase residue — orphaned
+Deployment replicas whose Deployment is already back to its full ready count,
+plus `Job` pods that fired and failed during the recovery window. These are
+harmless leftovers, not an outage. Confirm recovery by the things that actually
+matter, not by an empty sweep:
+
+```bash
+kubectl get deploy,ds -A     # READY should read N/N for every controller
+kubectl get pvc -A | grep -v Bound                       # all volumes Bound? (empty = good)
+kubectl get pods -A | grep -E 'audiobookshelf|home-assistant|vikunja'  # user apps Running?
+```
+
+Once those are healthy, clear the cosmetic residue:
+
+```bash
+kubectl delete pods -A --field-selector=status.phase=Failed
+```
+
+A pod is a **real** failure only if it stays in `CrashLoopBackOff`,
+`Init:CrashLoopBackOff`, or stuck `0/N Ready` while its controller still wants
+it (the ready count above never reaches full). In that case:
 
 1. Restart the Cilium DaemonSet so the agent re-attaches eBPF cleanly:
    ```bash
@@ -190,7 +234,7 @@ Expect this to be empty. If anything stays in `CrashLoopBackOff`,
    kernel switched its iptables backend to nftables but Cilium 1.19.x still
    probes the legacy table. Pod-to-external SNAT runs in eBPF via
    `bpf.masquerade=true` and is not affected. The Helm value
-   `installIptablesRules: false` silently has no effect in 1.19.3, so the
+   `installIptablesRules: false` silently has no effect in Cilium 1.19.x, so the
    noise is tolerated until upstream Cilium ships a real nf_tables-only
    mode. Treat the line as expected and grep around it when investigating
    real failures.
@@ -200,9 +244,10 @@ Expect this to be empty. If anything stays in `CrashLoopBackOff`,
    (`namespaceSelector: {}` or `podSelector: {}` does not match host probes
    in Cilium 1.19+).
 
-> Note: `--preserve` is deprecated in `talosctl` 1.13.0+ but still required
-> when the server is on Talos 1.12.x (legacy `MachineService.Upgrade` API
-> fallback). Drop the flag once the cluster is on 1.13.0 or later.
+> Note: `--drain=false` is required on this single-node cluster — the default
+> drain cannot succeed and stalls on blocking PodDisruptionBudgets. Do **not**
+> pass the legacy `--preserve` flag; it was removed in `talosctl` 1.13.0+ and now
+> errors out. See [Perform the Upgrade](#3-perform-the-upgrade) for the rationale.
 
 ### Manual operation after merge — Kubernetes bump
 
@@ -396,18 +441,18 @@ talosctl logs ext-tailscale --nodes 192.168.0.10
 ### Current Schematic
 
 - **Schematic ID**: `e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b`
-- **Talos Version**: v1.12.0
+- **Talos Version**: v1.13.4
 - **Extensions**:
   - `siderolabs/iscsi-tools`
   - `siderolabs/tailscale`
-- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0)
+- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.13.4)
 
 ### Image URLs
 
 | Type | URL |
 |------|-----|
-| Installer | `factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b:v1.12.0` |
-| ISO | `https://factory.talos.dev/image/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b/v1.12.0/metal-amd64.iso` |
+| Installer | `factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b:v1.13.4` |
+| ISO | `https://factory.talos.dev/image/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b/v1.13.4/metal-amd64.iso` |
 
 ## Troubleshooting
 
