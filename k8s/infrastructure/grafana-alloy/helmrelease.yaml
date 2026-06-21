@@ -62,6 +62,66 @@ spec:
             }
           }
 
+          // Discover Longhorn manager pods (backup metrics on :9500)
+          discovery.kubernetes "longhorn_manager" {
+            role = "pod"
+            namespaces {
+              names = ["longhorn-system"]
+            }
+            selectors {
+              role  = "pod"
+              label = "app=longhorn-manager"
+            }
+          }
+
+          // Keep only the :9500 metrics port; carry the namespace label
+          discovery.relabel "longhorn_manager" {
+            targets = discovery.kubernetes.longhorn_manager.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_port_number"]
+              regex         = "9500"
+              action        = "keep"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+          }
+
+          // Discover CloudNativePG instance pods (backup metrics on :9187)
+          discovery.kubernetes "cnpg_instances" {
+            role = "pod"
+            namespaces {
+              names = ["postgres"]
+            }
+            selectors {
+              role  = "pod"
+              label = "cnpg.io/cluster=postgres-cluster"
+            }
+          }
+
+          // Keep only the :9187 metrics port; carry namespace/cluster labels
+          discovery.relabel "cnpg_instances" {
+            targets = discovery.kubernetes.cnpg_instances.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_port_number"]
+              regex         = "9187"
+              action        = "keep"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+            // Use a dedicated label, not "cluster": the shared add_cluster
+            // relabel below overwrites "cluster" with "homelab" on every metric.
+            rule {
+              source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster"]
+              target_label  = "cnpg_cluster"
+            }
+          }
+
           // =============================================================================
           // METRICS COLLECTION
           // =============================================================================
@@ -128,6 +188,42 @@ spec:
             forward_to = [prometheus.relabel.add_cluster.receiver]
           }
 
+          // Scrape Longhorn manager (backup + volume health metrics)
+          prometheus.scrape "longhorn" {
+            targets    = discovery.relabel.longhorn_manager.output
+            job_name   = "longhorn-manager"
+            forward_to = [prometheus.relabel.longhorn_filter.receiver]
+          }
+
+          // Keep only backup-relevant Longhorn metrics
+          prometheus.relabel "longhorn_filter" {
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex  = "longhorn_backup_state|longhorn_volume_last_backup_at|longhorn_volume_robustness|up"
+              action = "keep"
+            }
+          }
+
+          // Scrape CloudNativePG instances (backup metrics)
+          prometheus.scrape "cnpg" {
+            targets    = discovery.relabel.cnpg_instances.output
+            job_name   = "cloudnative-pg"
+            forward_to = [prometheus.relabel.cnpg_filter.receiver]
+          }
+
+          // Keep only backup-relevant CloudNativePG metrics
+          prometheus.relabel "cnpg_filter" {
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex  = "cnpg_collector_last_available_backup_timestamp|cnpg_collector_last_failed_backup_timestamp|cnpg_collector_first_recoverability_point|cnpg_collector_up|up"
+              action = "keep"
+            }
+          }
+
           // Add cluster label to all metrics
           prometheus.relabel "add_cluster" {
             forward_to = [prometheus.remote_write.grafana_cloud.receiver]
@@ -151,6 +247,25 @@ spec:
             
             external_labels = {
               cluster = "homelab",
+            }
+          }
+
+          // =============================================================================
+          // ALERTING RULES
+          // =============================================================================
+
+          // Sync in-cluster PrometheusRule resources to the Grafana Cloud Mimir
+          // ruler. Rules are evaluated in Grafana Cloud against the
+          // remote-written metrics above; fired alerts are routed to Slack by
+          // the Mimir Alertmanager config (see grafana-cloud/alertmanager.yaml).
+          // GRAFANA_CLOUD_RULER_URL is optional: if unset, this component is
+          // inactive and the rest of Alloy (metrics/logs) keeps running.
+          mimir.rules.kubernetes "grafana_cloud" {
+            address = env("GRAFANA_CLOUD_RULER_URL")
+
+            basic_auth {
+              username = env("GRAFANA_CLOUD_USER")
+              password = env("GRAFANA_CLOUD_API_KEY")
             }
           }
 
@@ -236,3 +351,12 @@ spec:
             secretKeyRef:
               name: grafana-cloud-credentials
               key: GRAFANA_CLOUD_LOKI_USER
+        # Grafana Cloud Mimir ruler base URL (host of GRAFANA_CLOUD_PROMETHEUS_URL
+        # without the /api/prom/push path). Marked optional so Alloy still starts
+        # before this key is added to the secret; until then, rule sync is off.
+        - name: GRAFANA_CLOUD_RULER_URL
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud-credentials
+              key: GRAFANA_CLOUD_RULER_URL
+              optional: true

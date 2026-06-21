@@ -1,0 +1,29 @@
+# Grafana Cloud (Mimir) Alertmanager configuration — managed as code.
+#
+# This routes alerts fired by the Mimir ruler (synced from in-cluster
+# PrometheusRule resources by Grafana Alloy) to Slack. It is applied with
+# `mimirtool alertmanager load`, NOT by Flux — Alloy only syncs rules, not
+# Alertmanager config. See README.md for the apply procedure.
+#
+# The Slack webhook URL is injected at apply time via ${SLACK_WEBHOOK_URL};
+# the real URL is never committed to the repo.
+route:
+  receiver: slack-default
+  group_by:
+    - alertname
+    - component
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: slack-default
+    slack_configs:
+      - api_url: ${SLACK_WEBHOOK_URL}
+        channel: "#alerts"
+        send_resolved: true
+        title: |-
+          {{ if eq .Status "firing" }}:red_circle:{{ else }}:large_green_circle:{{ end }} [{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}
+        text: |-
+          {{ range .Alerts }}*{{ .Labels.alertname }}* ({{ .Labels.severity }})
+          {{ .Annotations.description }}
+          {{ end }}

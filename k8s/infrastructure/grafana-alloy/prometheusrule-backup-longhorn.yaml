@@ -1,0 +1,46 @@
+# Longhorn backup-failure alerts. Synced to the Grafana Cloud ruler by
+# Grafana Alloy (mimir.rules.kubernetes) and evaluated there against the
+# remote-written longhorn_* metrics. Longhorn exposes no dedicated
+# recurring-job success metric, so failure is detected via backup state
+# (Error) and staleness of the last successful backup timestamp.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: longhorn-backup-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: longhorn
+    role: backup-alerts
+spec:
+  groups:
+    - name: longhorn-backup
+      rules:
+        - alert: LonghornBackupFailed
+          # longhorn_backup_state: 0=New 1=Pending 2=InProgress 3=Completed
+          # 4=Error 5=Unknown
+          expr: longhorn_backup_state == 4
+          for: 5m
+          labels:
+            severity: critical
+            component: longhorn
+          annotations:
+            summary: "Longhorn backup failed"
+            description: >-
+              Longhorn backup {{ $labels.backup }} (volume {{ $labels.volume }})
+              has been in Error state for over 5m. Check the Longhorn UI and the
+              R2 backup target credentials/connectivity.
+        - alert: LonghornBackupOverdue
+          # No successful backup within 26h (daily schedule at 02:00 + buffer).
+          # Exclude volumes that have never been backed up (== 0), which are
+          # typically not enrolled in the backup-daily recurring job.
+          expr: (time() - longhorn_volume_last_backup_at) > 93600 and longhorn_volume_last_backup_at != 0
+          for: 15m
+          labels:
+            severity: critical
+            component: longhorn
+          annotations:
+            summary: "Longhorn volume backup overdue"
+            description: >-
+              Longhorn volume {{ $labels.volume }} has had no successful backup
+              in over 26h despite the daily schedule. The recurring backup job
+              may have stopped or be failing silently.
