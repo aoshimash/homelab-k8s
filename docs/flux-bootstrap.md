@@ -299,6 +299,31 @@ kubectl -n flux-system get secret sops-age
 kubectl -n flux-system get kustomization infrastructure -o yaml | sed -n '1,120p'
 ```
 
+### Restore age key from Bitwarden
+
+If you are rebuilding the cluster or setting up a new machine, restore `age.agekey` from the Bitwarden vault before running the steps above.
+
+1. Open Bitwarden and locate the item named **`homelab-k8s`**. Find the age private key field and copy its value.
+
+2. Write the value to `age.agekey` at the project root:
+
+   ```bash
+   # Paste the copied value into the file (replace the content below with the actual key)
+   cat > age.agekey <<'EOF'
+   # created: ...
+   # public key: age1...
+   AGE-SECRET-KEY-1...
+   EOF
+   ```
+
+3. Recreate the `sops-age` Secret in the cluster:
+
+   ```bash
+   kubectl -n flux-system create secret generic sops-age \
+     --from-file=age.agekey=./age.agekey \
+     --dry-run=client -o yaml | kubectl apply -f -
+   ```
+
 ## Multi-Source Reconciliation (Private Repository)
 
 Flux can reconcile manifests from multiple Git repositories. The `homelab-k8s-private` repository contains components with private configuration (e.g., radigo-recorder) that are deployed into the same cluster.
