@@ -71,6 +71,123 @@ flux reconcile helmrelease longhorn -n longhorn-system
 flux reconcile kustomization infrastructure --with-source
 ```
 
+## Restore from R2 Backup
+
+> **Note**: This cluster does **not** have the external CSI snapshotter installed
+> (no `VolumeSnapshot` / `VolumeSnapshotClass` CRDs). Restoring a backup into a new
+> PVC via `kubectl` is therefore done by creating a Longhorn `Volume` with
+> `spec.fromBackup` and binding it through a **static PV/PVC**. The Longhorn UI
+> restore flow also works.
+>
+> `snapshots.longhorn.io` are Longhorn-*internal* snapshots and are unrelated to CSI
+> VolumeSnapshots.
+
+This procedure restores a volume backup from R2 into a **new** volume, leaving the
+production volume untouched — suitable for disaster-recovery drills.
+(Verified 2026-06-21 on Longhorn v1.12.0 with the `vikunja-files` volume.)
+
+### Step 1: Identify the source volume and backup
+
+```bash
+# Resolve the Longhorn volume name behind a PVC
+PVC_NS=vikunja; PVC_NAME=vikunja-files
+VOL=$(kubectl get pvc -n "$PVC_NS" "$PVC_NAME" -o jsonpath='{.spec.volumeName}')
+
+# List Completed backups for that volume
+kubectl get backups.longhorn.io -n longhorn-system \
+  -o custom-columns=NAME:.metadata.name,VOLUME:.status.volumeName,STATE:.status.state,CREATED:.status.snapshotCreatedAt \
+  | grep "$VOL"
+
+# Get the restore URL of the chosen backup (needed for fromBackup)
+kubectl get backups.longhorn.io -n longhorn-system <backup-name> -o jsonpath='{.status.url}'
+# e.g. s3://homelab-longhorn-backups@auto/longhorn/?backup=<backup-name>&volume=<vol>
+```
+
+### Step 2: Create a restored Volume from the backup
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: Volume
+metadata:
+  name: <restore-name>           # e.g. vikunja-files-restore-test
+  namespace: longhorn-system
+spec:
+  fromBackup: "<backup-url>"      # from Step 1
+  numberOfReplicas: 1
+  size: "<bytes>"                 # match source, e.g. 10Gi = 10737418240
+  frontend: blockdev
+  dataLocality: disabled
+EOF
+```
+
+### Step 3: Wait for the restore to finish
+
+```bash
+# Complete when restoreRequired=false and state=detached
+kubectl get volume -n longhorn-system <restore-name> \
+  -o jsonpath='restoreRequired={.status.restoreRequired} state={.status.state}{"\n"}'
+
+# Progress while restoring (per-replica %):
+kubectl get engine -n longhorn-system -l longhornvolume=<restore-name> \
+  -o jsonpath='{range .items[*]}{.status.restoreStatus}{"\n"}{end}'
+```
+
+### Step 4: Bind via a static PV/PVC
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: <restore-name>
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: longhorn-static
+  volumeMode: Filesystem
+  csi:
+    driver: driver.longhorn.io
+    fsType: ext4
+    volumeHandle: <restore-name>     # = Longhorn Volume name
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: <restore-name>
+  namespace: <namespace>
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-static
+  volumeName: <restore-name>
+  resources:
+    requests:
+      storage: 10Gi
+EOF
+```
+
+### Step 5: Verify the restored data
+
+```bash
+# Mount the restored PVC in a throwaway pod and inspect it
+kubectl run restore-verify -n <namespace> --restart=Never --image=busybox:1.36 \
+  --overrides='{"spec":{"containers":[{"name":"verify","image":"busybox:1.36","command":["sleep","3600"],"volumeMounts":[{"name":"v","mountPath":"/mnt","readOnly":true}]}],"volumes":[{"name":"v","persistentVolumeClaim":{"claimName":"<restore-name>"}}]}}'
+kubectl wait --for=condition=Ready pod/restore-verify -n <namespace> --timeout=180s
+kubectl exec -n <namespace> restore-verify -- sh -c 'ls -la /mnt; find /mnt -type f | wc -l; du -sh /mnt'
+```
+
+### Cleanup
+
+```bash
+# PV uses Retain, so the Longhorn Volume must be deleted explicitly
+kubectl delete pod    -n <namespace> restore-verify --ignore-not-found
+kubectl delete pvc    -n <namespace> <restore-name> --ignore-not-found
+kubectl delete pv     <restore-name> --ignore-not-found
+kubectl delete volume -n longhorn-system <restore-name> --ignore-not-found
+```
+
 ## Troubleshooting
 
 ### Pods Not Starting

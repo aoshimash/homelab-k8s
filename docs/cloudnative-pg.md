@@ -166,16 +166,30 @@ kubectl get backup -n postgres
 
 ### Restore from Backup
 
+Restore creates a **new** cluster from an R2 backup via `bootstrap.recovery`, leaving
+the production `postgres-cluster` untouched. This doubles as a disaster-recovery drill.
+(Verified 2026-06-21: restored the `vikunja` database with row counts matching production.)
+
 ```bash
-# Create new cluster from backup
+# 1. List available backups (Phase should be "completed")
+kubectl get backups.postgresql.cnpg.io -n postgres \
+  -o custom-columns=NAME:.metadata.name,PHASE:.status.phase,STOPPED:.status.stoppedAt
+
+# 2. Match the image to production — a mismatched image makes recovery fail
+kubectl get cluster -n postgres postgres-cluster -o jsonpath='{.spec.imageName}{"\n"}'
+
+# 3. Create the restore cluster.
+#    NOTE: recovery restores the WHOLE cluster (all databases: app/vikunja/paperless/...),
+#    not a single database. The referenced Backup object carries its own R2 path + credentials.
 kubectl apply -f - <<EOF
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: postgres-cluster-restored
+  name: postgres-cluster-test
   namespace: postgres
 spec:
   instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16   # match production (step 2)
   storage:
     size: 10Gi
     storageClass: longhorn
@@ -184,7 +198,22 @@ spec:
       backup:
         name: <backup-name>
 EOF
+
+# 4. Wait until Ready (CNPG runs a recovery Job first, then starts the pod)
+kubectl wait --for=condition=Ready cluster/postgres-cluster-test -n postgres --timeout=30m
+
+# 5. Verify restored data (example: vikunja row counts)
+kubectl exec -n postgres postgres-cluster-test-1 -c postgres -- \
+  psql -U postgres -d vikunja -c \
+  "SELECT 'projects',COUNT(*) FROM projects UNION ALL SELECT 'tasks',COUNT(*) FROM tasks;"
+
+# 6. Cleanup (removes the restore cluster, its pods and PVCs)
+kubectl delete cluster -n postgres postgres-cluster-test
 ```
+
+> **Tip**: Restored row counts match production only if no writes happened after the
+> backup was taken. For an exact point-in-time match, pin a `targetTime` via
+> `bootstrap.recovery.recoveryTarget` (PITR), which replays WAL up to that timestamp.
 
 ## Troubleshooting
 
