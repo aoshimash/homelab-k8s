@@ -136,14 +136,18 @@ sops k8s/infrastructure/grafana-alloy/secret-grafana-cloud.sops.yaml
 
 ### 3. Load the Slack Alertmanager config
 
+The Mimir **Alertmanager is a separate endpoint** from the metrics/ruler host —
+find its URL and instance ID in Cloud Portal → **Alertmanager → Details** (URL
+like `https://alertmanager-prod-XX.grafana.net`; the instance ID **may differ**
+from the metrics one). Using the `prometheus-prod-XX` host here returns a `404`.
 See [`grafana-cloud/README.md`](../grafana-cloud/README.md). In short:
 
 ```bash
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/…"
 envsubst < grafana-cloud/alertmanager.yaml > /tmp/am.yaml
 mimirtool alertmanager load /tmp/am.yaml \
-  --address="https://prometheus-prod-XX.grafana.net" \
-  --id="<instance-id>" --key="<homelab-mimir-ops token>"
+  --address="https://alertmanager-prod-XX.grafana.net" \
+  --id="<alertmanager-instance-id>" --key="<homelab-mimir-ops token>"
 rm -f /tmp/am.yaml
 ```
 
@@ -227,3 +231,12 @@ Slack. Revert afterwards.
 - **Alert never fires** → confirm the underlying metric exists in Grafana Cloud
   (Explore). If absent, the scrape is not reaching the pod — check the pod
   labels/ports against the `discovery.kubernetes` selectors in the Alloy config.
+- **`mimirtool alertmanager load` returns `404 requested resource not found`** →
+  you used the metrics/ruler host. The Alertmanager is a separate endpoint
+  (`alertmanager-prod-XX`, see step 3) with its own instance ID.
+- **`mimirtool` returns `401 invalid authentication credentials`** → check the
+  `--id`/`--key`. A common cause when deriving `--id` from `sops -d` output is
+  that YAML serialization wraps numeric instance IDs in quotes — strip them
+  (`tr -d '[:space:]"'`) or the basic-auth username becomes `"123"` not `123`.
+  Otherwise verify the access policy's realm includes this stack and the scopes
+  (`rules:*` for the ruler, `alerts:*` for the Alertmanager).

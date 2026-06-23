@@ -26,25 +26,29 @@ reconcile it as a Kubernetes manifest.
 
 ## Apply
 
+> [!IMPORTANT]
+> The Mimir **Alertmanager is a separate endpoint** from the metrics/ruler one.
+> Use the Alertmanager URL and instance ID from Cloud Portal → **Alertmanager →
+> Details** — the URL looks like `https://alertmanager-prod-XX.grafana.net` and
+> the instance ID **may differ** from the metrics instance ID. Using the
+> `prometheus-prod-XX` host here returns `404 requested resource not found`.
+
 ```bash
-# Grafana Cloud Prometheus/Mimir instance base URL (same host as remote_write,
-# without the /api/prom/push path) and numeric instance ID.
-export MIMIR_ADDRESS="https://prometheus-prod-XX.grafana.net"
-export MIMIR_TENANT_ID="<grafana-cloud-instance-id>"
+# Alertmanager endpoint + its own instance ID (Cloud Portal → Alertmanager → Details).
+export MIMIR_AM_ADDRESS="https://alertmanager-prod-XX.grafana.net"
+export MIMIR_AM_ID="<alertmanager-instance-id>"
 export MIMIR_API_KEY="<homelab-mimir-ops token: alerts:write + alerts:read>"
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXXX/YYYY/ZZZZ"
 
 # Render the webhook into the config and load it.
 envsubst < alertmanager.yaml > /tmp/alertmanager.rendered.yaml
 mimirtool alertmanager load /tmp/alertmanager.rendered.yaml \
-  --address="${MIMIR_ADDRESS}" \
-  --id="${MIMIR_TENANT_ID}" \
-  --key="${MIMIR_API_KEY}"
+  --address="${MIMIR_AM_ADDRESS}" --id="${MIMIR_AM_ID}" --key="${MIMIR_API_KEY}"
 rm -f /tmp/alertmanager.rendered.yaml
 
 # Verify what is currently loaded:
 mimirtool alertmanager get \
-  --address="${MIMIR_ADDRESS}" --id="${MIMIR_TENANT_ID}" --key="${MIMIR_API_KEY}"
+  --address="${MIMIR_AM_ADDRESS}" --id="${MIMIR_AM_ID}" --key="${MIMIR_API_KEY}"
 ```
 
 The alert **rules** themselves are NOT pushed from here — Alloy syncs them from

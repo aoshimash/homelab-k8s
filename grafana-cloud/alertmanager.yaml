@@ -5,8 +5,10 @@
 # `mimirtool alertmanager load`, NOT by Flux — Alloy only syncs rules, not
 # Alertmanager config. See README.md for the apply procedure.
 #
-# The Slack webhook URL is injected at apply time via ${SLACK_WEBHOOK_URL};
-# the real URL is never committed to the repo.
+# The Slack webhook URL is injected at apply time from the SLACK_WEBHOOK_URL
+# environment variable (see README.md); the real URL is never committed.
+# (Do not write the literal ${ } form here — envsubst would replace it in this
+# comment too, leaking the webhook into `mimirtool alertmanager get` output.)
 route:
   receiver: slack-default
   group_by:
