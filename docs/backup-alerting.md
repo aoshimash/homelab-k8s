@@ -32,7 +32,7 @@ Key pieces added:
 
 | Piece | Location | Reconciled by |
 |-------|----------|---------------|
-| PrometheusRule CRD | `k8s/infrastructure/prometheus-operator-crds/` (Helm) | Flux |
+| PrometheusRule CRD | `k8s/infrastructure/prometheus-operator-crds/` (Helm) | Flux — separate `infra-crds` Kustomization (`wait: true`) that `infrastructure` depends on, so the CRD exists before any PrometheusRule is applied |
 | Backup metric scraping | `k8s/infrastructure/grafana-alloy/helmrelease.yaml` | Flux |
 | Ruler sync + RBAC | `helmrelease.yaml` (`mimir.rules.kubernetes`) + `rbac-prometheusrules.yaml` | Flux |
 | Alert rules | `prometheusrule-backup-{longhorn,cnpg}.yaml` | Flux → Alloy → Grafana Cloud ruler |

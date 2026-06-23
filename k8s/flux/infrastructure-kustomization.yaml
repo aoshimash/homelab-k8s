@@ -15,3 +15,7 @@ spec:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
+  # Ensure the prometheus-operator CRDs (PrometheusRule) exist before the
+  # PrometheusRule resources under k8s/infrastructure/ are applied.
+  dependsOn:
+    - name: infra-crds
