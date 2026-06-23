@@ -183,11 +183,24 @@ This is a post-merge, live-cluster step — it cannot be done from the PR alone.
 
 ### CloudNativePG (recommended — easiest to induce and revert)
 
-1. Temporarily break the R2 credentials so the next scheduled/triggered backup
-   fails. Either trigger an on-demand backup against a cluster with bad creds, or
-   point the credentials secret at an invalid key:
+> [!WARNING]
+> The CNPG instance **caches the R2 credential**. Restoring the secret alone does
+> NOT recover backups — the running instance keeps using the stale value and WAL
+> archiving stays broken (`SignatureDoesNotMatch`). You MUST restart the instance
+> (step 4) to reload it. Skipping the restart leaves the cluster's backups broken
+> after the test.
+
+1. **Stop Flux from reverting the secret mid-test:**
    ```bash
-   # Trigger an on-demand backup to get a fresh attempt:
+   flux suspend kustomization configs
+   ```
+2. **Corrupt the R2 secret** so the next backup fails:
+   ```bash
+   kubectl -n postgres patch secret postgres-r2-credentials --type=json \
+     -p="[{\"op\":\"replace\",\"path\":\"/data/ACCESS_SECRET_KEY\",\"value\":\"$(printf INVALID | base64)\"}]"
+   ```
+3. **Trigger an on-demand backup** (it will fail):
+   ```bash
    kubectl -n postgres create -f - <<'EOF'
    apiVersion: postgresql.cnpg.io/v1
    kind: Backup
@@ -199,14 +212,52 @@ This is a post-merge, live-cluster step — it cannot be done from the PR alone.
        name: postgres-cluster
    EOF
    ```
-   To force a failure, first corrupt `ACCESS_SECRET_KEY` in the
-   `postgres-r2-credentials` secret (note the original value to restore it).
-2. The failed backup advances `cnpg_collector_last_failed_backup_timestamp` past
-   `cnpg_collector_last_available_backup_timestamp`. Within the rule's `for: 5m`,
-   `CNPGBackupFailed` fires and Grafana Cloud routes it to Slack.
-3. **Confirm the Slack message arrives.**
-4. **Revert** the credentials, re-trigger a backup, and confirm a successful
-   backup clears the alert (a resolved notification is sent).
+   This advances `cnpg_collector_last_failed_backup_timestamp` past
+   `cnpg_collector_last_available_backup_timestamp`. After the rule's `for: 5m`,
+   `CNPGBackupFailed` fires → Slack. **Confirm the firing (🔴) message.**
+4. **Restore the credential AND restart the instance** (the restart is mandatory):
+   ```bash
+   flux resume kustomization configs
+   flux reconcile kustomization configs --with-source   # re-applies the real secret
+   kubectl -n postgres delete pod postgres-cluster-1     # reload credential (brief restart)
+   # wait for recovery — need Ready=True and ContinuousArchiving=True:
+   kubectl -n postgres get cluster postgres-cluster \
+     -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}'
+   ```
+5. **Trigger a fresh, successful backup** to resolve the alert (delete any stuck
+   `verify-*` backups first):
+   ```bash
+   kubectl -n postgres create -f - <<'EOF'
+   apiVersion: postgresql.cnpg.io/v1
+   kind: Backup
+   metadata:
+     generateName: verify-resolve-
+     namespace: postgres
+   spec:
+     cluster:
+       name: postgres-cluster
+   EOF
+   ```
+   Once it completes, `last_available` exceeds `last_failed`, `CNPGBackupFailed`
+   clears, and a resolved (🟢) notification is sent. **Confirm the resolved
+   message and `LastBackupSucceeded=True`.**
+
+#### Observing without the `metrics:read` scope
+
+Querying Grafana Cloud metrics needs `metrics:read`, which the in-cluster
+`homelab-alloy` token does not have. To verify from the operator side anyway:
+
+- **Raw backup timestamps** — read them straight from the instance:
+  ```bash
+  kubectl -n postgres port-forward postgres-cluster-1 9187:9187 &
+  curl -s localhost:9187/metrics | grep '^cnpg_collector_last_'
+  ```
+- **Alert state in the ruler** — `rules:read` (which `homelab-alloy` has) is enough:
+  ```bash
+  curl -s -u "<instance-id>:<token>" \
+    "https://prometheus-prod-XX.grafana.net/api/prom/api/v1/rules?type=alert"
+  # look for CNPGBackupFailed .state: inactive → pending → firing → inactive
+  ```
 
 ### Longhorn
 
