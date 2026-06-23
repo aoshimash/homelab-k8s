@@ -70,7 +70,7 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 
 - Helm charts are deployed exclusively through Flux HelmRelease resources, never imperative `helm install`
 - Kustomize is used for all manifest composition — each directory with multiple resources has a `kustomization.yaml`
-- CRDs skipped in kubeconform validation: `HelmRelease, HelmRepository, Kustomization, GitRepository, CiliumNetworkPolicy` (see `SKIP_KINDS` in Taskfile.yaml)
+- CRDs skipped in kubeconform validation: `HelmRelease, HelmRepository, Kustomization, GitRepository, CiliumNetworkPolicy, PrometheusRule` (see `SKIP_KINDS` in Taskfile.yaml)
 - Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes), `KSV0009` (hostNetwork — Home Assistant needs it for Matter/mDNS)
 - The `docs/` directory contains operational documentation for each component
 - `specs/` is a historical archive of feature planning documents — read-only reference, do not edit

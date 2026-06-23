@@ -1,0 +1,44 @@
+# CloudNativePG backup-failure alerts. Synced to the Grafana Cloud ruler by
+# Grafana Alloy (mimir.rules.kubernetes) and evaluated there against the
+# remote-written cnpg_collector_* metrics. These metrics are deprecated since
+# CNPG 1.26 but remain functional with the in-core Barman Cloud object-store
+# backups used by this cluster (R2).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cnpg-backup-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloudnative-pg
+    role: backup-alerts
+spec:
+  groups:
+    - name: cnpg-backup
+      rules:
+        - alert: CNPGBackupFailed
+          # A failed backup occurred more recently than the last available one.
+          expr: cnpg_collector_last_failed_backup_timestamp > cnpg_collector_last_available_backup_timestamp
+          for: 5m
+          labels:
+            severity: critical
+            component: cloudnative-pg
+          annotations:
+            summary: "CloudNativePG backup failed"
+            description: >-
+              CloudNativePG cluster {{ $labels.cnpg_cluster }} ({{ $labels.namespace }})
+              recorded a failed backup more recent than its last available backup.
+              Check the ScheduledBackup status and R2 credentials/connectivity.
+        - alert: CNPGBackupOverdue
+          # No successful backup within 26h (daily schedule at 21:00 UTC + buffer).
+          # Guard on > 0 so the alert stays silent until the first backup runs.
+          expr: (time() - cnpg_collector_last_available_backup_timestamp) > 93600 and cnpg_collector_last_available_backup_timestamp > 0
+          for: 15m
+          labels:
+            severity: critical
+            component: cloudnative-pg
+          annotations:
+            summary: "CloudNativePG backup overdue"
+            description: >-
+              CloudNativePG cluster {{ $labels.cnpg_cluster }} ({{ $labels.namespace }})
+              has had no successful backup in over 26h despite the daily schedule.
+              The scheduled backup may have stopped or be failing silently.
