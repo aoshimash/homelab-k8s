@@ -18,7 +18,9 @@ reconcile it as a Kubernetes manifest.
 
 - `mimirtool` installed (`brew install mimirtool` or download from the
   [Grafana Mimir releases](https://github.com/grafana/mimir/releases)).
-- A Grafana Cloud access policy token with the `alerts:write` scope.
+- The `homelab-mimir-ops` access-policy token (`alerts:write` + `alerts:read`) —
+  the operator token, separate from the in-cluster Alloy token. See the access
+  policy table in `docs/backup-alerting.md`.
 - A Slack [incoming webhook](https://api.slack.com/messaging/webhooks) URL for
   the target channel.
 
@@ -29,7 +31,7 @@ reconcile it as a Kubernetes manifest.
 # without the /api/prom/push path) and numeric instance ID.
 export MIMIR_ADDRESS="https://prometheus-prod-XX.grafana.net"
 export MIMIR_TENANT_ID="<grafana-cloud-instance-id>"
-export MIMIR_API_KEY="<access-policy-token-with-alerts:write>"
+export MIMIR_API_KEY="<homelab-mimir-ops token: alerts:write + alerts:read>"
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXXX/YYYY/ZZZZ"
 
 # Render the webhook into the config and load it.

@@ -63,21 +63,58 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
 The 26h window (`93600s`) assumes the current daily schedules. Adjust the `expr`
 thresholds if the backup cadence changes.
 
-## Rollout (one-time)
+## Access policies & credentials (Grafana Cloud)
+
+Two Grafana Cloud access-policy tokens are used, split by role so the long-lived
+in-cluster token stays least-privileged. **Alloy never touches the Alertmanager
+config**, so the ability to rewrite alert routing is kept out of the cluster.
+
+| Token (policy) | Used by | Scopes | Stored where |
+|----------------|---------|--------|--------------|
+| `homelab-alloy-token` (`homelab-alloy`) | Alloy, in-cluster | `metrics:write`, `logs:write`, `rules:read`, `rules:write` | `GRAFANA_CLOUD_API_KEY` in `secret-grafana-cloud.sops.yaml` |
+| `homelab-mimir-ops` token | operator, from a workstation | `alerts:write`, `alerts:read`, `rules:read` | password manager — **never** in the repo or cluster |
+
+Why split: the Alloy token is decrypted into a DaemonSet pod env on every node;
+granting it `alerts:write` would let any node rewrite/silence alert routing — the
+opposite of what a backup-alerting feature should permit. `rules:read` is needed
+alongside `rules:write` because `mimir.rules.kubernetes` reads the current ruler
+state before applying diffs.
+
+Secret-key ↔ Grafana Cloud value mapping (`secret-grafana-cloud.sops.yaml`):
+
+| Secret key | Value | Where to find it |
+|------------|-------|------------------|
+| `GRAFANA_CLOUD_USER` | numeric metrics instance ID | Cloud Portal → Prometheus → Details |
+| `GRAFANA_CLOUD_API_KEY` | `homelab-alloy-token` value | the token itself |
+| `GRAFANA_CLOUD_PROMETHEUS_URL` | `…/api/prom/push` URL | Cloud Portal → Prometheus → Details |
+| `GRAFANA_CLOUD_RULER_URL` | same host **without** `/api/prom/push` | derived from the push URL |
+
+To **rotate** the Alloy token: create a new token under the `homelab-alloy`
+policy, update `GRAFANA_CLOUD_API_KEY` in the secret, commit, let Flux reconcile.
+The ops token rotates independently in the password manager.
+
+## Setup / rotation (Grafana Cloud)
+
+This procedure is reusable — follow it on first rollout and whenever the cluster
+is rebuilt from scratch.
 
 > [!IMPORTANT]
-> Do these **before merging** the PR. Until the secret key and token scopes are
-> in place, the ruler-sync component stays inactive (it is wired with
-> `optional: true`, so Alloy keeps collecting metrics/logs regardless), and no
-> alerts are delivered.
+> On first rollout, do steps 1–3 **before merging** the PR. Until the ruler URL
+> and `rules:*` scopes are in place, the ruler-sync component stays inactive (it
+> is wired `optional: true`, so Alloy keeps collecting metrics/logs regardless)
+> and no alerts are delivered.
 
-### 1. Grafana Cloud token scopes
+### 1. Access policies & token scopes
 
-The existing `GRAFANA_CLOUD_API_KEY` (used for `remote_write`) is reused for
-ruler sync. Ensure its access policy includes the **`rules:write`** scope (and
-`alerts:write` for the Alertmanager step). If not, edit the access policy in
-Grafana Cloud → Account → Access Policies, or create a new token and update the
-secret.
+- **`homelab-alloy` policy** (existing) → add `rules:read` and `rules:write` to
+  its scopes, keeping `metrics:write` and `logs:write`. Its token
+  (`homelab-alloy-token` = `GRAFANA_CLOUD_API_KEY`) inherits the new scopes, so
+  **no secret change is needed**. (Access-policy tokens are prefixed `glc_`; if
+  yours is a legacy `eyJ…` API key, instead create an access-policy token with
+  these scopes and update the secret.)
+- **`homelab-mimir-ops` policy** (new) → create it with `alerts:write`,
+  `alerts:read`, `rules:read`, and a token used only from your workstation for
+  the `mimirtool` steps below. Do not store this token in the repo or cluster.
 
 ### 2. Add the ruler URL to the SOPS secret
 
@@ -106,7 +143,7 @@ export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/…"
 envsubst < grafana-cloud/alertmanager.yaml > /tmp/am.yaml
 mimirtool alertmanager load /tmp/am.yaml \
   --address="https://prometheus-prod-XX.grafana.net" \
-  --id="<instance-id>" --key="<token-with-alerts:write>"
+  --id="<instance-id>" --key="<homelab-mimir-ops token>"
 rm -f /tmp/am.yaml
 ```
 
@@ -182,9 +219,9 @@ Slack. Revert afterwards.
 ## Troubleshooting
 
 - **No rules in Grafana Cloud** → check Alloy logs for `mimir.rules.kubernetes`
-  errors (usually a missing `GRAFANA_CLOUD_RULER_URL` or a token without
-  `rules:write`). The component is wired `optional: true`, so a missing URL
-  silently disables sync without breaking Alloy.
+  errors (usually a missing `GRAFANA_CLOUD_RULER_URL`, or the `homelab-alloy`
+  policy lacking `rules:read`/`rules:write`). The component is wired
+  `optional: true`, so a missing URL silently disables sync without breaking Alloy.
 - **Rules present but no Slack** → the Alertmanager config was not loaded; re-run
   step 3. Verify with `mimirtool alertmanager get`.
 - **Alert never fires** → confirm the underlying metric exists in Grafana Cloud
