@@ -16,7 +16,7 @@ spec:
       # Installs the prometheus-operator CRDs (incl. PrometheusRule) only —
       # no operator/controller. PrometheusRule resources are synced to the
       # Grafana Cloud ruler by Grafana Alloy (mimir.rules.kubernetes).
-      version: 30.0.0
+      version: 30.0.1
   releaseName: prometheus-operator-crds
   install:
     remediation:
