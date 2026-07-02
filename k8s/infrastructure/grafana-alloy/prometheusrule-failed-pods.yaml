@@ -1,0 +1,40 @@
+# Stale Failed-phase pod alert. Synced to the Grafana Cloud ruler by Grafana
+# Alloy (mimir.rules.kubernetes) and evaluated there against the
+# remote-written kube_pod_status_phase metric (kube-state-metrics "pods"
+# collector, forwarded unfiltered by the kube_state_metrics scrape job).
+#
+# This is a notify-only alert, not an auto-remediation: Failed-phase pods on
+# this single-node cluster cost nothing to leave around (no real resource
+# pressure) and often carry debugging value (logs, exit codes) shortly after
+# a crash. A node reboot (Talos upgrade) routinely leaves harmless residue —
+# see docs/talos-operations.md "Verify all workloads recovered" — so the goal
+# here is to make sure a human notices and decides, not to delete
+# automatically. See https://github.com/aoshimash/homelab-k8s/issues/246.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: failed-pod-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    role: cluster-hygiene-alerts
+spec:
+  groups:
+    - name: failed-pod-residue
+      rules:
+        - alert: FailedPodResidue
+          expr: kube_pod_status_phase{phase="Failed"} == 1
+          for: 6h
+          labels:
+            severity: warning
+            component: cluster-hygiene
+          annotations:
+            summary: "Pod stuck in Failed phase"
+            description: >-
+              Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in
+              Failed phase for over 6h. This is usually harmless residue
+              (e.g. from a node reboot) if the owning controller is already
+              healthy — check with `kubectl get deploy,ds -n
+              {{ $labels.namespace }}` before deciding whether to delete it
+              with `kubectl delete pod -n {{ $labels.namespace }}
+              {{ $labels.pod }}`.

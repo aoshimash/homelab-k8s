@@ -8,3 +8,4 @@ resources:
   - rbac-prometheusrules.yaml
   - prometheusrule-backup-longhorn.yaml
   - prometheusrule-backup-cnpg.yaml
+  - prometheusrule-failed-pods.yaml
