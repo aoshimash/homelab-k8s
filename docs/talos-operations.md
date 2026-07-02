@@ -209,11 +209,30 @@ kubectl get pvc -A | grep -v Bound                       # all volumes Bound? (e
 kubectl get pods -A | grep -E 'audiobookshelf|home-assistant|vikunja'  # user apps Running?
 ```
 
-Once those are healthy, clear the cosmetic residue:
+Once those are healthy, review the residue before clearing it — a blanket
+`--field-selector=status.phase=Failed` sweep also deletes anything that failed
+moments ago for an unrelated reason, destroying the only evidence (logs, exit
+code) before anyone looked at it. Check each pod's age first:
+
+```bash
+kubectl get pods -A --field-selector=status.phase=Failed \
+  -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,CREATED:.metadata.creationTimestamp'
+```
+
+Pods whose `CREATED` timestamp lines up with this reboot are safe to delete —
+either by name, or in bulk once you've confirmed nothing unrelated is mixed in:
 
 ```bash
 kubectl delete pods -A --field-selector=status.phase=Failed
 ```
+
+If this step is skipped, it is not silent forever: the `FailedPodResidue`
+alert (`k8s/infrastructure/grafana-alloy/prometheusrule-failed-pods.yaml`)
+fires to `#homelab-alerts` once a pod has sat in `Failed` phase for over 6h,
+so a forgotten cleanup still surfaces on its own. See
+[#246](https://github.com/aoshimash/homelab-k8s/issues/246) — the alert is
+intentionally notify-only; a human decides whether to delete, not a
+scheduled job.
 
 A pod is a **real** failure only if it stays in `CrashLoopBackOff`,
 `Init:CrashLoopBackOff`, or stuck `0/N Ready` while its controller still wants
