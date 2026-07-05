@@ -69,6 +69,13 @@ spec:
               cpu: 2000m
               memory: 2Gi
           livenessProbe:
+            # `/` requires a working DB connection (see #247), so a brief
+            # PostgreSQL restart (CNPG operator upgrade, credential-cache
+            # restart, node reboot — all observed to take ~2-3m) makes this
+            # container start failing the probe too. failureThreshold is
+            # high enough to outlast that without a needless restart;
+            # readiness (below) still drops the pod from the Service during
+            # the outage, which is correct.
             httpGet:
               path: /
               port: http
@@ -76,7 +83,7 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /
