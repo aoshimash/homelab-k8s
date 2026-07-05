@@ -163,6 +163,48 @@ Each entry is structured as:
   trade-off.
 - **Source**: 2026-05-04 incident, PRs #209 / #211.
 
+### `autoApprovers` only skips the manual step for the tag that actually requests it
+
+- **Lesson**: A Tailscale ACL `autoApprovers.services` entry only auto-approves
+  a service for the **tag that requests the approval**, not any tag related
+  to the feature. For ProxyGroup-based Ingress, the device that advertises
+  each new VIP Service is the proxy replica (tagged `tag:k8s` in this
+  cluster's ACL), not the operator control-plane pod (tagged
+  `tag:k8s-operator`). An `autoApprovers` list containing the wrong tag looks
+  correct at a glance — the key exists, the feature reads as "configured" —
+  but has no effect.
+- **Why**: While deploying Trilium (issue #249/#250), its new
+  `https://trilium.<tailnet>.ts.net` Ingress sat unreachable for ~40 minutes:
+  `kubectl describe ingress trilium` showed an empty `status.loadBalancer`
+  and the TLS secret (`trilium.<tailnet>.ts.net` in the `tailscale`
+  namespace) had 0-byte `tls.crt`/`tls.key`, while a known-working app's
+  Ingress had both populated. `kubectl rollout restart deployment/operator
+  -n tailscale` did nothing, because the operator's desired state hadn't
+  changed — it was waiting on an external approval it had already requested
+  once. `tailscale status --json` confirmed `ingress-proxies-0` carries
+  `tag:k8s`, but the tailnet's ACL had `"autoApprovers": {"services":
+  {"svc:*": ["tag:k8s-operator"]}}` — the wrong tag — so every new Ingress
+  required manually clicking "Approve" in the Tailscale Admin Console under
+  **Services** before its cert could be issued and it became reachable.
+- **How to apply**: When a new Tailscale Ingress hostname doesn't become
+  reachable after Flux has reconciled it, check in this order before
+  assuming a manifest or operator bug:
+  1. `kubectl get ingress <name> -n <ns> -o yaml` — `status.loadBalancer: {}`
+     (vs. a populated `hostname`/`ports` block on a working app) means the
+     operator is still waiting on something external.
+  2. `kubectl get secret <hostname>.<tailnet>.ts.net -n tailscale -o
+     jsonpath='{.data.tls\.crt}' | wc -c` — `0` means no certificate has
+     been issued yet.
+  3. `kubectl logs -n tailscale ingress-proxies-0 --since=10m | grep -i
+     cert` — a `starting SetDNS call` line with no following `got cert`
+     means the ACME flow is stalled, almost always on a pending approval.
+  4. Check the Tailscale Admin Console → **Services** for a "Needs
+     approval" entry. If found, verify `autoApprovers.services` in the ACL
+     policy lists the tag actually assigned to the advertising device
+     (`tailscale status --json`, the `Tags` field for that peer) — not just
+     any tag that sounds related.
+- **Source**: Issue #249 / PR #250, 2026-07-05.
+
 ### Cilium 1.19+ enforces NetworkPolicy strictly enough to block kubelet probes
 
 - **Lesson**: Any `NetworkPolicy` that selects pods with
