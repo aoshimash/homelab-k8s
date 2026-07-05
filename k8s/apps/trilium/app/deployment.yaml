@@ -15,6 +15,11 @@ spec:
       labels:
         app: trilium
     spec:
+      # Kubernetes injects TRILIUM_PORT=tcp://<service-ip>:8080 (Docker-links-style
+      # env vars for same-named Services) into every pod in this namespace. Trilium's
+      # own entrypoint also reads TRILIUM_PORT expecting a bare integer, so the
+      # injected value crashes it. Disable service-link env injection entirely.
+      enableServiceLinks: false
       securityContext:
         fsGroup: 1000
       containers:
