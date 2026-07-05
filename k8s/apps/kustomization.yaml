@@ -5,3 +5,4 @@ resources:
   - home-assistant/
   - vikunja/
   - paperless-ngx/
+  - trilium/
