@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: immich
+  annotations:
+    recurring-job-selector.longhorn.io: '[{"name":"backup-daily","isGroup":false}]'
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      # Starting size for the photo/video library; Longhorn volumes are
+      # expandable, so grow this to fit the imported library as needed.
+      storage: 100Gi

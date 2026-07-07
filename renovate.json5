@@ -43,7 +43,7 @@
 
   // Flux HelmRelease targets
   "flux": {
-    "fileMatch": ["k8s/infrastructure/.+\\.yaml$"]
+    "fileMatch": ["k8s/infrastructure/.+\\.yaml$", "k8s/apps/.+\\.yaml$"]
   },
 
   // PR labels
