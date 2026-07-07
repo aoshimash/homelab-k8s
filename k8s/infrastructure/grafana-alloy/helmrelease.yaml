@@ -32,7 +32,12 @@ spec:
           // LOGGING
           // =============================================================================
           logging {
-            level  = "info"
+            // "warn" instead of the "info" default: at info Alloy logs
+            // "opened log stream" for every collected target, which made
+            // its own log the cluster's largest Loki ingestion source
+            // (~30k lines/day, issue #217). Revert to "info" temporarily
+            // when debugging Alloy itself.
+            level  = "warn"
             format = "logfmt"
           }
 
