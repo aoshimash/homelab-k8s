@@ -5,7 +5,17 @@ metadata:
   namespace: postgres
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  # vectorchord-enabled image (Postgres major 16 unchanged) so the immich
+  # database can use the vchord + pgvector + earthdistance extensions that
+  # Immich's Smart Search and facial recognition require. VectorChord 1.1.1
+  # is within Immich's supported range (>= 0.3, < 2.0); the base
+  # cloudnative-pg PG16 system image bundles pgvector in the 0.8.x line
+  # (Immich requires >= 0.7, < 0.9).
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16-1.1.1
+  postgresql:
+    # vchord.so must be preloaded at startup for the vchord extension to load.
+    shared_preload_libraries:
+      - "vchord.so"
   storage:
     size: 10Gi
     storageClass: longhorn
@@ -37,3 +47,9 @@ spec:
         superuser: false
         passwordSecret:
           name: postgres-paperless-user
+      - name: immich
+        ensure: present
+        login: true
+        superuser: false
+        passwordSecret:
+          name: postgres-immich-user
