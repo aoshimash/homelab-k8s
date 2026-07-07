@@ -303,6 +303,28 @@ spec:
               drop_counter_reason = "cilium_iptables_nft_incompat"
             }
 
+            // Drop Cilium's "Fallback node addresses updated" line from
+            // `module=agent.datapath.node-address`. It fires on every
+            // reconcile of the node-address controller (every few seconds
+            // on this cluster, driven by routine Service/Route table
+            // churn), not only when the fallback address actually changes:
+            // the controller computes an `updated` bool for exactly this
+            // purpose (pkg/datapath/tables/node_address.go, cilium 1.19.5)
+            // but discards it before the log call, so the Info log has no
+            // change-detection guard. This accounts for ~90% of agent log
+            // volume on this single-node cluster while the reported
+            // addresses never actually change. Cosmetic only — no dataplane
+            // impact, and there is no Helm chart knob to gate this specific
+            // message (raising the whole agent's log level would also
+            // silence unrelated diagnostics).
+            //
+            // Remove this stage if upstream Cilium starts gating the log on
+            // the `updated` result.
+            stage.drop {
+              expression          = "Fallback node addresses updated"
+              drop_counter_reason = "cilium_fallback_node_address_noise"
+            }
+
             stage.static_labels {
               values = {
                 cluster = "homelab",
