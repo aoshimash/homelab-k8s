@@ -7,3 +7,10 @@ data:
   config.yml: |
     service:
       enableregistration: false
+    log:
+      # Disable the HTTP access log: 100% of it was kube-probe health-check
+      # hits (issue #218). Quoted "off" because some YAML 1.1 parsers coerce
+      # bare `off` to boolean false, which would fail Vikunja's `!= "off"`
+      # string check and leave the access-log middleware enabled.
+      # App/error logs (log.standard) are unaffected.
+      http: "off"
