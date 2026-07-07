@@ -5,11 +5,34 @@
     "helpers:pinGitHubActionDigests"
   ],
 
+  // Friday-evening cadence — keeps weekday CI/build machines free of routine update noise.
+  "timezone": "Asia/Tokyo",
+  "schedule": ["after 6pm on friday"],
+
   // PR limits
   "prConcurrentLimit": 10,
   "separateMajorMinor": true,
   "separateMultipleMajor": true,
   "automerge": false,
+
+  // Stabilization window — a release must be this old before Renovate proposes it,
+  // so short-lived broken releases get pulled before we upgrade to them.
+  "minimumReleaseAge": "3 days",
+
+  // Vulnerability alerts — requires GitHub's Dependabot alerts enabled on this repo.
+  // These values match Renovate's own defaults for vulnerabilityAlerts (schedule/
+  // minimumReleaseAge are bypassed already); set explicitly so the intent survives
+  // future default changes.
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null
+  },
+
+  // OSV-based scanning covers crate/go/npm/pypi/etc. datasources — a no-op for this
+  // repo's current flux/github-actions/github-releases managers, but harmless and
+  // ready if dependency types expand later.
+  "osvVulnerabilityAlerts": true,
 
   // Exclude paths
   "ignorePaths": [
@@ -44,10 +67,17 @@
     }
   ],
 
-  // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
-  // upgrades are kept as separate rules (and therefore separate PRs) because
-  // their apply procedures, blast radius, and verification differ.
   "packageRules": [
+    // Group Helm chart updates into one PR instead of one per HelmRelease file.
+    // separateMajorMinor above still splits major/minor updates into their own
+    // PRs even within this group.
+    {
+      "matchManagers": ["flux"],
+      "groupName": "Helm charts"
+    },
+    // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
+    // upgrades are kept as separate rules (and therefore separate PRs) because
+    // their apply procedures, blast radius, and verification differ.
     {
       "matchPackageNames": ["siderolabs/talos"],
       "prBodyNotes": [
