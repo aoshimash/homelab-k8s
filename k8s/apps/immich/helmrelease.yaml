@@ -1,0 +1,53 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: immich
+  namespace: immich
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: immich
+      sourceRef:
+        kind: HelmRepository
+        name: immich-charts
+        namespace: flux-system
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/apps).
+      version: 0.13.1
+  releaseName: immich
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Shared across all Immich components; DB_PASSWORD is the only sensitive
+    # value, sourced from the SOPS-encrypted immich-db secret (must match the
+    # CNPG immich role password provisioned in #259). Host/user/db-name are
+    # non-secret and already public in k8s/configs/postgres. REDIS_HOSTNAME and
+    # IMMICH_MACHINE_LEARNING_URL keep their chart defaults (immich-valkey /
+    # immich-machine-learning) via Helm map merge.
+    controllers:
+      main:
+        containers:
+          main:
+            env:
+              DB_HOSTNAME: postgres-cluster-rw.postgres.svc
+              DB_USERNAME: immich
+              DB_DATABASE_NAME: immich
+              DB_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: immich-db
+                    key: password
+    immich:
+      persistence:
+        # The chart never creates the library volume; point it at our Longhorn PVC.
+        library:
+          existingClaim: immich-library
+    # Bundled Redis-compatible cache (disabled by default); enabled instead of
+    # running a separate Redis. Its job-queue volume stays ephemeral (emptyDir).
+    valkey:
+      enabled: true
