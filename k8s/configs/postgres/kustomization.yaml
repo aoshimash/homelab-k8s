@@ -9,3 +9,5 @@ resources:
   - secret-vikunja-db.sops.yaml
   - database-paperless.yaml
   - secret-paperless-db.sops.yaml
+  - database-immich.yaml
+  - secret-immich-db.sops.yaml
