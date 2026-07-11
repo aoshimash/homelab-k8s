@@ -12,7 +12,7 @@ This document describes Longhorn storage operations, troubleshooting, and upgrad
 - **Storage Class**: `longhorn`
 - **Default Replica Count**: 1 (single-node cluster)
 - **Backup Target**: Cloudflare R2 (S3-compatible)
-- **Backup Schedule**: Daily at 02:00 UTC
+- **Backup Schedule**: Daily at 18:30 UTC (03:30 JST) — 30 minutes after the CNPG daily database backup, so PVC backups never predate the paired database backup (see `docs/cloudnative-pg.md`, "Backup Configuration Notes")
 - **Backup Retention**: 30 days
 
 ## Configuration Files

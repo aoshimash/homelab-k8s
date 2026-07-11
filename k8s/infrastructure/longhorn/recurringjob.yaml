@@ -4,8 +4,10 @@ metadata:
   name: backup-daily
   namespace: longhorn-system
 spec:
-  # Run daily at 2:00 AM
-  cron: "0 2 * * *"
+  # Run daily at 18:30 UTC (03:30 JST), 30 minutes after the CNPG daily
+  # database backup (18:00 UTC) so PVC backups never predate the paired
+  # database backup (see docs/cloudnative-pg.md, "Backup Configuration Notes")
+  cron: "30 18 * * *"
   task: backup
   # Number of backups to retain
   retain: 30

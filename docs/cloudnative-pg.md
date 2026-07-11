@@ -12,7 +12,7 @@ This document describes CloudNativePG PostgreSQL cluster operations, troubleshoo
 - **Instances**: 1 (single-node homelab deployment)
 - **Storage**: 10GB Longhorn PVC
 - **Storage Class**: `longhorn`
-- **Backup Schedule**: Daily at 00:00 UTC
+- **Backup Schedule**: Daily at 18:00 UTC (03:00 JST)
 - **Backup Retention**: 7 days
 - **Backup Target**: Cloudflare R2 (S3-compatible)
 - **Longhorn Backup Exclusion**: PostgreSQL PVC is excluded from Longhorn recurring backups (backups handled directly by CloudNativePG)
@@ -305,6 +305,23 @@ kubectl get pods -n longhorn-system
 - This ensures PostgreSQL backups are handled exclusively by CloudNativePG's native backup to R2
 - Longhorn volume snapshots are not created for PostgreSQL PVCs
 - This prevents duplicate backups and reduces storage costs
+
+**Backup ordering relative to Longhorn PVC backups**: the CNPG daily database
+backup (18:00 UTC / 03:00 JST) is deliberately scheduled 30 minutes before
+Longhorn's `backup-daily` RecurringJob (18:30 UTC / 03:30 JST). For apps whose
+data spans both the CNPG database and a Longhorn PVC (e.g. paperless-ngx,
+Immich), a restore must not pair a database backup that is *newer* than the
+paired PVC backup: the database could reference files (e.g. media attachments)
+missing from the restored volume. The reverse ordering (PVC backup newer than
+the database backup) is comparatively safe — at worst a few files exist on disk
+that the database doesn't know about yet. Running the database backup
+immediately before the PVC backup keeps the two as close as possible while
+preserving the safe ordering.
+
+The 30-minute buffer is based on observed CNPG daily backup durations of
+**4–25 seconds** (measured 2026-07-03 through 2026-07-10, all backups
+completed), so it is a very generous margin. If the database grows enough that
+backups approach the buffer, widen the gap and update both schedules together.
 
 ## Upgrade Procedures
 
