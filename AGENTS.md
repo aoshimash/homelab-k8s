@@ -71,7 +71,7 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 - Helm charts are deployed exclusively through Flux HelmRelease resources, never imperative `helm install`
 - Kustomize is used for all manifest composition — each directory with multiple resources has a `kustomization.yaml`
 - CRDs skipped in kubeconform validation: `HelmRelease, HelmRepository, Kustomization, GitRepository, CiliumNetworkPolicy, PrometheusRule` (see `SKIP_KINDS` in Taskfile.yaml)
-- Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes), `KSV0009` (hostNetwork — Home Assistant needs it for Matter/mDNS)
+- Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes)
 - The `docs/` directory contains operational documentation for each component
 - `specs/` is a historical archive of feature planning documents — read-only reference, do not edit
 - Talos OS / Kubernetes versions are managed by Renovate via customManagers in `renovate.json5` and arrive as **separate PRs** (their apply procedures and blast radius differ). After merging, apply the change manually with `talosctl` per the procedure in `docs/talos-operations.md` (`#renovate-upgrade-flow`).
