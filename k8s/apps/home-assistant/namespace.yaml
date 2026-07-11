@@ -2,3 +2,13 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: home-assistant
+  labels:
+    # The upstream ghcr.io/home-assistant/home-assistant image runs as root
+    # via its s6-overlay /init entrypoint (no USER in the image config) and
+    # cannot satisfy PodSecurity "restricted"'s runAsNonRoot requirement
+    # without high breakage risk. Pin warn/audit to baseline (the cluster's
+    # existing enforce level, left untouched) so this namespace stops
+    # repeating the restricted-level warning while still catching baseline
+    # regressions. See issue #273.
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline
