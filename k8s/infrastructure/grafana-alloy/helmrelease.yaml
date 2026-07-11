@@ -380,6 +380,28 @@ spec:
               drop_counter_reason = "longhorn_backupvolume_patchops_noise"
             }
 
+            // INTERIM: Drop the tailscaled LocalAPI access log for
+            // containerboot's netmap poll (tailscale namespace,
+            // operator-managed proxy pods). containerboot polls
+            // /localapi/v0/debug every 15s (peerPollInterval in
+            // cmd/containerboot/main.go, v1.98.x) and tailscaled logs
+            // every non-GET LocalAPI request unconditionally
+            // (ipn/localapi/localapi.go logRequest) — ~98% of proxy pod
+            // log volume, with no tailscaled / operator Helm /
+            // ProxyClass knob to silence it. Fixed upstream in
+            // tailscale/tailscale#19852 (commit 364b952d, "cmd/
+            // containerboot: track peers from IPN bus updates"), merged
+            // to main but not yet in a stable release (still present in
+            // v1.98.8). This pipeline is global (streams carry no
+            // namespace label), but the matched string is emitted only
+            // by tailscaled, so it is effectively scoped. REMOVE this
+            // stage once the proxy image updates to a release containing
+            // the fix. See issue #268.
+            stage.drop {
+              expression          = "localapi: \\[POST\\] /localapi/v0/debug"
+              drop_counter_reason = "tailscale_localapi_debug_poll_noise"
+            }
+
             stage.static_labels {
               values = {
                 cluster = "homelab",
