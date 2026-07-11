@@ -71,5 +71,18 @@ spec:
       hostRoot: /sys/fs/cgroup
     k8sServiceHost: localhost
     k8sServicePort: 7445
+    # Pin the reserved-ports list for the transparent DNS proxy instead of
+    # letting the agent auto-detect it. Auto-detection ("auto", the default)
+    # makes the agent log an info line ("Auto-detected local ports to reserve
+    # in the container namespace for transparent DNS proxy") on every CNI ADD,
+    # i.e. every pod creation (issue #216). In this cluster auto-detection
+    # always yields exactly the VXLAN tunnel port 8472 (WireGuard disabled,
+    # routing-mode tunnel with default VXLAN port), so pinning "8472" is
+    # behavior-identical and silences the log at the source.
+    # MUST be updated if WireGuard is enabled or the tunnel protocol/port
+    # changes — otherwise the port-collision bug this reservation guards
+    # against (cilium/cilium#31535) can resurface.
+    extraConfig:
+      container-ip-local-reserved-ports: "8472"
     operator:
       replicas: 1
