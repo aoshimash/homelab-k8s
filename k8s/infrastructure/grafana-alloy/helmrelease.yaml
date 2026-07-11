@@ -350,6 +350,36 @@ spec:
               drop_counter_reason = "cnpg_webhook_validation_noise"
             }
 
+            // Drop the client-go v1 Endpoints deprecation warning emitted
+            // by longhorn-manager (longhorn-system). client-go prints this
+            // line unconditionally whenever the deprecated Endpoints API is
+            // used — there is no config knob to suppress it. Longhorn's
+            // migration to EndpointSlice is tracked upstream in
+            // longhorn/longhorn#10796 (milestone v1.13.0, not yet
+            // implemented); remove this stage once Longhorn ships the
+            // migration (v1.13.0+).
+            stage.drop {
+              expression          = "Warning: v1 Endpoints is deprecated in v1\\.33\\+; use discovery\\.k8s\\.io/v1 EndpointSlice"
+              drop_counter_reason = "longhorn_endpoints_deprecation_noise"
+            }
+
+            // Drop longhorn-manager admission-webhook info logs for
+            // BackupVolume patchOps. The mutating webhook logs
+            // "%s patchOps: %s" (webhook/admission/mutator.go) on every
+            // mutating admission request, and the BackupVolume
+            // controller's routine finalizer patches trigger it
+            // continuously. This is working-as-designed logging, not a
+            // bug — there is no upstream issue to link. A targeted filter
+            // is deliberately preferred over the global
+            // defaultSettings.logLevel knob, which would silence all
+            // Longhorn info logs. The regex requires both "patchOps" and
+            // "BackupVolume" in the line so other (rarer, potentially
+            // informative) webhook patch logs still pass through.
+            stage.drop {
+              expression          = "(BackupVolume.*patchOps|patchOps.*BackupVolume)"
+              drop_counter_reason = "longhorn_backupvolume_patchops_noise"
+            }
+
             stage.static_labels {
               values = {
                 cluster = "homelab",
