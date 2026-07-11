@@ -56,9 +56,9 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
 | Alert | Condition | Notes |
 |-------|-----------|-------|
 | `LonghornBackupFailed` | `longhorn_backup_state == 4` for 5m | A backup is in Error state |
-| `LonghornBackupOverdue` | no successful backup in >26h (`!= 0`) | Daily schedule 02:00 + buffer; never-backed-up volumes excluded |
+| `LonghornBackupOverdue` | no successful backup in >26h (`!= 0`) | Daily schedule 18:30 UTC + buffer; never-backed-up volumes excluded |
 | `CNPGBackupFailed` | `last_failed > last_available` for 5m | A failure newer than the last good backup |
-| `CNPGBackupOverdue` | no successful backup in >26h (`> 0`) | Daily schedule 21:00 UTC + buffer |
+| `CNPGBackupOverdue` | no successful backup in >26h (`> 0`) | Daily schedule 18:00 UTC + buffer |
 
 The 26h window (`93600s`) assumes the current daily schedules. Adjust the `expr`
 thresholds if the backup cadence changes.
