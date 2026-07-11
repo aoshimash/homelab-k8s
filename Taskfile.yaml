@@ -3,7 +3,11 @@ version: '3'
 vars:
   K8S_DIR: k8s
   # CRDs that don't have official Kubernetes schemas
-  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy,PrometheusRule
+  # CustomResourceDefinition: no generic schema covers arbitrary CRD specs (e.g. k8s/flux/flux-system/gotk-components.yaml)
+  # Cluster, Database, ScheduledBackup: CloudNativePG CRDs
+  # ProxyGroup: Tailscale operator CRD
+  # RecurringJob: Longhorn CRD
+  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy,PrometheusRule,CustomResourceDefinition,Cluster,Database,ScheduledBackup,ProxyGroup,RecurringJob
   TALOS_NODE: 192.168.0.10
   TALOS_DIR: infra/talos
   TALOS_CONFIG: '{{.TALOS_DIR}}/clusterconfig/talosconfig'
@@ -13,11 +17,11 @@ tasks:
     desc: Validate K8s manifests using kubeconform
     cmds:
       - |
+        find {{.K8S_DIR}} -name '*.yaml' -print0 | xargs -0 \
         kubeconform \
           -summary \
           -skip {{.SKIP_KINDS}} \
-          -output text \
-          {{.K8S_DIR}}/**/*.yaml
+          -output text
 
   security:
     desc: Run Trivy security scan on K8s manifests (misconfig + secrets)
