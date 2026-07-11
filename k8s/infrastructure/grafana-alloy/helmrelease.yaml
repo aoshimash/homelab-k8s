@@ -330,6 +330,26 @@ spec:
               drop_counter_reason = "cilium_fallback_node_address_noise"
             }
 
+            // Drop CloudNativePG operator admission-webhook info logs
+            // (cnpg-system namespace). The operator logs a JSON line for
+            // every "Validation for ..." / "Defaulting for ..." webhook
+            // call on ScheduledBackup/Database/Backup/Pooler resources
+            // (loggers *-resource; cluster_webhook already logs at Debug
+            // upstream), which fires on every reconcile touch and is pure
+            // noise here. There is no chart knob to gate it: chart 0.29.0
+            // only exposes a global --log-level, and lowering it to
+            // "warning" would also silence real signal (failover,
+            // rollout, invalid-cron info logs), so the tracking issue
+            // concluded the filter belongs at Alloy. The regex requires
+            // both the "-resource" logger and the msg prefix so nothing
+            // else can match. See issue #221 for the full analysis;
+            // remove this stage if upstream moves these webhook logs to
+            // Debug level.
+            stage.drop {
+              expression          = "\"logger\":\"(backup|database|pooler|scheduledbackup)-resource\".*\"msg\":\"(Validation for|Defaulting for) "
+              drop_counter_reason = "cnpg_webhook_validation_noise"
+            }
+
             stage.static_labels {
               values = {
                 cluster = "homelab",
