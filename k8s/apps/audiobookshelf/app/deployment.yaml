@@ -23,7 +23,7 @@ spec:
       containers:
         - name: audiobookshelf
           # trivy:ignore:AVD-KSV-0014 - audiobookshelf needs to write config and podcasts to mounted volumes
-          image: ghcr.io/advplyr/audiobookshelf:latest
+          image: ghcr.io/advplyr/audiobookshelf:2.35.1@sha256:1eef6716183c52abafe5405e7d6be8390248ecd59c7488c44af871757ac8fc4d
           ports:
             - containerPort: 80
           env:
