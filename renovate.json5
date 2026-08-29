@@ -103,6 +103,21 @@
       "matchManagers": ["flux"],
       "groupName": "Helm charts"
     },
+    // Cilium is the CNI on a single-node cluster, so a regression takes the
+    // whole datapath with it — and it is the one chart whose revert PR may
+    // never reach the cluster: Flux needs pod egress to fetch the chart that
+    // would undo the change, which is exactly the deadlock hit on 2026-05-04.
+    // Recovery there is an imperative `helm rollback` plus a matching commit.
+    // Keeping Cilium out of the grouped chart PR means it is always reviewed,
+    // merged and verified on its own, so a post-merge failure is attributable
+    // to one change. `groupName: null` is the documented way to drop a package
+    // out of a group set by an earlier rule (the option defaults to null and
+    // grouping only happens when it is non-null).
+    {
+      "matchManagers": ["flux"],
+      "matchPackageNames": ["cilium"],
+      "groupName": null
+    },
     // Same treatment for container images: one grouped PR instead of one per
     // image, with separateMajorMinor still splitting majors into their own PR.
     // Matched by datasource rather than manager, because the runner image lives

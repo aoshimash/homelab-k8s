@@ -92,6 +92,28 @@ The image group matches on **datasource** (`docker`) rather than on manager, so 
 image found by the `flux` manager inside a HelmRelease lands in the image PR rather
 than the chart PR. `separateMajorMinor` still splits major bumps out of those groups.
 
+**Cilium is deliberately excluded from the chart group** and always gets its own
+PR (`groupName: null` in a `packageRules` entry after the group rule; the option
+defaults to null and grouping only applies when it is non-null, so a later null
+drops the package back out). Two reasons, both learned from the
+[2026-05-04 incident](incidents/2026-05-04-talos-1.13-cilium-1.19-tailscale.md):
+
+- **Failure isolation.** Cilium is the CNI on a single node, so a regression
+  takes the whole datapath down. Bundled with unrelated chart bumps, a
+  post-merge failure cannot be attributed to one change.
+- **The revert path is different.** Every other chart here rolls back with a
+  revert PR that Flux reconciles. If a Cilium regression breaks pod egress,
+  Flux cannot fetch the chart that would undo it — the GitOps deadlock. Recovery
+  is an imperative `helm rollback` followed by a matching commit, which is a
+  decision a human should be making deliberately, not one discovered mid-batch.
+
+Before merging a Cilium bump, cross-check the target Kubernetes version against
+the [Cilium Kubernetes compatibility list](https://docs.cilium.io/en/stable/network/kubernetes/requirements/)
+for that release — the same matrix the
+[Talos/Kubernetes PR review criteria](talos-operations.md#pr-review-criteria)
+require for `kubernetesVersion` bumps. The two versions move together and must
+not land in the same window.
+
 ### Excluded Paths
 
 The following paths are excluded from Renovate scanning:
@@ -128,7 +150,7 @@ Before merging a Renovate PR:
 Talos and Kubernetes versions are defined in `infra/talos/talconfig.yaml`:
 
 ```yaml
-talosVersion: v1.13.5
+talosVersion: v1.13.9
 kubernetesVersion: v1.36.2
 ```
 
