@@ -41,9 +41,37 @@
     "k8s/flux/flux-system/gotk-components.yaml"
   ],
 
-  // Flux HelmRelease targets
+  // Pin every container image to an immutable digest. Floating tags (`:latest`,
+  // `redis:7-alpine`, `gotenberg:8`) silently change what runs on the next pull,
+  // so a digest is what makes the manifests reproducible. Renovate keeps the
+  // digest in step with the tag via PRs.
+  "pinDigests": true,
+
+  // Flux HelmRelease chart versions. Patterns are slash-wrapped because
+  // managerFilePatterns treats a bare string as a glob, not a regex.
+  // k8s/configs is included so the gha-runner-scale-set releases are covered.
   "flux": {
-    "fileMatch": ["k8s/infrastructure/.+\\.yaml$", "k8s/apps/.+\\.yaml$"]
+    "managerFilePatterns": [
+      "/k8s/infrastructure/.+\\.yaml$/",
+      "/k8s/apps/.+\\.yaml$/",
+      "/k8s/configs/.+\\.yaml$/"
+    ]
+  },
+
+  // Container images in plain Kubernetes manifests. The kubernetes manager ships
+  // with an empty managerFilePatterns by design (Renovate cannot guess which YAML
+  // in a repo is a manifest), so without this block no `image:` reference in the
+  // app Deployments is tracked at all. It scans any file containing both
+  // `apiVersion:` and `kind:`. Images inside HelmRelease `values` are NOT its
+  // job — the flux manager already extracts those (it reuses the helm-values
+  // extractor on spec.values), so helmrelease.yaml is excluded via packageRules
+  // below to avoid reporting the same image under two managers.
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/k8s/infrastructure/.+\\.yaml$/",
+      "/k8s/apps/.+\\.yaml$/",
+      "/k8s/configs/.+\\.yaml$/"
+    ]
   },
 
   // PR labels
@@ -74,6 +102,24 @@
     {
       "matchManagers": ["flux"],
       "groupName": "Helm charts"
+    },
+    // Same treatment for container images: one grouped PR instead of one per
+    // image, with separateMajorMinor still splitting majors into their own PR.
+    // Matched by datasource rather than manager, because the runner image lives
+    // inside a HelmRelease and is therefore reported by the flux manager — this
+    // rule comes after the one above so it wins for that dep.
+    {
+      "matchDatasources": ["docker"],
+      "groupName": "container images"
+    },
+    // The flux manager extracts images from HelmRelease `spec.values` already.
+    // The kubernetes manager reads the same files (they carry apiVersion/kind),
+    // so leaving it enabled reports the arc-runners runner image twice and would
+    // produce two PRs editing the same line. Plain manifests remain covered.
+    {
+      "matchManagers": ["kubernetes"],
+      "matchFileNames": ["**/helmrelease.yaml"],
+      "enabled": false
     },
     // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
     // upgrades are kept as separate rules (and therefore separate PRs) because

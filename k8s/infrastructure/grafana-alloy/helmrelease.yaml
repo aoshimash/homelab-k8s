@@ -12,8 +12,8 @@ spec:
         kind: HelmRepository
         name: grafana
         namespace: flux-system
-      # Version not pinned - will use latest from repository
-      # Consider pinning version after initial deployment for stability
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
+      version: 1.12.1
   releaseName: grafana-alloy
   install:
     createNamespace: true

@@ -12,6 +12,8 @@ spec:
         kind: HelmRepository
         name: prometheus-community
         namespace: flux-system
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
+      version: 8.4.1
   releaseName: kube-state-metrics
   install:
     createNamespace: false
