@@ -303,11 +303,18 @@ cluster down. Always plan for rollback before applying a Renovate PR.
 ### Take an etcd snapshot before upgrading
 
 ```bash
-talosctl etcd snapshot db.snapshot
+mkdir -p ~/.local/share/homelab-k8s/etcd-snapshots
+talosctl etcd snapshot ~/.local/share/homelab-k8s/etcd-snapshots/$(date +%Y%m%d)-db.snapshot
 ```
 
 Store the snapshot off-node. If the upgrade corrupts cluster state beyond what
 A/B partition rollback can recover, the snapshot is the last line of defense.
+
+> **Do not write the snapshot into this repository.** An etcd snapshot contains
+> every Kubernetes Secret in plaintext, unencrypted. `*.snapshot` is gitignored
+> as a backstop, but the path above keeps it out of the working tree entirely.
+> Delete the snapshot once the upgrade is verified — a stale snapshot is
+> plaintext secret material sitting on disk with no remaining recovery value.
 
 ### Immediate rollback (within ~30 min of upgrade)
 
@@ -347,8 +354,9 @@ rollback` can no longer recover the prior version. Roll back via Git instead:
 A failed upgrade on this cluster equals **full cluster downtime** — there is no
 peer node to keep workloads running. Always:
 
-- Take an etcd snapshot (`talosctl etcd snapshot db.snapshot`) before applying
-  a Renovate upgrade PR.
+- Take an etcd snapshot (see
+  [Take an etcd snapshot before upgrading](#take-an-etcd-snapshot-before-upgrading))
+  before applying a Renovate upgrade PR.
 - Schedule upgrades during a maintenance window when downtime is acceptable.
 - Keep a console / out-of-band path to the node so a stuck boot can be
   diagnosed without the network.
