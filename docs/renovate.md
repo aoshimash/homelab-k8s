@@ -37,7 +37,8 @@ Neither is acceptable in this repository.
 | Type | Location | Manager |
 |------|----------|---------|
 | Helm chart versions | `k8s/infrastructure/**`, `k8s/apps/**`, `k8s/configs/**` | flux |
-| Container images | `k8s/infrastructure/**`, `k8s/apps/**`, `k8s/configs/**` | kubernetes |
+| Images in HelmRelease `values` | same paths | flux |
+| Images in plain manifests | same paths, excluding `**/helmrelease.yaml` | kubernetes |
 | Talos Linux | `infra/talos/talconfig.yaml` | regex customManager (`github-releases`) |
 | Kubernetes | `infra/talos/talconfig.yaml` | regex customManager (`github-releases`) |
 | GitHub Actions | `.github/workflows/*.yaml` | github-actions |
@@ -45,11 +46,17 @@ Neither is acceptable in this repository.
 The `kubernetes` manager ships with an **empty** `managerFilePatterns` by design —
 Renovate cannot guess which YAML files in a repository are manifests, so it parses
 none unless told. Without the explicit `kubernetes` block in `renovate.json5`, no
-`image:` reference in this repository is tracked at all. The manager scans any file
-containing both `apiVersion:` and `kind:`, which is also how the runner image inside
-the `arc-runners` HelmRelease `values:` block gets covered: the `flux` manager only
-reads chart versions, and `helm-values` only matches files literally named
-`values.yaml`.
+`image:` reference in the app Deployments is tracked at all.
+
+The two image managers must not overlap. The `flux` manager already extracts images
+from a HelmRelease's `spec.values` (it reuses the `helm-values` extractor there),
+which is how the runner image in `k8s/configs/arc-runners/helmrelease.yaml` is
+covered. The `kubernetes` manager matches on any file containing both `apiVersion:`
+and `kind:`, so it would read those same HelmRelease files and report the identical
+image a second time — two managers, two groups, two PRs editing one line. A
+`packageRules` entry therefore disables the `kubernetes` manager for
+`**/helmrelease.yaml`. Add a new HelmRelease with images in its `values` and it is
+covered automatically; add a plain Deployment and the `kubernetes` manager takes it.
 
 Talos OS and Kubernetes produce Renovate PRs, but those PRs **do not apply
 themselves** — merging updates Git only. See
@@ -81,7 +88,9 @@ The Renovate configuration is stored in `renovate.json5` at the repository root.
 
 Helm chart updates are grouped into a single `Helm charts` PR and container image
 updates into a single `container images` PR, so the weekly batch stays reviewable.
-`separateMajorMinor` still splits major bumps out of those groups.
+The image group matches on **datasource** (`docker`) rather than on manager, so an
+image found by the `flux` manager inside a HelmRelease lands in the image PR rather
+than the chart PR. `separateMajorMinor` still splits major bumps out of those groups.
 
 ### Excluded Paths
 

@@ -58,12 +58,14 @@
     ]
   },
 
-  // Container images in Kubernetes manifests. The kubernetes manager ships with
-  // an empty managerFilePatterns by design (Renovate cannot guess which YAML in
-  // a repo is a manifest), so without this block no `image:` reference here is
-  // tracked at all. It scans any file containing both `apiVersion:` and `kind:`,
-  // which also covers the runner image inside the arc-runners HelmRelease
-  // `values:` block — the flux and helm-values managers do not reach it.
+  // Container images in plain Kubernetes manifests. The kubernetes manager ships
+  // with an empty managerFilePatterns by design (Renovate cannot guess which YAML
+  // in a repo is a manifest), so without this block no `image:` reference in the
+  // app Deployments is tracked at all. It scans any file containing both
+  // `apiVersion:` and `kind:`. Images inside HelmRelease `values` are NOT its
+  // job — the flux manager already extracts those (it reuses the helm-values
+  // extractor on spec.values), so helmrelease.yaml is excluded via packageRules
+  // below to avoid reporting the same image under two managers.
   "kubernetes": {
     "managerFilePatterns": [
       "/k8s/infrastructure/.+\\.yaml$/",
@@ -103,10 +105,21 @@
     },
     // Same treatment for container images: one grouped PR instead of one per
     // image, with separateMajorMinor still splitting majors into their own PR.
+    // Matched by datasource rather than manager, because the runner image lives
+    // inside a HelmRelease and is therefore reported by the flux manager — this
+    // rule comes after the one above so it wins for that dep.
     {
-      "matchManagers": ["kubernetes"],
       "matchDatasources": ["docker"],
       "groupName": "container images"
+    },
+    // The flux manager extracts images from HelmRelease `spec.values` already.
+    // The kubernetes manager reads the same files (they carry apiVersion/kind),
+    // so leaving it enabled reports the arc-runners runner image twice and would
+    // produce two PRs editing the same line. Plain manifests remain covered.
+    {
+      "matchManagers": ["kubernetes"],
+      "matchFileNames": ["**/helmrelease.yaml"],
+      "enabled": false
     },
     // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
     // upgrades are kept as separate rules (and therefore separate PRs) because
