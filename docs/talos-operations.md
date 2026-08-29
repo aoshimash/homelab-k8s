@@ -209,6 +209,36 @@ kubectl get pvc -A | grep -v Bound                       # all volumes Bound? (e
 kubectl get pods -A | grep -E 'audiobookshelf|home-assistant|vikunja'  # user apps Running?
 ```
 
+Controller ready counts prove the *control plane* recovered; they do not prove
+the **datapath** did. The two failures that hurt most on 2026-05-04 — broken
+pod-to-external SNAT, and services unreachable over the tailnet — both leave
+every Deployment reading N/N. Probe them directly:
+
+```bash
+# 1. Pod egress (eBPF SNAT). A reboot re-attaches Cilium's eBPF programs to the
+#    new kernel; this is the check that catches a bad re-attach.
+kubectl run snat-check --rm -i --restart=Never --image=curlimages/curl:latest --command -- \
+  sh -c 'curl -sS -o /dev/null -w "%{http_code}\n" --max-time 25 https://api.github.com'
+#    Expect 200. A hang or connection failure means pod egress is broken.
+
+# 2. Tailscale ingress reachability, from a machine on the tailnet.
+for h in audiobookshelf home-assistant vikunja immich paperless longhorn; do
+  printf '%s -> ' "$h"
+  curl -sS -o /dev/null -w '%{http_code}\n' --max-time 15 "https://${h}.tail19032f.ts.net"
+done
+#    Expect 2xx/3xx for all six (paperless answers 302).
+```
+
+Cilium's own view of the datapath is worth a look on any reboot or CNI change:
+
+```bash
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status
+```
+
+`Cilium: Ok`, `KubeProxyReplacement: True`, `Masquerading: BPF`, a full
+`Controller Status: N/N healthy` and `Cluster health: 1/1 reachable` together
+mean the eBPF re-attach landed cleanly.
+
 Once those are healthy, review the residue before clearing it — a blanket
 `--field-selector=status.phase=Failed` sweep also deletes anything that failed
 moments ago for an unrelated reason, destroying the only evidence (logs, exit
