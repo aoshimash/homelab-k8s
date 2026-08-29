@@ -41,9 +41,35 @@
     "k8s/flux/flux-system/gotk-components.yaml"
   ],
 
-  // Flux HelmRelease targets
+  // Pin every container image to an immutable digest. Floating tags (`:latest`,
+  // `redis:7-alpine`, `gotenberg:8`) silently change what runs on the next pull,
+  // so a digest is what makes the manifests reproducible. Renovate keeps the
+  // digest in step with the tag via PRs.
+  "pinDigests": true,
+
+  // Flux HelmRelease chart versions. Patterns are slash-wrapped because
+  // managerFilePatterns treats a bare string as a glob, not a regex.
+  // k8s/configs is included so the gha-runner-scale-set releases are covered.
   "flux": {
-    "fileMatch": ["k8s/infrastructure/.+\\.yaml$", "k8s/apps/.+\\.yaml$"]
+    "managerFilePatterns": [
+      "/k8s/infrastructure/.+\\.yaml$/",
+      "/k8s/apps/.+\\.yaml$/",
+      "/k8s/configs/.+\\.yaml$/"
+    ]
+  },
+
+  // Container images in Kubernetes manifests. The kubernetes manager ships with
+  // an empty managerFilePatterns by design (Renovate cannot guess which YAML in
+  // a repo is a manifest), so without this block no `image:` reference here is
+  // tracked at all. It scans any file containing both `apiVersion:` and `kind:`,
+  // which also covers the runner image inside the arc-runners HelmRelease
+  // `values:` block — the flux and helm-values managers do not reach it.
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/k8s/infrastructure/.+\\.yaml$/",
+      "/k8s/apps/.+\\.yaml$/",
+      "/k8s/configs/.+\\.yaml$/"
+    ]
   },
 
   // PR labels
@@ -74,6 +100,13 @@
     {
       "matchManagers": ["flux"],
       "groupName": "Helm charts"
+    },
+    // Same treatment for container images: one grouped PR instead of one per
+    // image, with separateMajorMinor still splitting majors into their own PR.
+    {
+      "matchManagers": ["kubernetes"],
+      "matchDatasources": ["docker"],
+      "groupName": "container images"
     },
     // Manual-apply instructions injected into PR bodies. Talos OS and Kubernetes
     // upgrades are kept as separate rules (and therefore separate PRs) because

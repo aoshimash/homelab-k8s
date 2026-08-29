@@ -64,7 +64,7 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 
 - **PR checks** (`.github/workflows/k8s-lint-security.yaml`): Runs `task check` on changes to `k8s/**`, `Taskfile.yaml`, or Trivy configs
 - **ARC runner tests**: Workflow to validate Actions Runner Controller setup
-- **Renovate**: Automated dependency updates for Helm chart versions in `k8s/infrastructure/` and GitHub Action versions
+- **Renovate**: Automated dependency updates for Helm chart versions and container image tags across `k8s/infrastructure/`, `k8s/apps/`, `k8s/configs/`, plus Talos/Kubernetes versions and GitHub Action versions. Every version is pinned in Git (charts by `spec.chart.spec.version`, images by `tag@sha256:...`) so updates only ever arrive as reviewable PRs — see `docs/renovate.md`
 
 ## Conventions
 
