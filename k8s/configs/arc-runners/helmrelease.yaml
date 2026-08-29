@@ -12,6 +12,9 @@ spec:
         kind: HelmRepository
         name: actions-runner-controller
         namespace: flux-system
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/configs).
+      # Keep in step with the gha-runner-scale-set-controller chart version.
+      version: 0.14.2
   releaseName: homelab-k8s-runners
   install:
     createNamespace: false
@@ -42,7 +45,7 @@ spec:
           fsGroup: 1001
         containers:
         - name: runner
-          image: ghcr.io/actions/actions-runner:latest
+          image: ghcr.io/actions/actions-runner:2.337.0@sha256:e5496277be5d09bc968b3d64911b74e219ac4a3f2edce956a3ecf9271bea1ef4
           command: ["/home/runner/run.sh"]
           env:
           - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
@@ -62,6 +65,9 @@ spec:
         kind: HelmRepository
         name: actions-runner-controller
         namespace: flux-system
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/configs).
+      # Keep in step with the gha-runner-scale-set-controller chart version.
+      version: 0.14.2
   releaseName: optel-workout-runners
   install:
     createNamespace: false
@@ -92,7 +98,7 @@ spec:
           fsGroup: 1001
         containers:
         - name: runner
-          image: ghcr.io/actions/actions-runner:latest
+          image: ghcr.io/actions/actions-runner:2.337.0@sha256:e5496277be5d09bc968b3d64911b74e219ac4a3f2edce956a3ecf9271bea1ef4
           command: ["/home/runner/run.sh"]
           env:
           - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
