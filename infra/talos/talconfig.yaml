@@ -17,6 +17,30 @@ patches:
     cluster:
       proxy:
         disabled: true
+  # Bound how many terminated pods the cluster keeps, so pod residue left by a
+  # node reboot is garbage-collected instead of accumulating indefinitely.
+  #
+  # kube-controller-manager's PodGC deletes terminated pods (phase Succeeded or
+  # Failed) once their total count exceeds --terminated-pod-gc-threshold,
+  # removing the excess oldest-first (evicted pods first, then by ascending
+  # creationTimestamp). Upstream defaults the threshold to 12500; on this
+  # low-churn single-node cluster the count never approaches that, so PodGC
+  # effectively never fires. That is why reboot residue sat around for months —
+  # see issue #246, and the 2026-08-30 cleanup of 15 Failed-phase pods dating
+  # back to the 2026-07-02 reboot.
+  #
+  # 30 is chosen just above the largest set of terminated pods this cluster
+  # legitimately wants to keep: the 9 CronJobs retain at most 8 x 3 + 1 x 1 = 25
+  # completed Job pods via their successfulJobsHistoryLimit. Oldest-first
+  # deletion means multi-month-old reboot debris is evicted long before those,
+  # and a pod that failed *recently* is the last thing PodGC touches — its logs
+  # and exit code stay available for debugging, which is why #246 rejected a
+  # blanket scheduled sweep.
+  - |-
+    cluster:
+      controllerManager:
+        extraArgs:
+          terminated-pod-gc-threshold: "30"
 
 nodes:
   - hostname: homelab-node-01
