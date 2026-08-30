@@ -10,6 +10,13 @@
 # see docs/talos-operations.md "Verify all workloads recovered" — so the goal
 # here is to make sure a human notices and decides, not to delete
 # automatically. See https://github.com/aoshimash/homelab-k8s/issues/246.
+#
+# Bulk reboot residue is now bounded by kube-controller-manager's PodGC
+# (`terminated-pod-gc-threshold: "30"` in infra/talos/talconfig.yaml), which
+# collects terminated pods oldest-first. That leaves this alert as the
+# backstop for what GC does not reach: a *recently* failed pod is the last
+# thing PodGC touches, so anything firing here is either a live failure or
+# residue still inside the retained window.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:

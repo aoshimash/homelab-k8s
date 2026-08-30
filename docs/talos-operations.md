@@ -256,13 +256,35 @@ either by name, or in bulk once you've confirmed nothing unrelated is mixed in:
 kubectl delete pods -A --field-selector=status.phase=Failed
 ```
 
-If this step is skipped, it is not silent forever: the `FailedPodResidue`
-alert (`k8s/infrastructure/grafana-alloy/prometheusrule-failed-pods.yaml`)
-fires to `#homelab-alerts` once a pod has sat in `Failed` phase for over 6h,
-so a forgotten cleanup still surfaces on its own. See
-[#246](https://github.com/aoshimash/homelab-k8s/issues/246) — the alert is
-intentionally notify-only; a human decides whether to delete, not a
-scheduled job.
+If this step is skipped, two safety nets pick it up.
+
+**PodGC bounds the residue.** `infra/talos/talconfig.yaml` sets
+`cluster.controllerManager.extraArgs.terminated-pod-gc-threshold: "30"`.
+kube-controller-manager's PodGC deletes terminated pods (phase `Succeeded` or
+`Failed`) once their total count exceeds that threshold, removing the excess
+oldest-first. The upstream default of 12500 never fires on a cluster this
+small, which is why residue from the 2026-07-02 reboot was still present on
+2026-08-30. With the threshold at 30, a reboot's worth of debris pushes the
+count over and the oldest pods are collected automatically. Note this covers
+`Succeeded`-phase residue too — replaced Deployment replicas that a graceful
+node shutdown left as `Completed` are the same debris, and the
+`FailedPodResidue` alert never sees them.
+
+**The alert catches what GC leaves behind.** The `FailedPodResidue` alert
+(`k8s/infrastructure/grafana-alloy/prometheusrule-failed-pods.yaml`) fires to
+`#homelab-alerts` once a pod has sat in `Failed` phase for over 6h. Since
+PodGC deletes oldest-first, a *recently* failed pod is the last thing it
+touches — so anything this alert surfaces is either a real failure or residue
+that GC has not reached yet, and a human still decides whether to delete it.
+See [#246](https://github.com/aoshimash/homelab-k8s/issues/246): the alert is
+deliberately notify-only, and PodGC was tuned rather than replacing it with a
+scheduled sweep, precisely so a fresh crash keeps its logs and exit code.
+
+Because the threshold lives in the Talos machine config, changing it needs a
+regenerate-and-apply pass — see
+[Applying Configuration Changes](#applying-configuration-changes). It updates
+the kube-controller-manager static pod manifest; confirm with
+`talosctl get machinestatus --nodes 192.168.0.10` whether a reboot is required.
 
 A pod is a **real** failure only if it stays in `CrashLoopBackOff`,
 `Init:CrashLoopBackOff`, or stuck `0/N Ready` while its controller still wants
