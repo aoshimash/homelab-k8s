@@ -98,7 +98,7 @@ spec:
               type: RuntimeDefault
         - name: redis
           # NOTE: redis-alpine entrypoint uses su-exec requiring root
-          image: redis:7-alpine@sha256:7aec734b2bb298a1d769fd8729f13b8514a41bf90fcdd1f38ec52267fbaa8ee6
+          image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
