@@ -21,7 +21,7 @@ spec:
         fsGroup: 1000
       initContainers:
         - name: download-jpn-tessdata
-          image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+          image: busybox:1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
           command:
             - wget
             - -O
@@ -114,7 +114,7 @@ spec:
             seccompProfile:
               type: RuntimeDefault
         - name: tika
-          image: apache/tika:3.1.0.0@sha256:2c1a2e563b3a9b2e98443143cd4ca34a6a1e829e24103152a299888153479fab
+          image: apache/tika:3.3.1.0@sha256:90b7fa1dc018434075fce9e1d9b88b1e3d0ea6979d0cf86e116c79a8073ae973
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9998
