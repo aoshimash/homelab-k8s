@@ -13,7 +13,7 @@ spec:
         name: immich-charts
         namespace: flux-system
       # Pinned; Renovate proposes upgrades (flux manager covers k8s/apps).
-      version: 0.13.1
+      version: 0.13.2
   releaseName: immich
   install:
     createNamespace: false
