@@ -14,3 +14,4 @@ packages:
 - name: aquasecurity/trivy@v0.69.2
 - name: yannh/kubeconform@v0.7.0
 - name: go-task/task@v3.48.0
+- name: budimanjojo/talhelper@v3.1.17
