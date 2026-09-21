@@ -12,15 +12,25 @@ Install the following tools:
 # Talos CLI
 brew install siderolabs/tap/talosctl
 
-# Talhelper (Talos configuration helper)
-brew install budimanjojo/tap/talhelper
-
 # SOPS (Secrets management)
 brew install sops
 
 # Age (Encryption)
 brew install age
 ```
+
+Talhelper (Talos configuration helper) is pinned in `aqua.yaml` at the repository
+root — install it from there instead of Homebrew:
+
+```bash
+aqua i
+```
+
+> Upstream `budimanjojo/talhelper` is archived as of v3.1.17, and the Homebrew
+> formula is deprecated (scheduled for removal on 2027-08-26). The author
+> suggests [topf](https://github.com/postfinance/topf) or
+> [talstomize](https://github.com/mirceanton/talstomize) as successors; no
+> migration has been done yet.
 
 ### Network Requirements
 
