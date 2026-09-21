@@ -133,6 +133,19 @@
       "matchUpdateTypes": ["pin", "replacement"],
       "minimumReleaseAge": null
     },
+    // GHCR returns no release timestamp, so *version* updates for images hosted
+    // there cannot be aged either, and Renovate suppresses PR creation entirely
+    // while their status is yellow — the update never surfaces at all. Seen here
+    // on 2026-09-21: home-assistant v2025/v2026 and paperless-ngx v3 (all ghcr.io)
+    // sat in the dashboard's "Pending Status Checks" section, while the Docker
+    // Hub-hosted vikunja majors reached review as #294/#295. timestamp-optional
+    // raises what cannot be aged; docker.io, github-tags and Helm charts are
+    // unaffected and keep the full 3-day window.
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/**"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
     // Group Helm chart updates into one PR instead of one per HelmRelease file.
     // separateMajorMinor above still splits major/minor updates into their own
     // PRs even within this group.
