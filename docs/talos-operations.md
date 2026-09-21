@@ -152,27 +152,32 @@ Before merging a Renovate PR, verify:
 ### Manual operation after merge — Talos OS bump
 
 > **Upgrade the OS before applying config — never the reverse.**
-> The generated machine config is written in the format of the `talosVersion` in
-> `talconfig.yaml`, and a node only understands its own version's format. A node
-> still running v1.13.9 rejects a config generated for v1.14.x outright:
+> `talhelper genconfig` writes the machine config in the format of the
+> `talosVersion` in `talconfig.yaml`, and a node cannot decode config documents
+> introduced by a Talos version newer than the one it runs. A node still on
+> v1.13.9 rejects a config generated for v1.14.x outright:
 >
 > ```
 > error decoding document v1alpha1/DiscoveryServiceConfig/default (line 48):
 > "DiscoveryServiceConfig" "v1alpha1": not registered
 > ```
 >
+> (The reverse direction is fine — a newer Talos still accepts an older config's
+> form. The v1alpha1 Kubernetes fields are deprecated in 1.14, not removed.)
+>
 > So after a `talosVersion` bump merges, do **not** reach for
 > `task talos:apply-config` (or the [Applying Configuration
 > Changes](#applying-configuration-changes) procedure) first — its description
-> says "non-version", and this is a version change. Run `talosctl upgrade` below
-> instead. It takes only `--image`: it replaces the OS and leaves the node's
-> stored machine config untouched, so the node comes back on the new Talos
-> version still running the config it already had. That is safe because Talos
-> keeps accepting the previous version's form (the v1alpha1 Kubernetes fields are
-> deprecated in 1.14, not removed). Only once `kubectl get nodes` reports the new
-> Talos version is `task talos:apply-config` the right tool for pushing the
-> regenerated config. This bites hardest across the v1.13 → v1.14 boundary, where
-> Talos moved Kubernetes settings into separate documents (see #315).
+> says "non-version", and this is a version change. Run the `talosctl upgrade`
+> command block below instead, **including `--drain=false`** (see the
+> [single-node warning](#upgrade-procedure)). `upgrade` does not push a machine
+> config: it replaces the OS and leaves the node's stored config untouched, so
+> the node comes back on the new Talos version still running the config it
+> already had — which it still accepts, per the note above. Only once
+> `kubectl get nodes` reports the new Talos version is `task talos:apply-config`
+> the right tool for pushing the regenerated config. This bites hardest across
+> the v1.13 → v1.14 boundary, where Talos moved Kubernetes settings into separate
+> documents (see #315).
 
 Once a `talosVersion` Renovate PR is merged on `main`:
 

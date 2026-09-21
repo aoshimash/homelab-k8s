@@ -13,12 +13,18 @@ allowSchedulingOnControlPlanes: true
 # Cluster-wide patches.
 #
 # These are Talos 1.14+ multi-document patches (KubeProxyConfig,
-# KubeControllerManagerConfig), not the older v1alpha1 `cluster.*` form. The two
-# forms are mutually exclusive: `talosVersion` alone decides which documents
-# talhelper emits, and it rejects a patch written in the other form. So a
-# `talosVersion` bump back below v1.14 must convert these patches back to
-# `cluster.proxy` / `cluster.controllerManager` in the same change, or
-# `talhelper genconfig` fails. See issue #315 and the revert in #314.
+# KubeControllerManagerConfig), not the older v1alpha1 `cluster.*` form, and the
+# patch form is tied to `talosVersion` above. `talosVersion` decides which
+# documents talhelper asks Talos to generate; patching the same setting in the
+# other form then fails config validation as a conflict. So a `talosVersion`
+# bump back below v1.14 must convert these patches back to `cluster.proxy` /
+# `cluster.controllerManager` in the same change, or `talhelper genconfig`
+# fails.
+#
+# Do not "fix" that by making one patch set generate under both versions — it is
+# possible (delete the v1alpha1 sections and set an explicit image), but the
+# result is a config a pre-1.14 node cannot decode, so it fails at apply time
+# instead of at generation. See issue #315 and the revert in #314.
 patches:
   # Disable kube-proxy (Cilium handles this with kubeProxyReplacement=true)
   - |-
