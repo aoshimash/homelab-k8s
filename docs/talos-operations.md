@@ -286,8 +286,9 @@ kubectl delete pods -A --field-selector=status.phase=Failed
 
 If this step is skipped, two safety nets pick it up.
 
-**PodGC bounds the residue.** `infra/talos/talconfig.yaml` sets
-`cluster.controllerManager.extraArgs.terminated-pod-gc-threshold: "30"`.
+**PodGC bounds the residue.** `infra/talos/talconfig.yaml` patches the
+`KubeControllerManagerConfig` document with
+`extraArgs.terminated-pod-gc-threshold: "30"`.
 kube-controller-manager's PodGC deletes terminated pods (phase `Succeeded` or
 `Failed`) once their total count exceeds that threshold, removing the excess
 oldest-first. The upstream default of 12500 never fires on a cluster this
