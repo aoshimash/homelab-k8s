@@ -63,6 +63,50 @@ Each entry is structured as:
     not the right knob.
 - **Source**: PRs #206, #208, #209, #210, #211 of the 2026-05-04 incident.
 
+### Before calling a slow operation stuck, find its progress counter
+
+- **Lesson**: "No output for N minutes" is not evidence of a stall. Locate the
+  number that actually advances — bytes on disk, rows processed, offset
+  committed — and sample it twice before forming any theory about *why* it is
+  slow.
+- **Why**: A `talosctl upgrade` hung three times at Talos's 20-minute pull cap
+  with no client-side output at all. The pull was treated as stalled, and three
+  separate theories (host network path, IPv6, MTU) were investigated on that
+  assumption. The ground truth was one command away the whole time:
+  containerd's ingest file was growing the entire time, 0 → 73 → 87 → 95 MiB
+  across attempts. Sampling it first would have reframed the question from "why
+  is it stuck?" to "why is it slow?" — a different and much smaller search.
+  Relatedly, the first attempt was reported as *succeeding* because the command
+  was piped (`talosctl upgrade ... | tail`), so `$?` was `tail`'s exit status,
+  not `talosctl`'s.
+- **How to apply**: For any long-running operation, ask "what number proves
+  this is advancing?" before asking anything else, and sample it at two points
+  in time. For Talos image pulls that number is the containerd ingest size (see
+  *Upgrade Stuck* in `docs/talos-operations.md`). Never pipe a command whose
+  exit status you intend to read — redirect to a file and capture `$?` on its
+  own line.
+- **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
+
+### Benchmark the identical work, not a cheaper proxy of it
+
+- **Lesson**: A benchmark only supports a conclusion if it does the *same work*
+  as the slow path. Different input, different offset, or different object is a
+  different measurement, however similar the command looks.
+- **Why**: While diagnosing the slow pull above, throughput was "measured" with
+  range requests for the first 10 MiB of the blob, from a pod (14.2 MB/s) and
+  from a laptop (7.5 MB/s) — while the node was crawling through bytes 80 MiB
+  and beyond at ~0.06 MB/s. The conclusion drawn was "the host pull path is
+  100x slower than the pod path", and it was wrong: the CDN served the object's
+  *head* fast and its *tail* slowly, so head-range benchmarks said nothing
+  about the node's situation. Measuring the same tail range from the laptop
+  reproduced the node's slowness exactly (0.10 MB/s), which relocated the
+  problem from this cluster to the upstream origin in one command.
+- **How to apply**: Before comparing A to B, write down what differs between
+  them; if anything does, fix that first. For partial transfers, benchmark the
+  same byte range. When a measurement exonerates your own infrastructure,
+  re-run it in the failing condition before believing it.
+- **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
+
 ### When CNI logs disagree with intuition, read the kernel state directly
 
 - **Lesson**: For datapath / netfilter / eBPF problems, the kernel's actual
@@ -204,6 +248,46 @@ Each entry is structured as:
      (`tailscale status --json`, the `Tags` field for that peer) — not just
      any tag that sounds related.
 - **Source**: Issue #249 / PR #250, 2026-07-05.
+
+### A Talos image pull is capped at 20 minutes, but containerd resumes it
+
+- **Lesson**: `talosctl upgrade` aborts the installer pull at exactly 1200 s
+  (`ImageService/Pull ... 20m0.003s ... timeout`), and the node is untouched
+  when it does — no staging, no reboot, nothing to roll back. containerd keeps
+  the partial blob, so a repeated attempt continues where the last one stopped
+  instead of starting over.
+- **Why**: Three consecutive 20-minute failures looked like three total
+  failures. They were not: the ingest grew monotonically across them
+  (73 → 87 → 95 MiB of 157.9 MiB). Knowing the failure is resumable changes the
+  decision — "retry costs nothing and accumulates" is a different calculus from
+  "retry burns 20 minutes for nothing".
+- **How to apply**: On a pull timeout, check the ingest size before deciding
+  anything (recipe in `docs/talos-operations.md`, *Upgrade Stuck*). If it is
+  advancing, the options are wait or retry; if it is flat, the problem is
+  elsewhere. Never conclude the cluster is damaged by a pull timeout — it fails
+  before the node is touched.
+- **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
+
+### Confirm your own Tailscale is up before trusting the tailnet ingress sweep
+
+- **Lesson**: The post-upgrade verification sweep probes six
+  `*.tail19032f.ts.net` hosts. If the *operator's* Tailscale client is off,
+  all six fail identically — which is indistinguishable from the datapath
+  failure the sweep exists to catch.
+- **Why**: During the 2026-09-21 attempt the operator's Tailscale happened to
+  be off while the cluster was being checked. The sweep had not been reached
+  yet, so nothing was misdiagnosed — but had the upgrade proceeded, six
+  simultaneous failures would have read as exactly the 2026-05-04 symptom
+  (services unreachable over the tailnet) and sent the investigation into a
+  cluster that was in fact fine.
+- **How to apply**: Run `tailscale status` on the machine doing the checking
+  before the sweep, and treat a whole-sweep failure as "check the client first"
+  rather than "the datapath broke". Partial failure (some hosts up, some down)
+  is the signal that actually implicates the cluster. Note this cuts the other
+  way too: `talosctl`/`kubectl` against `192.168.0.10` go over the LAN and keep
+  working with Tailscale off, so a working `kubectl` does not prove the tailnet
+  path is healthy.
+- **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
 
 ### Cilium 1.19+ enforces NetworkPolicy strictly enough to block kubelet probes
 
