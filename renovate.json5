@@ -192,6 +192,8 @@
     {
       "matchPackageNames": ["siderolabs/talos"],
       "prBodyNotes": [
+        "**Confirm talhelper supports Talos {{newValue}} before merging** — check out this branch and run `task talos:genconfig`; a generation failure means **do not merge** (see [PR review criteria](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#pr-review-criteria)).",
+        "talhelper is pinned in `aqua.yaml` outside Renovate and is released on its own schedule, so a new Talos minor can arrive before talhelper understands its config schema — #293 merged that way and had to be reverted in #314.",
         "**Manual action required after merge** — this PR does not auto-apply.",
         "After merging, follow the Talos OS upgrade procedure in [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow). The procedure includes the `talosctl upgrade` invocation, health-check gate, and rollback strategy."
       ]

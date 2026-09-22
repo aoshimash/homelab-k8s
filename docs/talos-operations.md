@@ -148,6 +148,38 @@ Before merging a Renovate PR, verify:
 - **Breaking-change scan**: Search the diff for changes to `talconfig.yaml`
   schema, machine config keys, or extension references that imply a manual
   follow-up step.
+- **Config generation (required for `talosVersion` bumps)**: The three checks
+  above only *read*. This one *executes*: check out the PR branch and generate
+  the machine config from it, exactly as the post-merge apply would.
+
+  ```bash
+  # -C resets any stale local copy to the PR's current head — Renovate reuses
+  # branch names, so a plain `git switch` can land on an old checkout.
+  git fetch origin && git switch -C <pr-branch> origin/<pr-branch>
+  task talos:genconfig     # runs talhelper genconfig; needs age.agekey at the repo root
+  ```
+
+  **A generation failure is a do-not-merge signal, not a warning.** Merging
+  anyway strands `main` ahead of the node with a desired state that cannot be
+  applied, and the only way out is a revert (this happened with #293 → #314).
+  The failure is deterministic, takes seconds, and needs no cluster access, so
+  there is no reason to discover it after the merge.
+
+  Expect the talhelper-vs-Talos version gap as the usual cause: talhelper is
+  released on its own schedule and is pinned in `aqua.yaml` outside Renovate,
+  so it does not move when Talos does. A new Talos minor can therefore land
+  before any talhelper release understands its config schema — talhelper says
+  so itself (`WARNING: "<version>" might not be compatible with this Talhelper
+  version you're using`) and then fails on the documents that changed. When
+  that is the cause, the fix is a talhelper bump and/or a `talconfig.yaml`
+  migration in a separate PR *before* the Talos PR can merge.
+
+  This check stays a local pre-merge step rather than a CI job on purpose:
+  `talhelper genconfig` decrypts `talsecret.sops.yaml`, and running it in CI
+  would mean handing CI the SOPS age key. The same property is why it comes
+  *after* the breaking-change scan: the command runs the checked-out branch's
+  `Taskfile.yaml` with your age key, so confirm the PR touches only
+  `talconfig.yaml` (a Renovate bump changes one line) before running it.
 
 ### Manual operation after merge — Talos OS bump
 
