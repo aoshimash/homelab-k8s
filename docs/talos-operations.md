@@ -250,11 +250,11 @@ kubectl run snat-check --rm -i --restart=Never --image=curlimages/curl:latest --
 #    Expect 200. A hang or connection failure means pod egress is broken.
 
 # 2. Tailscale ingress reachability, from a machine on the tailnet.
-for h in audiobookshelf home-assistant vikunja immich paperless longhorn; do
+for h in audiobookshelf home-assistant vikunja paperless longhorn; do
   printf '%s -> ' "$h"
   curl -sS -o /dev/null -w '%{http_code}\n' --max-time 15 "https://${h}.tail19032f.ts.net"
 done
-#    Expect 2xx/3xx for all six (paperless answers 302).
+#    Expect 2xx/3xx for all five (paperless answers 302).
 ```
 
 Cilium's own view of the datapath is worth a look on any reboot or CNI change:
