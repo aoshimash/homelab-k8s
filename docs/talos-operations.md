@@ -634,6 +634,74 @@ On 2026-09-21 this pattern resolved a three-attempt failure: the node was fine
 and the LAN did 85 MB/s to Cloudflare, while the Image Factory served that
 object's tail at 0.10 MB/s to both machines that tried it. See
 `docs/lessons-learned.md` and #315.
+### kube-apiserver stuck 0/1 after `apply-config` (etcd encryption key name)
+
+**Symptom.** `kubectl` still works — it talks to `:6443` directly — but
+kube-apiserver sits at 0/1 indefinitely and `readyz` reports exactly one failing
+check:
+
+```bash
+kubectl get --raw='/readyz?verbose' | grep -v 'ok$'   # [-]informer-sync failed
+```
+
+Anything reaching the API through the `10.96.0.1` service VIP fails with
+`connection refused`, so Flux controllers, the Tailscale ingress proxy and
+kube-controller-manager crash-loop. The cause is in the apiserver log, not the
+probe:
+
+```bash
+kubectl -n kube-system logs kube-apiserver-homelab-node-01 | grep 'no matching key'
+# unable to transform key "/registry/secrets/...": no matching key was found
+# for the provided Secretbox transformer
+```
+
+**Cause.** Talos's runtime names the secretbox key `key2`; the
+`KubeEtcdEncryptionConfig` document it generates for 1.14 names the same key
+`key1`. Secretbox stores the key name in every ciphertext, so existing Secrets
+become undecryptable. See `docs/lessons-learned.md` and #315.
+
+**Check before applying** a regenerated config on this cluster:
+
+```bash
+talosctl --nodes 192.168.0.10 \
+  read /system/secrets/kubernetes/kube-apiserver/encryptionconfig.yaml | grep 'name:'
+grep -A6 'kind: KubeEtcdEncryptionConfig' infra/talos/clusterconfig/*.yaml | grep 'name:'
+```
+
+If those disagree, do not apply — rotate first.
+
+**Recovery / rotation.** The fix is to re-encrypt the data under the name the
+generator uses, after which no patch is needed and `talconfig.yaml` stays clean.
+The key bytes are unchanged throughout; only the name migrates.
+
+```bash
+# 0. Snapshot first — this rewrites every Secret in the cluster.
+talosctl --nodes 192.168.0.10 etcd snapshot \
+  ~/.local/share/homelab-k8s/etcd-snapshots/$(date +%Y%m%d-%H%M)-pre-keyrotation-db.snapshot
+kubectl get secrets -A -o json > /tmp/secrets-backup.json   # keep OFF this repo
+kubectl get secrets -A -o json | grep -c '"immutable": true'   # must be 0 (immutable Secrets reject `replace`)
+```
+
+1. Hand-edit the generated config so the single secretbox provider lists **both**
+   names, `key1` first (it becomes the write key) and `key2` second, with the
+   same secret value in each. Apply it with `talosctl apply-config -f ...`.
+   Confirm `readyz` is `ok` and Secrets are listable.
+2. Re-encrypt everything under the write key:
+
+   ```bash
+   kubectl get secrets -A -o json | kubectl replace -f -
+   ```
+
+   Verify every object was actually rewritten by diffing `resourceVersion`
+   against the backup — a silent no-op here is what leaves the cluster
+   half-migrated.
+3. Apply the unmodified generated config (`task talos:apply-config`). It carries
+   `key1` only, which now matches the data. Re-check `readyz`, Secret
+   readability, workloads and the datapath.
+
+Steps 1 and 3 restart kube-apiserver, so kube-controller-manager and kube-scheduler
+will crash-loop briefly against the `10.96.0.1` VIP and recover on their own
+backoff; do not chase them until the apiserver is 1/1.
 
 ### Node Not Coming Back After Upgrade
 

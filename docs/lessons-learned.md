@@ -106,6 +106,27 @@ Each entry is structured as:
   same byte range. When a measurement exonerates your own infrastructure,
   re-run it in the failing condition before believing it.
 - **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
+### A key is its name plus its bytes; matching bytes is not a matching key
+
+- **Lesson**: When you verify that a cryptographic key survived a migration,
+  verify every field the decryption path keys off — not just the secret
+  material. For Kubernetes secretbox/AES-CBC providers that includes the key
+  **name**, which is written into every ciphertext and must match on read.
+- **Why**: #317 migrated `talconfig.yaml` to Talos 1.14's multi-document form.
+  The review explicitly checked the etcd encryption key and recorded it as
+  "byte-identical" — the sha256 of the secret matched on both sides, and it
+  did. What went unchecked was that Talos names the secretbox key `key2` while
+  the generated `KubeEtcdEncryptionConfig` names the very same bytes `key1`.
+  Kubernetes stores the key name in the ciphertext prefix, so the apiserver
+  could not decrypt a single existing Secret. It sat at 0/1 for ~20 minutes
+  and took Flux, the Tailscale ingress and kube-controller-manager down with
+  it — from a config change whose diff looked like a rename.
+- **How to apply**: For any credential or key that moves between config
+  formats, enumerate the fields the *consumer* matches on and diff all of them.
+  "The secret is the same" is a claim about one field. When the consumer is
+  Kubernetes encryption-at-rest, the fields are provider type, key name and key
+  bytes, in that order of subtlety.
+- **Source**: #315 / #317, 2026-09-22 apiserver outage.
 
 ### When CNI logs disagree with intuition, read the kernel state directly
 
@@ -288,6 +309,53 @@ Each entry is structured as:
   working with Tailscale off, so a working `kubectl` does not prove the tailnet
   path is healthy.
 - **Source**: #315 / #317, 2026-09-21 Talos v1.14.1 upgrade attempt.
+### Talos names the secretbox key `key2`, but its generated 1.14 document says `key1`
+
+- **Lesson**: Talos's runtime builds the apiserver encryption config with the
+  secretbox key named **`key2`** (`key1` is reserved for AES-CBC) — see
+  `k8stemplates/apiserver.go`, identical in v1.13.9 and v1.14.1. The
+  `KubeEtcdEncryptionConfig` document that Talos *generates* for 1.14 names the
+  same key **`key1`**. Applying the generated document to a cluster whose
+  Secrets predate it makes every Secret undecryptable.
+- **Why**: The symptom does not name the cause. `kubectl` keeps working
+  (it talks to `:6443` directly), so the cluster looks up; what you see is
+  kube-apiserver stuck 0/1 with `readyz` reporting only
+  `[-]informer-sync failed`, and everything that reaches the API through the
+  `10.96.0.1` service VIP failing with `connection refused`. The real message is
+  buried in the apiserver log: `unable to transform key
+  "/registry/secrets/...": no matching key was found for the provided Secretbox
+  transformer`. Reading that line is what turns a 20-minute outage into a
+  five-minute one.
+- **How to apply**: Before applying a regenerated machine config on a cluster
+  that has been through the 1.13 → 1.14 boundary, check the key name:
+  `talosctl read /system/secrets/kubernetes/kube-apiserver/encryptionconfig.yaml`
+  against the `KubeEtcdEncryptionConfig` document in the generated file. If they
+  disagree, do not apply — rotate first (procedure in
+  `docs/talos-operations.md`). Note the trap is one-directional: it only bites
+  clusters carrying pre-1.14 data, so a fresh cluster never sees it.
+- **Source**: #315 / #317, 2026-09-22 apiserver outage.
+
+### Talos 1.14's generated encryption document cannot be overridden by a patch
+
+- **Lesson**: There is no declarative way to change the generated
+  `KubeEtcdEncryptionConfig`. All four patch mechanisms fail, so a key-name
+  mismatch must be fixed in the *data* (rotate the Secrets), not in
+  `talconfig.yaml`.
+- **Why**: Each failure mode is non-obvious and two of them fail silently
+  enough to look like success. Measured on talhelper v3.1.17 / Talos v1.14.1:
+
+  | Attempt | Result |
+  |---|---|
+  | `$patch: delete` the document | `etcd encryption config is required for control plane machines` |
+  | Strategic merge of just the key name | **Appends a second `resources` entry**; Kubernetes uses the first match, so the old name still wins |
+  | `$patch: replace` on `config` | Not honoured — the literal `$patch: replace` key is emitted into the generated config |
+  | JSON6902 patch | `JSON6902 patches are not supported for multi-document machine configuration` |
+
+- **How to apply**: Do not spend time trying to patch it. Rotate the Secrets to
+  the name the generator uses, after which `talconfig.yaml` needs no encryption
+  stanza at all and the generated config is correct as-is. That end state is
+  also why this repository carries no encryption patch today.
+- **Source**: #315 / #317, 2026-09-22 apiserver outage.
 
 ### Cilium 1.19+ enforces NetworkPolicy strictly enough to block kubelet probes
 
