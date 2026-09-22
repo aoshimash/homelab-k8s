@@ -42,6 +42,17 @@ spec:
                   secretKeyRef:
                     name: immich-db
                     key: password
+    # immich-server mounts the RWO immich-library volume and runs database
+    # migrations at startup, so it must never overlap with its own previous
+    # pod during an upgrade. The chart's own valkey controller already
+    # defaults to Recreate; server does not. machine-learning is left on
+    # RollingUpdate — its cache is an emptyDir and it holds no shared state.
+    # Key path verified by rendering chart 0.13.2 (bjw-s common 5.0.1
+    # `controllers.<name>.strategy`).
+    server:
+      controllers:
+        main:
+          strategy: Recreate
     immich:
       persistence:
         # The chart never creates the library volume; point it at our Longhorn PVC.
