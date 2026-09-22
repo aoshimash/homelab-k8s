@@ -332,12 +332,21 @@ talosctl reset --graceful=false --reboot
 | Field | Value | Description |
 |-------|-------|-------------|
 | `clusterName` | `homelab-cluster` | Kubernetes cluster name |
-| `talosVersion` | `v1.12.0` | Talos Linux version |
-| `kubernetesVersion` | `v1.35.0` | Kubernetes version |
+| `talosVersion` | *(Renovate-managed — read the file)* | Talos Linux version |
+| `kubernetesVersion` | *(Renovate-managed — read the file)* | Kubernetes version |
 | `endpoint` | `https://192.168.0.10:6443` | Kubernetes API endpoint |
 | `cniConfig.name` | `none` | Disable default CNI for Cilium |
-| `cluster.proxy.disabled` | `true` | Disable kube-proxy (Cilium replaces it) |
+| patch `KubeProxyConfig.enabled` | `false` | Disable kube-proxy (Cilium replaces it) |
 | `allowSchedulingOnControlPlanes` | `true` | Allow workloads on control plane (single node) |
+
+> The two version rows deliberately carry no value: Renovate bumps them in
+> `talconfig.yaml` without touching this table, so any number written here is
+> wrong by the next dependency PR. Read the file for the current values.
+>
+> The kube-proxy row is a **cluster-wide patch**, not a top-level field, and its
+> form is tied to `talosVersion` — on Talos 1.14+ it is a `KubeProxyConfig`
+> document, and below that it was `cluster.proxy.disabled: true`. See the comment
+> above `patches:` in `talconfig.yaml` and issue #315.
 
 ### Cilium Configuration
 
