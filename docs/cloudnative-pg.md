@@ -314,8 +314,8 @@ kubectl get pods -n longhorn-system
 **Backup ordering relative to Longhorn PVC backups**: the CNPG daily database
 backup (18:00 UTC / 03:00 JST) is deliberately scheduled 30 minutes before
 Longhorn's `backup-daily` RecurringJob (18:30 UTC / 03:30 JST). For apps whose
-data spans both the CNPG database and a Longhorn PVC (e.g. paperless-ngx,
-Immich), a restore must not pair a database backup that is *newer* than the
+data spans both the CNPG database and a Longhorn PVC (e.g. paperless-ngx), a
+restore must not pair a database backup that is *newer* than the
 paired PVC backup: the database could reference files (e.g. media attachments)
 missing from the restored volume. The reverse ordering (PVC backup newer than
 the database backup) is comparatively safe — at worst a few files exist on disk
