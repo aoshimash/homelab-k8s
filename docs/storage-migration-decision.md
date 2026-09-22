@@ -77,10 +77,9 @@ node."* At the default 12: 15950m allocatable × 0.12 = 1914m.
 
 Replication is not in use and is not wanted. Longhorn's best practices page
 recommends *"10 Gbps network bandwidth between nodes"* for optimal volume
-performance: a cost that
-is not exercised by a single node at replica 1, but one that would start to
-matter the moment a second node joined with replica ≥ 2. Removing Longhorn
-removes that future constraint along with the present one.
+performance: a cost that is not exercised by a single node at replica 1, but one
+that would start to matter the moment a second node joined with replica ≥ 2.
+Removing Longhorn removes that future constraint along with the present one.
 
 ### What changed after the measurement
 
@@ -130,9 +129,9 @@ These are chosen, not overlooked.
 
 - **No capacity enforcement.** local-path-provisioner's README is explicit: its
   "Cons" section lists *"No support for the volume capacity limit currently."*
-  and, beneath it, *"The capacity limit will be ignored for now."* A PVC's `resources.requests.storage` becomes documentation
-  rather than a limit, and volume expansion is meaningless rather than
-  available. The over-provisioning this cluster carries (~106Gi requested
+  and, beneath it, *"The capacity limit will be ignored for now."* A PVC's
+  `resources.requests.storage` becomes documentation rather than a limit, and
+  volume expansion is meaningless rather than available. The over-provisioning this cluster carries (~106Gi requested
   against ~13Gi in use, post-Immich) simply stops being a concept; the real
   limit becomes free space on the user volume — a node-level concern rather than
   a per-PVC one.
@@ -168,30 +167,31 @@ elsewhere?** If yes, it is not backed up.
 | `home-assistant-config` | yes | Hand-built configuration and history |
 | `vikunja-files` | yes | User-uploaded attachments |
 | `postgres-cluster-1` (CNPG PGDATA) | **no** | Covered by CloudNativePG's own barman backups to R2 |
-| `data-vikunja-postgresql-0` | **to be deleted, not migrated** ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)) | Orphan from the move to CloudNativePG: `state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet |
+| `data-vikunja-postgresql-0` | **no** | Not migrated either — an orphan from the move to CloudNativePG (`state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet), to be deleted by [#305](https://github.com/aoshimash/homelab-k8s/issues/305) |
 
 `immich-library` was in this list when #299 was written and is no longer, per the
 delta noted above. The in-scope set totalled about 11.2Gi as measured on
 2026-09-21, including Immich's ~250MB.
 
 The PostgreSQL exclusion is the clearest argument for opt-in. Under Longhorn, as
-it stands on 2026-09-23, it is not actually excluded: nothing in this repository
-selects recurring jobs per volume, so every volume lands in Longhorn's `default`
-group and `backup-daily` backs all of them up — PGDATA included, ~30 backups and
-~41GB in R2 (`59a0f29`; the mechanism is written up in
-[longhorn.md — How recurring jobs pick volumes](longhorn.md#how-recurring-jobs-pick-volumes)).
-A file-level copy of a live PostgreSQL data directory is not a valid backup, so
-that storage bought nothing, and the exclusion `docs/cloudnative-pg.md` used to
-claim was never real — `59a0f29` corrected the doc. An opt-in model cannot fail
-that way: a volume is backed up because something named it, not because nothing
-excluded it.
+it stands on 2026-09-23, PGDATA is not actually excluded. Nothing in this
+repository selects recurring jobs per volume, so Longhorn's documented fallback
+applies — every volume without a recurring-job label of its own lands in the
+`default` group, and the `backup-daily` job backs all of them up. PGDATA is among
+them: ~30 backups, ~41GB in R2 (`59a0f29`).
 
-**Backup frequency stays daily.** Increasing it was considered and declined. The
-decision here was to leave an existing cadence alone rather than to pick a new
-one: daily is what `specs/002` already specified (FR-010) and what CloudNativePG
-already runs (18:00 UTC, see [cloudnative-pg.md](cloudnative-pg.md)), and nothing
-about moving to restic argues for changing the recovery-point expectation. No
-further rationale was recorded in [#299](https://github.com/aoshimash/homelab-k8s/issues/299).
+A file-level copy of a live PostgreSQL data directory is not a valid backup, so
+that storage bought nothing. The exclusion this repository believed it had was
+never real, and nothing surfaced that for months, because a volume was backed up
+unless something excluded it and nothing reported that the exclusion had failed.
+An opt-in model cannot fail that way: a volume is backed up because something
+named it.
+
+**Backup frequency stays daily.** Daily is the cadence already in place —
+`specs/002` FR-010 for volumes, and CloudNativePG's own 18:00 UTC schedule for
+the database. [#299](https://github.com/aoshimash/homelab-k8s/issues/299) records
+that increasing it was considered and declined, and records no reason; none is
+reconstructed here.
 
 ## What this supersedes
 
@@ -216,8 +216,13 @@ Not reversed, and still binding:
 
 - FR-003 — dynamic provisioning, data retained across pod restarts.
 - FR-011 — a scheduled backup over unchanged data should run without re-copying
-  everything. Preserved by restic's deduplication rather than by Longhorn's
-  incremental backups; the requirement is met by different means, not dropped.
+  everything, in storage and in time. Carried by restic rather than by Longhorn's
+  incremental backups: restic deduplicates, so *"no new data was added to the
+  repository (since all data is already there)"*, and it skips rescanning with
+  *"a change detection rule based on file metadata to determine whether a file is
+  likely unchanged since a previous backup"* against a parent snapshot. Met by
+  different means, not dropped — to be confirmed in practice when K8up is
+  configured ([#301](https://github.com/aoshimash/homelab-k8s/issues/301)).
 - FR-007 / FR-008 — backup credentials encrypted in Git with SOPS + age,
   decrypted by Flux at reconciliation. Unchanged; only the consumer changes.
 - The intent behind FR-009 — operator-visible backup success/failure signals.
@@ -231,10 +236,11 @@ Primary sources, read 2026-09-23:
 - [Longhorn — Upgrading Longhorn Manager (v1.12.1)](https://longhorn.io/docs/1.12.1/deploy/upgrade/longhorn-manager/) — supported upgrade paths
 - [Longhorn — Settings reference (v1.12.1)](https://longhorn.io/docs/1.12.1/references/settings/#guaranteed-instance-manager-cpu) — `Guaranteed Instance Manager CPU` default
 - [Longhorn — Best Practices (v1.12.1)](https://longhorn.io/docs/1.12.1/best-practices/) — 10 Gbps between nodes
-- [Talos — Local Storage](https://docs.siderolabs.com/kubernetes-guides/csi/local-storage) — replication warning, local-path-provisioner on a user volume. This guide is not version-scoped on the docs site; the User Volumes page below is, and is pinned to the version this cluster runs
-- [Talos v1.14 — User Volumes](https://docs.siderolabs.com/talos/v1.14/configure-your-talos-cluster/storage-and-disk-management/disk-management/user/) — what user volumes are, `/var/mnt/<name>`. v1.14 matches `talosVersion: v1.14.1` in `infra/talos/talconfig.yaml`
+- [Talos — Local Storage](https://docs.siderolabs.com/kubernetes-guides/csi/local-storage) — the replication warning, the `/var/mnt/<user-volume-name>` mount sentence, and local-path-provisioner rooted on a user volume. This guide is not version-scoped on the docs site; the User Volumes page below is, and is pinned to the version this cluster runs
+- [Talos v1.14 — User Volumes](https://docs.siderolabs.com/talos/v1.14/configure-your-talos-cluster/storage-and-disk-management/disk-management/user/) — what user volumes are. v1.14 matches `talosVersion: v1.14.1` in `infra/talos/talconfig.yaml`
 - [rancher/local-path-provisioner README](https://github.com/rancher/local-path-provisioner) — capacity limit
 - [K8up documentation](https://docs.k8up.io/k8up/2.12/index.html) — restic, S3-compatible targets
+- [restic — Backing up](https://restic.readthedocs.io/en/stable/040_backup.html) — deduplication, parent snapshot, metadata-based change detection
 - [VolSync — restic usage](https://volsync.readthedocs.io/en/stable/usage/restic/index.html) — per-PVC ReplicationSource and secret
 - [TopoLVM — design](https://github.com/topolvm/topolvm/blob/main/docs/design.md) and [getting started](https://github.com/topolvm/topolvm/blob/main/docs/getting-started.md) — lvmd, volume group prerequisite
 
