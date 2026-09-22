@@ -1,5 +1,5 @@
 clusterName: homelab-cluster
-talosVersion: v1.13.9
+talosVersion: v1.14.1
 kubernetesVersion: v1.36.2
 endpoint: https://192.168.0.10:6443
 
@@ -10,13 +10,27 @@ cniConfig:
 # Allow scheduling workloads on control plane nodes for single node cluster
 allowSchedulingOnControlPlanes: true
 
-# Cluster-wide patches
+# Cluster-wide patches.
+#
+# These are Talos 1.14+ multi-document patches (KubeProxyConfig,
+# KubeControllerManagerConfig), not the older v1alpha1 `cluster.*` form, and the
+# patch form is tied to `talosVersion` above. `talosVersion` decides which
+# documents talhelper asks Talos to generate; patching the same setting in the
+# other form then fails config validation as a conflict. So a `talosVersion`
+# bump back below v1.14 must convert these patches back to `cluster.proxy` /
+# `cluster.controllerManager` in the same change, or `talhelper genconfig`
+# fails.
+#
+# Do not "fix" that by making one patch set generate under both versions — it is
+# possible (delete the v1alpha1 sections and set an explicit image), but the
+# result is a config a pre-1.14 node cannot decode, so it fails at apply time
+# instead of at generation. See issue #315 and the revert in #314.
 patches:
   # Disable kube-proxy (Cilium handles this with kubeProxyReplacement=true)
   - |-
-    cluster:
-      proxy:
-        disabled: true
+    apiVersion: v1alpha1
+    kind: KubeProxyConfig
+    enabled: false
   # Bound how many terminated pods the cluster keeps, so pod residue left by a
   # node reboot is garbage-collected instead of accumulating indefinitely.
   #
@@ -37,10 +51,10 @@ patches:
   # and exit code stay available for debugging, which is why #246 rejected a
   # blanket scheduled sweep.
   - |-
-    cluster:
-      controllerManager:
-        extraArgs:
-          terminated-pod-gc-threshold: "30"
+    apiVersion: v1alpha1
+    kind: KubeControllerManagerConfig
+    extraArgs:
+      terminated-pod-gc-threshold: "30"
 
 nodes:
   - hostname: homelab-node-01
