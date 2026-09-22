@@ -35,8 +35,14 @@ spec:
     # StorageClass settings for single-node cluster.
     persistence:
       defaultClassReplicaCount: 1
-      # Disable recurringJobSelector at StorageClass level due to Helm chart bug
-      # that outputs Go map format instead of valid JSON.
-      # Use PVC annotations to enable recurring jobs per-volume instead.
+      # Left disabled. When enabled, `jobList` must be given as a JSON *string*
+      # — the chart interpolates it verbatim (`recurringJobSelector: '{{ ... }}'`
+      # in templates/storageclass.yaml), so a YAML list renders as Go map format.
+      # The chart's own values comment says as much: "Ensure that quotes are used
+      # correctly when specifying job parameters."
+      # Disabling it does NOT exclude volumes from recurring jobs: Longhorn then
+      # places every volume in the `default` group, which backup-daily targets.
+      # Changing this only affects volumes created afterwards.
+      # See docs/longhorn.md, "How recurring jobs pick volumes".
       recurringJobSelector:
         enable: false
