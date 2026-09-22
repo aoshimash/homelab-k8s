@@ -55,11 +55,11 @@ spec:
                 secretKeyRef:
                   name: vikunja-db
                   key: VIKUNJA_DATABASE_DATABASE
-            - name: VIKUNJA_SERVICE_JWTSECRET
+            - name: VIKUNJA_SERVICE_SECRET
               valueFrom:
                 secretKeyRef:
                   name: vikunja
-                  key: VIKUNJA_SERVICE_JWTSECRET
+                  key: VIKUNJA_SERVICE_SECRET
             - name: VIKUNJA_SERVICE_ENABLEREGISTRATION
               value: "false"
           volumeMounts:
