@@ -153,7 +153,9 @@ Before merging a Renovate PR, verify:
   the machine config from it, exactly as the post-merge apply would.
 
   ```bash
-  git fetch origin && git switch <pr-branch>
+  # -C resets any stale local copy to the PR's current head — Renovate reuses
+  # branch names, so a plain `git switch` can land on an old checkout.
+  git fetch origin && git switch -C <pr-branch> origin/<pr-branch>
   task talos:genconfig     # runs talhelper genconfig; needs age.agekey at the repo root
   ```
 
@@ -168,9 +170,9 @@ Before merging a Renovate PR, verify:
   so it does not move when Talos does. A new Talos minor can therefore land
   before any talhelper release understands its config schema — talhelper says
   so itself (`WARNING: "<version>" might not be compatible with this Talhelper
-  version`) and then fails on the documents that changed. When that is the
-  cause, the fix is a talhelper bump and/or a `talconfig.yaml` migration in a
-  separate PR *before* the Talos PR can merge.
+  version you're using`) and then fails on the documents that changed. When
+  that is the cause, the fix is a talhelper bump and/or a `talconfig.yaml`
+  migration in a separate PR *before* the Talos PR can merge.
 
   This check stays a local pre-merge step rather than a CI job on purpose:
   `talhelper genconfig` decrypts `talsecret.sops.yaml`, and running it in CI
