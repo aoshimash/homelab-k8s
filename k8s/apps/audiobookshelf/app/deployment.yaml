@@ -5,6 +5,15 @@ metadata:
   namespace: audiobookshelf
 spec:
   replicas: 1
+  # Recreate, not the default RollingUpdate. At replicas: 1 the default
+  # maxSurge of 25% rounds up to 1, so a rolling update starts the new pod
+  # while the old one still holds the three RWO volumes below on the same
+  # node — two Audiobookshelf processes writing one SQLite database and one
+  # metadata directory. Home Assistant made this visible by refusing to start
+  # a second instance at all (see #324); here nothing complains, which is the
+  # worse failure mode. Matches vikunja and paperless-ngx.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: audiobookshelf

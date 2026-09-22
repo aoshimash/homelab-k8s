@@ -372,6 +372,62 @@ Each entry is structured as:
   PRs #204 / #205 for the corrective change.
 - **Source**: 2026-05-04 incident, PRs #204 / #205.
 
+### Switching a Deployment to `Recreate` needs the defaulted `rollingUpdate` block cleared
+
+- **Lesson**: Changing `spec.strategy.type` from `RollingUpdate` to
+  `Recreate` in Git is not enough. The API server has already defaulted
+  `spec.strategy.rollingUpdate` (`maxSurge: 25%`, `maxUnavailable: 25%`) onto
+  the live object, server-side apply merges the new `type` on top of it
+  rather than dropping it, and the API server then rejects the result:
+  `spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy
+  type is 'Recreate'`. Clear the field imperatively once, then reconcile.
+- **Why**: On 2026-09-22 this took down the reconciliation of the entire
+  `apps` Kustomization — not just Home Assistant — because one invalid
+  object fails the whole dry-run. Flux reported `Ready=False` with the
+  message above while every other app in `k8s/apps` silently stopped being
+  reconciled. The merged PR looked fine; only the Kustomization status said
+  otherwise, and nothing in the cluster degraded, so there was no symptom to
+  notice from the outside.
+- **How to apply**: When a PR switches a Deployment to `Recreate`, expect to
+  follow the merge with:
+
+  ```bash
+  kubectl -n <ns> patch deploy <name> --type=merge \
+    -p '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'
+  flux reconcile kustomization <ks> --with-source
+  ```
+
+  This is the legitimate half of the break-glass rule above — Git already
+  holds the desired state, and the patch only removes a defaulted field that
+  was preventing Git from being applied, so there is no second commit owed.
+  After any such merge, check `flux get kustomizations` rather than assuming
+  a green PR means a reconciled cluster. The same applies to Helm-managed
+  Deployments: Helm's three-way merge will not remove a field that was never
+  in its own previous manifest either.
+- **Source**: PRs #324 (home-assistant), #312, and the follow-up switching
+  audiobookshelf and immich-server.
+
+### Single-replica apps on RWO volumes need `Recreate`, and most will not tell you
+
+- **Lesson**: A `replicas: 1` Deployment with no `strategy` gets
+  `RollingUpdate` with `maxSurge: 25%`, which rounds **up to 1**. Every
+  rollout therefore runs two pods at once, both mounting the same RWO volume
+  on the same node, until the new one is Ready.
+- **Why**: Home Assistant 2026 takes an exclusive `fcntl.flock` on its config
+  directory and refuses to start, which surfaced as a CrashLoopBackOff and a
+  rollout that could never complete — the old pod holds the lock and is never
+  retired because the new pod never turns Ready. That was the *lucky* case:
+  it failed loudly. Audiobookshelf, on the same pattern, had been running two
+  processes against one SQLite database for a few seconds on every rollout
+  for months without complaint.
+- **How to apply**: Any Deployment here with `replicas: 1` and a
+  `persistentVolumeClaim` volume should declare `strategy: Recreate`. For
+  bjw-s-common-based charts (immich) the value is
+  `controllers.<name>.strategy: Recreate`. Accept the brief downtime: at one
+  replica the rollout is not highly available anyway, it only looked like it.
+- **Source**: PRs #312, #324, and the follow-up switching audiobookshelf and
+  immich-server.
+
 ## The single most valuable takeaway
 
 If you read nothing else, read this:
