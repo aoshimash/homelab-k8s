@@ -588,6 +588,53 @@ talosctl upgrade --nodes 192.168.0.10 --stage
 talosctl reboot --nodes 192.168.0.10
 ```
 
+#### Upgrade fails at image pull after exactly 20 minutes
+
+`talosctl upgrade` gives no progress output while it pulls the installer, and
+aborts the pull at Talos's 1200 s cap:
+
+```
+machined Unknown [/machine.ImageService/Pull] 20m0.003335875s stream 1 error(s) occurred: timeout
+```
+
+**The node is untouched when this happens** — the failure is before staging, so
+there is no reboot and nothing to roll back. Do not treat it as a damaged
+cluster.
+
+First establish whether the download is advancing at all. containerd writes the
+partial blob under its ingest directory, and **keeps it**, so a later attempt
+resumes rather than restarting:
+
+```bash
+# Find the in-flight blob and watch it grow (SIZE(B) column)
+talosctl --nodes 192.168.0.10 \
+  list -l -r /var/lib/containerd/io.containerd.content.v1.content/ingest
+```
+
+Sample it twice, a minute apart:
+
+- **Growing** — the pull works, it is just too slow to finish inside 20
+  minutes. Retrying accumulates progress, since the ingest persists.
+- **Flat** — the transfer really is stalled; investigate the node and its
+  network.
+
+If it is merely slow, check whether the slowness is upstream rather than local
+before touching anything here. Throughput can vary hugely *by byte offset* when
+a CDN has only cached the head of an object, so **compare the same byte range**
+from another machine:
+
+```bash
+# Tail-range fetch of the same blob from your laptop — if this is slow too,
+# the problem is upstream, not this cluster.
+curl -L -r 157286400-162529279 -o /dev/null -w '%{speed_download} B/s\n' \
+  "https://factory.talos.dev/v2/installer/<schematic-id>/blobs/sha256:<layer-digest>"
+```
+
+On 2026-09-21 this pattern resolved a three-attempt failure: the node was fine
+and the LAN did 85 MB/s to Cloudflare, while the Image Factory served that
+object's tail at 0.10 MB/s to both machines that tried it. See
+`docs/lessons-learned.md` and #315.
+
 ### Node Not Coming Back After Upgrade
 
 1. Check physical console for errors
