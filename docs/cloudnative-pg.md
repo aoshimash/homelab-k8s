@@ -160,9 +160,14 @@ spec:
     name: postgres-cluster
 EOF
 
-# Check backup status
-kubectl get backup -n postgres
+# Check backup status. Use the fully-qualified resource: the short name `backup`
+# resolves to `backups.longhorn.io`, which silently reports "No resources found".
+kubectl get backups.postgresql.cnpg.io -n postgres
 ```
+
+An on-demand backup taken this way is subject to the cluster's
+`retentionPolicy` (currently `7d`) like any other, so it defines how long the
+rollback window for a one-way migration actually lasts.
 
 ### Restore from Backup
 

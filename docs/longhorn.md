@@ -71,6 +71,61 @@ flux reconcile helmrelease longhorn -n longhorn-system
 flux reconcile kustomization infrastructure --with-source
 ```
 
+## Create an On-Demand Backup
+
+The `backup-daily` recurring job covers the `default` group nightly at 18:30 UTC
+and retains 30 backups. That is the floor, not a pre-change safety net: before an
+app upgrade that migrates data one way, the useful backup is one taken minutes
+earlier, not up to 24 hours earlier.
+
+There is no single "back up now" CRD. A Longhorn backup is always made *from a
+snapshot*, so it is two objects: a `Snapshot` with `createSnapshot: true`, then a
+`Backup` naming it. Find the volume name for a PVC with
+`kubectl -n longhorn-system get volumes.longhorn.io -o custom-columns=NAME:.metadata.name,PVC:.status.kubernetesStatus.pvcName,NS:.status.kubernetesStatus.namespace`.
+
+```bash
+# 1. Snapshot the volume (seconds; it is a local copy-on-write snapshot).
+kubectl apply -f - <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: Snapshot
+metadata:
+  name: pre-upgrade-myapp
+  namespace: longhorn-system
+spec:
+  volume: pvc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  createSnapshot: true
+EOF
+
+# Wait for readyToUse before referencing it.
+kubectl -n longhorn-system get snapshots.longhorn.io pre-upgrade-myapp \
+  -o custom-columns=NAME:.metadata.name,READY:.status.readyToUse,SIZE:.status.size
+
+# 2. Push that snapshot to R2.
+kubectl apply -f - <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: Backup
+metadata:
+  name: pre-upgrade-myapp-bk
+  namespace: longhorn-system
+spec:
+  snapshotName: pre-upgrade-myapp
+  backupMode: incremental
+EOF
+
+# 3. Wait for Completed — an empty state means it has not started yet.
+kubectl -n longhorn-system get backups.longhorn.io pre-upgrade-myapp-bk \
+  -o custom-columns=NAME:.metadata.name,STATE:.status.state,SIZE:.status.size,ERR:.status.error
+```
+
+`incremental` sends only the blocks changed since the last backup of that volume,
+so a nightly backup already existing makes this fast.
+
+These objects are **not** managed by the recurring job, so its 30-backup retention
+does not apply and they are kept until deleted by hand. Delete the `Backup` (which
+removes the data in R2) and the `Snapshot` once the upgrade is confirmed good and
+the rollback window has closed. (Verified 2026-09-22 on the paperless-ngx and
+home-assistant volumes, ahead of the v3 and 2025.12 upgrades.)
+
 ## Restore from R2 Backup
 
 > **Note**: This cluster does **not** have the external CSI snapshotter installed
