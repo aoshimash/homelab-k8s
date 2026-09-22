@@ -202,6 +202,36 @@
         "**Manual action required after merge** — this PR does not auto-apply.",
         "After merging, follow the Kubernetes upgrade procedure in [docs/talos-operations.md — Renovate upgrade flow](https://github.com/aoshimash/homelab-k8s/blob/main/docs/talos-operations.md#renovate-upgrade-flow). The procedure includes the `talosctl upgrade-k8s` invocation and verification."
       ]
+    },
+    // Stateful apps: these images migrate their own database on first start, and
+    // the migrations are one way. Flux reconciles a revert PR back to the old tag
+    // within minutes, but the old binary cannot read the migrated schema, so the
+    // revert restores the image and not the service — the rollback path is a
+    // restore from backup, and only backups taken *before* the merge are useful.
+    // prBodyNotes is a mergeable option, so a grouped "container images" PR
+    // carries the note for every stateful app it happens to contain; each note
+    // therefore names its own package.
+    {
+      "matchPackageNames": ["vikunja/vikunja"],
+      "prBodyNotes": [
+        "**Back up before merging** — `vikunja` migrates its database one way on first start.",
+        "Take an on-demand backup with [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) before merging; the scheduled one runs daily at 18:00 UTC and is kept 7 days, which is also how long the rollback window lasts. Recovery is [Restore from Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#restore-from-backup). Attachments live on the `vikunja-files` volume and are not schema-migrated."
+      ]
+    },
+    {
+      "matchPackageNames": ["ghcr.io/paperless-ngx/paperless-ngx"],
+      "prBodyNotes": [
+        "**Back up before merging** — `paperless-ngx` runs Django migrations against the `paperless` database one way on first start, and may rewrite document metadata (3.0.0 recomputed every checksum as SHA-256).",
+        "Back up both halves before merging, and pair them correctly: the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days), and the `paperless-data` / `paperless-media` volumes via [docs/longhorn.md — Create an On-Demand Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/longhorn.md#create-an-on-demand-backup). A restore must not pair a database backup newer than the volume backup — see [Backup Configuration Notes](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#backup-configuration-notes)."
+      ]
+    },
+    {
+      "matchPackageNames": ["ghcr.io/home-assistant/home-assistant"],
+      "prBodyNotes": [
+        "**Back up before merging** — Home Assistant migrates the recorder schema in the `homeassistant` database one way. Because the tag is CalVer, Renovate reports a new year as a major and a new month as a minor: both run recorder migrations, so this note applies to either.",
+        "Back up the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days) and the `home-assistant-config` volume — which holds `.storage`, i.e. every UI-configured integration — via [docs/longhorn.md — Create an On-Demand Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/longhorn.md#create-an-on-demand-backup).",
+        "A schema step below `LIVE_MIGRATION_MIN_SCHEMA_VERSION` blocks startup until it finishes rather than migrating in the background, so expect the pod to stay unready for the duration. Read the backward-incompatible changes for every release between the running version and the target."
+      ]
     }
   ]
 }
