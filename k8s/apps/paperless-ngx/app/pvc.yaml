@@ -3,8 +3,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: paperless-data
   namespace: paperless-ngx
-  annotations:
-    recurring-job-selector.longhorn.io: '[{"name":"backup-daily","isGroup":false}]'
 spec:
   accessModes:
     - ReadWriteOnce
@@ -18,8 +16,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: paperless-media
   namespace: paperless-ngx
-  annotations:
-    recurring-job-selector.longhorn.io: '[{"name":"backup-daily","isGroup":false}]'
 spec:
   accessModes:
     - ReadWriteOnce

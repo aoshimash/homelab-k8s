@@ -305,11 +305,27 @@ kubectl get pods -n longhorn-system
 
 ### Backup Configuration Notes
 
-**Important**: PostgreSQL PVC is configured to exclude Longhorn recurring backups:
-- PVC annotation: `recurring-job-selector.longhorn.io: "[]"`
-- This ensures PostgreSQL backups are handled exclusively by CloudNativePG's native backup to R2
-- Longhorn volume snapshots are not created for PostgreSQL PVCs
-- This prevents duplicate backups and reduces storage costs
+**The PostgreSQL PVC is not excluded from Longhorn recurring backups.** An
+earlier version of this section said it was, via a
+`recurring-job-selector.longhorn.io` PVC annotation — that annotation does not
+exist in Longhorn, and the exclusion never took effect. `postgres-cluster-1` is
+in the `default` recurring-job group like every other volume and carries ~30
+`backup-daily` backups (~41 GB in R2). See
+[longhorn.md — How recurring jobs pick volumes](longhorn.md#how-recurring-jobs-pick-volumes).
+
+What this means in practice:
+
+- **CNPG's barman backup to R2 is the authoritative restore path for Postgres**,
+  and the only one this document's [Restore from Backup](#restore-from-backup)
+  procedure uses. Nothing about that changes.
+- The Longhorn copy is a crash-consistent snapshot of a **running** PGDATA
+  directory. It is not corrupt — Postgres would perform crash recovery on it —
+  but it is not a substitute for the barman backup and should not be reached for
+  first.
+- Excluding it would mean giving the CNPG cluster a StorageClass whose
+  `recurringJobSelector` is `[]`. `storageClassName` is immutable on a bound
+  PVC, so that is only available when the cluster's storage is next recreated,
+  and it is not worth a restore cycle on its own.
 
 **Backup ordering relative to Longhorn PVC backups**: the CNPG daily database
 backup (18:00 UTC / 03:00 JST) is deliberately scheduled 30 minutes before

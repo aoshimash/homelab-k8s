@@ -71,6 +71,52 @@ flux reconcile helmrelease longhorn -n longhorn-system
 flux reconcile kustomization infrastructure --with-source
 ```
 
+## How recurring jobs pick volumes
+
+Every Longhorn volume in this cluster is backed up nightly by `backup-daily`,
+including `postgres-cluster-1` (PGDATA). That is worth stating plainly, because
+the repository previously claimed otherwise in two places and the mechanism it
+claimed does not exist.
+
+**Targeting is a StorageClass parameter, not a PVC annotation.** The CSI driver
+reads `recurringJobSelector` out of the StorageClass `parameters` map
+(`csi/util.go`); there is no PVC annotation equivalent. The string
+`recurring-job-selector.longhorn.io`, which four PVCs here carried until
+recently, appears nowhere in the Longhorn source or docs. Those annotations
+never did anything.
+
+**Not setting a selector means "default group", not "no jobs".** From Longhorn's
+own design document for label-driven recurring jobs:
+
+> `Groups`: … When including `default`, the recurring job will be added to the
+> volume label *if no other job exists in the volume label*.
+
+`backup-daily` declares `groups: [default]`, and no volume here carries any
+other recurring-job label, so Longhorn labels all of them
+`recurring-job-group.longhorn.io/default: enabled`. Confirm with:
+
+```bash
+kubectl -n longhorn-system get volumes.longhorn.io \
+  -o custom-columns='PVC:.status.kubernetesStatus.pvcName,LABELS:.metadata.labels' \
+  | grep recurring-job
+```
+
+**If you do want per-volume targeting**, enable it in the Longhorn HelmRelease
+and give `jobList` a JSON **string** — the chart interpolates the value verbatim
+into `templates/storageclass.yaml`, so a YAML list renders as Go map format
+rather than JSON (the chart's own values comment warns about the quoting):
+
+```yaml
+persistence:
+  recurringJobSelector:
+    enable: true
+    jobList: '[{"name":"backup-daily","isGroup":false}]'
+```
+
+A StorageClass parameter is consumed when the volume is **created**, so this
+changes nothing for the eight volumes that already exist — they keep their
+`default` group label until something rewrites it.
+
 ## Create an On-Demand Backup
 
 The `backup-daily` recurring job covers the `default` group nightly at 18:30 UTC

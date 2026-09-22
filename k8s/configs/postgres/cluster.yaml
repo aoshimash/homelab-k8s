@@ -20,8 +20,14 @@ spec:
   storage:
     size: 10Gi
     storageClass: longhorn
-    # Note: Longhorn recurring backups are disabled at StorageClass level
-    # PostgreSQL backups are handled directly by CloudNativePG to R2
+    # PGDATA is backed up by Longhorn's backup-daily job as well as by CNPG's
+    # own barman backup below. That is not the intent recorded here previously,
+    # but it is what happens: with no recurringJobSelector set anywhere,
+    # Longhorn puts every volume in the `default` group, which backup-daily
+    # targets. See docs/longhorn.md, "How recurring jobs pick volumes".
+    # CNPG's barman backup remains the authoritative restore path for Postgres;
+    # the Longhorn copy is a crash-consistent snapshot of a running PGDATA and
+    # is not the route docs/cloudnative-pg.md restores from.
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
