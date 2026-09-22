@@ -4,6 +4,10 @@
 - **Status**: Accepted; implementation tracked by [#299](https://github.com/aoshimash/homelab-k8s/issues/299)
 - **Supersedes**: `specs/002-longhorn-r2-backup/` (2026-01-02)
 
+Statements about the cluster in the present tense describe it **as of
+2026-09-23**, before any of the migration has landed. They are the starting
+state this decision argues from, not a running description of the cluster.
+
 Longhorn is being removed from this cluster. This record exists because the
 reasoning cannot be recovered from the resulting code: a reader who finds
 local-path-provisioner and K8up in place has no way to tell that Longhorn was
@@ -26,11 +30,11 @@ The durability posture is deliberately unchanged in kind — one copy of the dat
 on local disk, daily backups to R2. What changes is the machinery that provides
 it, and the maintenance that machinery costs.
 
-Talos User Volumes "allow to treat available disk space as a pool of allocatable
-resource, which can be dynamically allocated to different applications", and a
-user volume is "automatically mounted under `/var/mnt/<user-volume-name>` path on
-the node" — which is exactly the root path local-path-provisioner needs. K8up is
-"Based on top of Restic, it can store backups in any S3-compatible storage", and
+Talos User Volumes *"allow to treat available disk space as a pool of allocatable
+resource, which can be dynamically allocated to different applications"*, and a
+user volume is *"automatically mounted under `/var/mnt/<user-volume-name>` path on
+the node"* — which is exactly the root path local-path-provisioner needs. K8up is
+*"Based on top of Restic, it can store backups in any S3-compatible storage"*, and
 R2 is S3-compatible, so the existing backup target is reachable unchanged.
 
 ## Why Longhorn is being replaced
@@ -40,8 +44,9 @@ R2 is S3-compatible, so the existing backup target is reachable unchanged.
 Longhorn does not support skipping minor versions. Its own upgrade
 documentation for the version this repository pins states: *"We only support
 upgrading to v1.12.1 from v1.11.x. For other versions, please upgrade to v1.11.x
-first."* The same constraint is already recorded in
-`k8s/infrastructure/longhorn/helmrelease.yaml`.
+first."* The same rule is already recorded in
+`k8s/infrastructure/longhorn/helmrelease.yaml`, in the form it took at the time
+that comment was written (`v1.7.3 → v1.8.x → v1.9.x → v1.10.x`).
 
 Every other dependency here is pinned in Git and updated by Renovate as a
 reviewable PR — that is the whole maintenance model of this repository (see
@@ -64,12 +69,15 @@ numbers could be fixed without removing anything; the upgrade burden could not.
 | Data served | ~13.2Gi actual across 10 PVCs (206Gi provisioned), **no replication** |
 
 The 1914m is not a misconfiguration; it is the documented default. Longhorn's
-`Guaranteed Instance Manager CPU` defaults to `{"v1":"12","v2":"12"}`, meaning
-*"12% of the total CPU on a node will be allocated to each instance manager pod
-on that node"* — 15950m allocatable × 0.12 = 1914m.
+`Guaranteed Instance Manager CPU` defaults to `{"v1":"12","v2":"12"}`, documented
+as *"Percentage of the total allocatable CPU resources on each node to reserve
+for each instance manager pod. For example, a value of `10` means 10% of the
+total CPU on a node will be allocated to each instance manager pod on that
+node."* At the default 12: 15950m allocatable × 0.12 = 1914m.
 
-Replication is not in use and is not wanted. Longhorn's best practices list
-*"10 Gbps network bandwidth between nodes"* among its requirements: a cost that
+Replication is not in use and is not wanted. Longhorn's best practices page
+recommends *"10 Gbps network bandwidth between nodes"* for optimal volume
+performance: a cost that
 is not exercised by a single node at replica 1, but one that would start to
 matter the moment a second node joined with replica ≥ 2. Removing Longhorn
 removes that future constraint along with the present one.
@@ -80,7 +88,8 @@ Immich was removed from the cluster on 2026-09-22 (`31ce861`) — it held no dat
 Its 100Gi PVC (~250MB actual) therefore leaves the figures above, and
 `immich-library`, listed as in-scope for backup when #299 was written, is no
 longer a volume that exists. The measurement table is kept as it was taken; this
-note is the delta.
+note is the delta. Corrected for it, the numbers as of 2026-09-23 are **~106Gi
+provisioned against ~13Gi actual**, and the backup set below totals **~11Gi**.
 
 ## Alternatives rejected
 
@@ -119,13 +128,14 @@ trade.
 
 These are chosen, not overlooked.
 
-- **No capacity enforcement.** local-path-provisioner's README is explicit: *"No
-  support for the volume capacity limit currently. The capacity limit will be
-  ignored for now."* A PVC's `resources.requests.storage` becomes documentation
+- **No capacity enforcement.** local-path-provisioner's README is explicit: its
+  "Cons" section lists *"No support for the volume capacity limit currently."*
+  and, beneath it, *"The capacity limit will be ignored for now."* A PVC's `resources.requests.storage` becomes documentation
   rather than a limit, and volume expansion is meaningless rather than
-  available. Today's over-provisioning (206Gi requested against 13.2Gi in use)
-  simply stops being a concept; the real limit becomes free space on the user
-  volume — a node-level concern rather than a per-PVC one.
+  available. The over-provisioning this cluster carries (~106Gi requested
+  against ~13Gi in use, post-Immich) simply stops being a concept; the real
+  limit becomes free space on the user volume — a node-level concern rather than
+  a per-PVC one.
 - **No volume snapshots.** Recovery is from the R2 backup, not from a local
   point-in-time copy.
 - **Data is lost on node failure.** Talos states it plainly: *"Local storage is
@@ -158,29 +168,38 @@ elsewhere?** If yes, it is not backed up.
 | `home-assistant-config` | yes | Hand-built configuration and history |
 | `vikunja-files` | yes | User-uploaded attachments |
 | `postgres-cluster-1` (CNPG PGDATA) | **no** | Covered by CloudNativePG's own barman backups to R2 |
-| `data-vikunja-postgresql-0` | **deleted, not migrated** | Orphan from the move to CloudNativePG: `state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet |
+| `data-vikunja-postgresql-0` | **to be deleted, not migrated** ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)) | Orphan from the move to CloudNativePG: `state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet |
 
 `immich-library` was in this list when #299 was written and is no longer, per the
 delta noted above. The in-scope set totalled about 11.2Gi as measured on
 2026-09-21, including Immich's ~250MB.
 
-The PostgreSQL exclusion is the clearest argument for opt-in. Under Longhorn it
-was not actually excluded: nothing in this repository selects recurring jobs per
-volume, so every volume lands in Longhorn's `default` group and
-`backup-daily` backs all of them up — PGDATA included, ~30 backups and ~41GB in
-R2 (`59a0f29`). A file-level copy of a live PostgreSQL data directory is not a
-valid backup, so that storage bought nothing and the exclusion documented in
-`docs/cloudnative-pg.md` was not real. An opt-in model cannot fail that way: a
-volume is backed up because something named it, not because nothing excluded it.
+The PostgreSQL exclusion is the clearest argument for opt-in. Under Longhorn, as
+it stands on 2026-09-23, it is not actually excluded: nothing in this repository
+selects recurring jobs per volume, so every volume lands in Longhorn's `default`
+group and `backup-daily` backs all of them up — PGDATA included, ~30 backups and
+~41GB in R2 (`59a0f29`; the mechanism is written up in
+[longhorn.md — How recurring jobs pick volumes](longhorn.md#how-recurring-jobs-pick-volumes)).
+A file-level copy of a live PostgreSQL data directory is not a valid backup, so
+that storage bought nothing, and the exclusion `docs/cloudnative-pg.md` used to
+claim was never real — `59a0f29` corrected the doc. An opt-in model cannot fail
+that way: a volume is backed up because something named it, not because nothing
+excluded it.
 
-**Backup frequency stays daily.** Increasing it was considered and declined.
+**Backup frequency stays daily.** Increasing it was considered and declined. The
+decision here was to leave an existing cadence alone rather than to pick a new
+one: daily is what `specs/002` already specified (FR-010) and what CloudNativePG
+already runs (18:00 UTC, see [cloudnative-pg.md](cloudnative-pg.md)), and nothing
+about moving to restic argues for changing the recovery-point expectation. No
+further rationale was recorded in [#299](https://github.com/aoshimash/homelab-k8s/issues/299).
 
 ## What this supersedes
 
 `specs/002-longhorn-r2-backup/` (2026-01-02) introduced Longhorn and its R2
 backups. It stays exactly as it is — AGENTS.md marks `specs/` a read-only
-historical archive and its last commit is 2026-02-01 — so this record is the
-pointer that keeps it from reading as current.
+historical archive, nothing has been committed anywhere under it since
+2026-02-01, and `specs/002` itself has not been touched since 2026-01-02 — so
+this record is the pointer that keeps it from reading as current.
 
 Reversed by this decision:
 
@@ -196,6 +215,9 @@ Reversed by this decision:
 Not reversed, and still binding:
 
 - FR-003 — dynamic provisioning, data retained across pod restarts.
+- FR-011 — a scheduled backup over unchanged data should run without re-copying
+  everything. Preserved by restic's deduplication rather than by Longhorn's
+  incremental backups; the requirement is met by different means, not dropped.
 - FR-007 / FR-008 — backup credentials encrypted in Git with SOPS + age,
   decrypted by Flux at reconciliation. Unchanged; only the consumer changes.
 - The intent behind FR-009 — operator-visible backup success/failure signals.
@@ -209,8 +231,8 @@ Primary sources, read 2026-09-23:
 - [Longhorn — Upgrading Longhorn Manager (v1.12.1)](https://longhorn.io/docs/1.12.1/deploy/upgrade/longhorn-manager/) — supported upgrade paths
 - [Longhorn — Settings reference (v1.12.1)](https://longhorn.io/docs/1.12.1/references/settings/#guaranteed-instance-manager-cpu) — `Guaranteed Instance Manager CPU` default
 - [Longhorn — Best Practices (v1.12.1)](https://longhorn.io/docs/1.12.1/best-practices/) — 10 Gbps between nodes
-- [Talos — Local Storage](https://docs.siderolabs.com/kubernetes-guides/csi/local-storage) — replication warning, local-path-provisioner on a user volume
-- [Talos — User Volumes](https://docs.siderolabs.com/talos/v1.11/configure-your-talos-cluster/storage-and-disk-management/disk-management/user/) — what user volumes are, `/var/mnt/<name>`
+- [Talos — Local Storage](https://docs.siderolabs.com/kubernetes-guides/csi/local-storage) — replication warning, local-path-provisioner on a user volume. This guide is not version-scoped on the docs site; the User Volumes page below is, and is pinned to the version this cluster runs
+- [Talos v1.14 — User Volumes](https://docs.siderolabs.com/talos/v1.14/configure-your-talos-cluster/storage-and-disk-management/disk-management/user/) — what user volumes are, `/var/mnt/<name>`. v1.14 matches `talosVersion: v1.14.1` in `infra/talos/talconfig.yaml`
 - [rancher/local-path-provisioner README](https://github.com/rancher/local-path-provisioner) — capacity limit
 - [K8up documentation](https://docs.k8up.io/k8up/2.12/index.html) — restic, S3-compatible targets
 - [VolSync — restic usage](https://volsync.readthedocs.io/en/stable/usage/restic/index.html) — per-PVC ReplicationSource and secret
