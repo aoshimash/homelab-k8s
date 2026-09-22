@@ -7,6 +7,18 @@ metadata:
     reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
+  # Recreate, not the default RollingUpdate. `home-assistant-config` is a
+  # single RWO volume, and a rolling update briefly runs the new pod alongside
+  # the old one on the same node, both mounting it. Home Assistant 2026 makes
+  # that fatal: it takes an exclusive flock on `.ha_run.lock` in the config
+  # directory, so the new pod exits with "Another Home Assistant instance is
+  # already running!" while the old pod holds the lock — and the old pod is
+  # never retired, because the new one never turns Ready. Deadlock.
+  # Before 2026 there was no lock and the rollout appeared to work, which only
+  # meant two instances wrote to /config and the recorder database at once.
+  # Matches vikunja and paperless-ngx, which already do this.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: home-assistant
