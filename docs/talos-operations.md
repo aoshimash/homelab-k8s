@@ -151,6 +151,34 @@ Before merging a Renovate PR, verify:
 
 ### Manual operation after merge — Talos OS bump
 
+> **Upgrade the OS before applying config — never the reverse.**
+> `talhelper genconfig` writes the machine config in the format of the
+> `talosVersion` in `talconfig.yaml`, and a node cannot decode config documents
+> introduced by a Talos version newer than the one it runs. A node still on
+> v1.13.9 rejects a config generated for v1.14.x outright:
+>
+> ```
+> error decoding document v1alpha1/DiscoveryServiceConfig/default (line 48):
+> "DiscoveryServiceConfig" "v1alpha1": not registered
+> ```
+>
+> (The reverse direction is fine — a newer Talos still accepts an older config's
+> form. The v1alpha1 Kubernetes fields are deprecated in 1.14, not removed.)
+>
+> So after a `talosVersion` bump merges, do **not** reach for
+> `task talos:apply-config` (or the [Applying Configuration
+> Changes](#applying-configuration-changes) procedure) first — its description
+> says "non-version", and this is a version change. Run the `talosctl upgrade`
+> command block below instead, **including `--drain=false`** (see the
+> [single-node warning](#upgrade-procedure)). `upgrade` does not push a machine
+> config: it replaces the OS and leaves the node's stored config untouched, so
+> the node comes back on the new Talos version still running the config it
+> already had — which it still accepts, per the note above. Only once
+> `kubectl get nodes` reports the new Talos version is `task talos:apply-config`
+> the right tool for pushing the regenerated config. This bites hardest across
+> the v1.13 → v1.14 boundary, where Talos moved Kubernetes settings into separate
+> documents (see #315).
+
 Once a `talosVersion` Renovate PR is merged on `main`:
 
 ```bash
@@ -258,8 +286,9 @@ kubectl delete pods -A --field-selector=status.phase=Failed
 
 If this step is skipped, two safety nets pick it up.
 
-**PodGC bounds the residue.** `infra/talos/talconfig.yaml` sets
-`cluster.controllerManager.extraArgs.terminated-pod-gc-threshold: "30"`.
+**PodGC bounds the residue.** `infra/talos/talconfig.yaml` patches the
+`KubeControllerManagerConfig` document with
+`extraArgs.terminated-pod-gc-threshold: "30"`.
 kube-controller-manager's PodGC deletes terminated pods (phase `Succeeded` or
 `Failed`) once their total count exceeds that threshold, removing the excess
 oldest-first. The upstream default of 12500 never fires on a cluster this
@@ -452,7 +481,11 @@ future consideration but are **not** implemented today.
 
 ## Applying Configuration Changes
 
-For configuration changes that don't require a new image:
+For configuration changes that don't require a new image. This procedure assumes
+the node already runs the `talosVersion` declared in `talconfig.yaml` — if that
+version itself changed, follow [Manual operation after merge — Talos OS
+bump](#manual-operation-after-merge--talos-os-bump) instead, because the node
+cannot decode a config generated for a different Talos minor version.
 
 ```bash
 cd infra/talos
@@ -554,6 +587,121 @@ talosctl upgrade --nodes 192.168.0.10 --stage
 # Force reboot if needed
 talosctl reboot --nodes 192.168.0.10
 ```
+
+#### Upgrade fails at image pull after exactly 20 minutes
+
+`talosctl upgrade` gives no progress output while it pulls the installer, and
+aborts the pull at Talos's 1200 s cap:
+
+```
+machined Unknown [/machine.ImageService/Pull] 20m0.003335875s stream 1 error(s) occurred: timeout
+```
+
+**The node is untouched when this happens** — the failure is before staging, so
+there is no reboot and nothing to roll back. Do not treat it as a damaged
+cluster.
+
+First establish whether the download is advancing at all. containerd writes the
+partial blob under its ingest directory, and **keeps it**, so a later attempt
+resumes rather than restarting:
+
+```bash
+# Find the in-flight blob and watch it grow (SIZE(B) column)
+talosctl --nodes 192.168.0.10 \
+  list -l -r /var/lib/containerd/io.containerd.content.v1.content/ingest
+```
+
+Sample it twice, a minute apart:
+
+- **Growing** — the pull works, it is just too slow to finish inside 20
+  minutes. Retrying accumulates progress, since the ingest persists.
+- **Flat** — the transfer really is stalled; investigate the node and its
+  network.
+
+If it is merely slow, check whether the slowness is upstream rather than local
+before touching anything here. Throughput can vary hugely *by byte offset* when
+a CDN has only cached the head of an object, so **compare the same byte range**
+from another machine:
+
+```bash
+# Tail-range fetch of the same blob from your laptop — if this is slow too,
+# the problem is upstream, not this cluster.
+curl -L -r 157286400-162529279 -o /dev/null -w '%{speed_download} B/s\n' \
+  "https://factory.talos.dev/v2/installer/<schematic-id>/blobs/sha256:<layer-digest>"
+```
+
+On 2026-09-21 this pattern resolved a three-attempt failure: the node was fine
+and the LAN did 85 MB/s to Cloudflare, while the Image Factory served that
+object's tail at 0.10 MB/s to both machines that tried it. See
+`docs/lessons-learned.md` and #315.
+### kube-apiserver stuck 0/1 after `apply-config` (etcd encryption key name)
+
+**Symptom.** `kubectl` still works — it talks to `:6443` directly — but
+kube-apiserver sits at 0/1 indefinitely and `readyz` reports exactly one failing
+check:
+
+```bash
+kubectl get --raw='/readyz?verbose' | grep -v 'ok$'   # [-]informer-sync failed
+```
+
+Anything reaching the API through the `10.96.0.1` service VIP fails with
+`connection refused`, so Flux controllers, the Tailscale ingress proxy and
+kube-controller-manager crash-loop. The cause is in the apiserver log, not the
+probe:
+
+```bash
+kubectl -n kube-system logs kube-apiserver-homelab-node-01 | grep 'no matching key'
+# unable to transform key "/registry/secrets/...": no matching key was found
+# for the provided Secretbox transformer
+```
+
+**Cause.** Talos's runtime names the secretbox key `key2`; the
+`KubeEtcdEncryptionConfig` document it generates for 1.14 names the same key
+`key1`. Secretbox stores the key name in every ciphertext, so existing Secrets
+become undecryptable. See `docs/lessons-learned.md` and #315.
+
+**Check before applying** a regenerated config on this cluster:
+
+```bash
+talosctl --nodes 192.168.0.10 \
+  read /system/secrets/kubernetes/kube-apiserver/encryptionconfig.yaml | grep 'name:'
+grep -A6 'kind: KubeEtcdEncryptionConfig' infra/talos/clusterconfig/*.yaml | grep 'name:'
+```
+
+If those disagree, do not apply — rotate first.
+
+**Recovery / rotation.** The fix is to re-encrypt the data under the name the
+generator uses, after which no patch is needed and `talconfig.yaml` stays clean.
+The key bytes are unchanged throughout; only the name migrates.
+
+```bash
+# 0. Snapshot first — this rewrites every Secret in the cluster.
+talosctl --nodes 192.168.0.10 etcd snapshot \
+  ~/.local/share/homelab-k8s/etcd-snapshots/$(date +%Y%m%d-%H%M)-pre-keyrotation-db.snapshot
+kubectl get secrets -A -o json > /tmp/secrets-backup.json   # keep OFF this repo
+kubectl get secrets -A -o json | grep -c '"immutable": true'   # must be 0 (immutable Secrets reject `replace`)
+```
+
+1. Hand-edit the generated config so the single secretbox provider lists **both**
+   names, `key1` first (it becomes the write key) and `key2` second, with the
+   same secret value in each. Apply it with `talosctl apply-config -f ...`.
+   Confirm `readyz` is `ok` and Secrets are listable.
+2. Re-encrypt everything under the write key:
+
+   ```bash
+   kubectl get secrets -A -o json | kubectl replace -f -
+   ```
+
+   Verify every object was actually rewritten by diffing `resourceVersion`
+   against the backup — a silent no-op here is what leaves the cluster
+   half-migrated.
+3. Apply the unmodified generated config (`task talos:apply-config`). It carries
+   `key1` only, which now matches the data. Re-check `readyz`, Secret
+   readability, workloads and the datapath.
+
+Steps 1 and 3 restart kube-apiserver, so kube-controller-manager and kube-scheduler
+will crash-loop briefly against the `10.96.0.1` VIP and recover on their own
+backoff; do not chase them until the apiserver is 1/1.
 
 ### Node Not Coming Back After Upgrade
 

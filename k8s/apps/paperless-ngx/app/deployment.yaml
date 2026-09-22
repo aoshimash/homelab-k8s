@@ -21,7 +21,7 @@ spec:
         fsGroup: 1000
       initContainers:
         - name: download-jpn-tessdata
-          image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+          image: busybox:1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
           command:
             - wget
             - -O
@@ -39,7 +39,7 @@ spec:
         - name: paperless-ngx
           # NOTE: paperless-ngx entrypoint requires root for chown and user switching,
           # so allowPrivilegeEscalation and capabilities cannot be restricted here.
-          image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7@sha256:2a6d9f6461ad7e8335f5b2123a173b9e6002fda209af8a66483b0c00629569ab
+          image: ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -114,7 +114,7 @@ spec:
             seccompProfile:
               type: RuntimeDefault
         - name: tika
-          image: apache/tika:3.1.0.0@sha256:2c1a2e563b3a9b2e98443143cd4ca34a6a1e829e24103152a299888153479fab
+          image: apache/tika:3.3.1.0@sha256:90b7fa1dc018434075fce9e1d9b88b1e3d0ea6979d0cf86e116c79a8073ae973
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9998
@@ -132,7 +132,7 @@ spec:
               drop:
                 - ALL
         - name: gotenberg
-          image: gotenberg/gotenberg:8@sha256:a40c5a46b79d812ce2f5e139278163142a054050bfd1e5f162da36d3d11c7138
+          image: gotenberg/gotenberg:8@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

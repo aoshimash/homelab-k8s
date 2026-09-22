@@ -7,6 +7,11 @@ data:
   config.yml: |
     service:
       enableregistration: false
+      # Required from Vikunja 1.0.0 onwards: cors.enable defaults to true there
+      # and startup aborts with "service.publicurl is required when cors.enable
+      # is true" when this is empty (pkg/config/config.go). 0.24.x defaults CORS
+      # to false, so this is inert until the image tag moves.
+      publicurl: https://vikunja.tail19032f.ts.net/
     log:
       # Disable the HTTP access log: 100% of it was kube-probe health-check
       # hits (issue #218). Quoted "off" because some YAML 1.1 parsers coerce
