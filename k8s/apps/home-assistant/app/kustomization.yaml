@@ -9,3 +9,4 @@ resources:
   - ingress.yaml
   - secret-db-url.sops.yaml
   - k8up-schedule.yaml
+  - secret-k8up-backup.sops.yaml

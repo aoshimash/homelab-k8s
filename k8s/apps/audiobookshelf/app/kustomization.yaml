@@ -6,3 +6,4 @@ resources:
   - ingress.yaml
   - pvc.yaml
   - k8up-schedule.yaml
+  - secret-k8up-backup.sops.yaml
