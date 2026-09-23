@@ -44,9 +44,10 @@ R2 is S3-compatible, so the existing backup target is reachable unchanged.
 Longhorn does not support skipping minor versions. Its own upgrade
 documentation for the version this repository pins states: *"We only support
 upgrading to v1.12.1 from v1.11.x. For other versions, please upgrade to v1.11.x
-first."* The same rule is already recorded in
+first."* This repository had already written the rule down for itself, in
 `k8s/infrastructure/longhorn/helmrelease.yaml`, in the form it took at the time
-that comment was written (`v1.7.3 → v1.8.x → v1.9.x → v1.10.x`).
+(`v1.7.3 → v1.8.x → v1.9.x → v1.10.x`) — that file goes away with the component,
+and git keeps it.
 
 Every other dependency here is pinned in Git and updated by Renovate as a
 reviewable PR — that is the whole maintenance model of this repository (see
@@ -131,10 +132,10 @@ These are chosen, not overlooked.
   "Cons" section lists *"No support for the volume capacity limit currently."*
   and, beneath it, *"The capacity limit will be ignored for now."* A PVC's
   `resources.requests.storage` becomes documentation rather than a limit, and
-  volume expansion is meaningless rather than available. The over-provisioning this cluster carries (~106Gi requested
-  against ~13Gi in use, post-Immich) simply stops being a concept; the real
-  limit becomes free space on the user volume — a node-level concern rather than
-  a per-PVC one.
+  volume expansion is meaningless rather than available. The over-provisioning
+  this cluster carries (~106Gi requested against ~13Gi in use, post-Immich)
+  simply stops being a concept; the real limit becomes free space on the user
+  volume — a node-level concern rather than a per-PVC one.
 - **No volume snapshots.** Recovery is from the R2 backup, not from a local
   point-in-time copy.
 - **Data is lost on node failure.** Talos states it plainly: *"Local storage is
@@ -209,7 +210,7 @@ Reversed by this decision:
 | FR-002 / FR-002a — single-node tuning, default replica count MUST be 1 | **Moot.** There is no replica count; there is one copy on local disk |
 | FR-004 / FR-005 / FR-006 — backup and restore of *Longhorn volumes* to R2 | **Reversed in mechanism.** K8up/restic → R2. R2 as the target and a verified restore path both survive |
 | FR-010 — automatic daily backups for volumes | **Reversed in scope.** Daily survives; *automatic for every volume* does not — backups are opt-in |
-| FR-012 — retain backups for 30 days | **Not carried over.** K8up's retention is decided when K8up is configured ([#301](https://github.com/aoshimash/homelab-k8s/issues/301)); it does not inherit 30 days by default |
+| FR-012 — retain backups for 30 days | **Not carried over.** Retention is set explicitly when K8up is configured ([#301](https://github.com/aoshimash/homelab-k8s/issues/301)). This record does not decide it, and 30 days does not carry over on its own |
 | Clarification "Default replicas = 1" (session 2026-01-02) | **Superseded** by the decision that there is no node-to-node replication at all |
 
 Not reversed, and still binding:
