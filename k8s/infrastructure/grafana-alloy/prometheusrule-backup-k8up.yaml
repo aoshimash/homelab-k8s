@@ -2,7 +2,8 @@
 # Alloy (mimir.rules.kubernetes) and evaluated there against two
 # remote-written sources:
 # - k8up_jobs_failed_counter from the K8up operator (k8up scrape job), which
-#   counts Backup/Check/Prune objects that failed, per namespace and job type.
+#   counts failed job objects per namespace and job type (backup/check/prune
+#   used here).
 # - kube_customresource_k8up_snapshot_timestamp_seconds from kube-state-metrics
 #   (CustomResourceState over K8up Snapshot resources), one series per restic
 #   snapshot, labelled with its namespace and path.

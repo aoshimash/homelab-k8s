@@ -56,8 +56,9 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
   `cnpg_collector_first_recoverability_point`. *(Deprecated since CNPG 1.26 but
   functional with the in-core Barman Cloud R2 backups this cluster uses.)*
 - **K8up operator** (Service `k8up-metrics` in `k8up`, `:8080`):
-  `k8up_jobs_failed_counter{namespace, jobType}` — the number of Backup,
-  Check and Prune objects that failed since the operator started.
+  `k8up_jobs_failed_counter{namespace, jobType}` — the number of K8up job
+  objects of each type that failed since the operator started (the rules use
+  `backup`, `check` and `prune`).
 - **K8up snapshots** (kube-state-metrics, from `snapshots.k8up.io`):
   `kube_customresource_k8up_snapshot_timestamp_seconds{namespace, path, snapshot}`
   — the time of each restic snapshot. It is forwarded by the existing
@@ -86,8 +87,9 @@ rules are in `prometheusrule-backup-k8up.yaml`. They use two signals, because
 neither is enough alone.
 
 **Failure: `K8upJobFailed`.** The operator increments
-`k8up_jobs_failed_counter{namespace, jobType}` once when a Backup, Check or
-Prune object first becomes Failed, whether a Schedule or a person created it.
+`k8up_jobs_failed_counter{namespace, jobType}` once when a job object (Backup,
+Check, Prune, and also Restore and Archive, which the rule ignores) first
+becomes Failed, whether a Schedule or a person created it.
 The alert fires when the counter increased within one schedule period plus a
 buffer: 26h for the daily backup, 8d for the weekly prune and `restic check`.
 It keeps firing while failures keep landing inside that window, and clears
