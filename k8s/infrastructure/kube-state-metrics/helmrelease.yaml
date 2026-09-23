@@ -31,3 +31,45 @@ spec:
       - persistentvolumes
       - statefulsets
       - daemonsets
+    # Per-path K8up backup freshness, read from K8up's Snapshot resources
+    # (snapshots.k8up.io). After every successful backup or prune, the job
+    # mirrors the namespace's restic snapshot list into Snapshot resources.
+    # Each one holds a single path (/data/<pvc> for a volume,
+    # /<namespace>-<container><ext> for a backup-command dump) and the restic
+    # snapshot time. The K8upBackupStale alert
+    # (grafana-alloy/prometheusrule-backup-k8up.yaml) takes the newest
+    # timestamp per (namespace, path). Custom resources are enabled through
+    # CRD discovery, independently of `collectors` above. Upstream has
+    # feature-frozen CustomResourceState in favour of resource-state-metrics.
+    # See docs/backup-alerting.md.
+    customResourceState:
+      enabled: true
+      config:
+        kind: CustomResourceStateMetrics
+        spec:
+          resources:
+            - groupVersionKind:
+                group: k8up.io
+                version: v1
+                kind: Snapshot
+              labelsFromPath:
+                namespace: [metadata, namespace]
+                # One series per Snapshot: several snapshots share a path,
+                # and without a unique label their series would collide.
+                snapshot: [metadata, name]
+                # K8up takes one restic snapshot per path, so the first
+                # element is the only one.
+                path: [spec, paths, "0"]
+              metrics:
+                # kube_customresource_k8up_snapshot_timestamp_seconds
+                - name: k8up_snapshot_timestamp_seconds
+                  help: "Unix time the K8up (restic) snapshot was taken."
+                  each:
+                    type: Gauge
+                    gauge:
+                      path: [spec, date]
+    rbac:
+      extraRules:
+        - apiGroups: ["k8up.io"]
+          resources: ["snapshots"]
+          verbs: ["list", "watch"]
