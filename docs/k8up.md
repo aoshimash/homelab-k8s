@@ -268,6 +268,11 @@ kubectl -n "$NS" get restores.k8up.io -w
 The snapshot's `/data/<pvc>` prefix is stripped on restore, so the files land
 at the root of the new PVC, as they were on the original.
 
+**A `Completed` Restore does not prove the restore worked.** In K8up v2.16.0 a
+folder restore runs restic and returns success regardless of restic's exit
+status, so a failed or partial restore still completes. The checksum
+comparison below is the actual check — never skip it.
+
 ### Verify
 
 Mount the live volume read-only next to the restored one and compare
@@ -307,6 +312,10 @@ kubectl -n "$NS" exec restore-verify -- sh -c '
 The pod must run on the node the live volume is attached to, which is
 automatic on a single node.
 
+For `audiobookshelf-config`, `absdatabase.sqlite*` shows up as missing from the
+restored copy. That is expected: the file copy excludes the live database, which
+lives in its own snapshot (see "Restore audiobookshelf's database").
+
 ### Put restored data into service
 
 Once the copy in `restore-<pvc>` checks out, restore the same snapshot onto
@@ -325,6 +334,9 @@ kubectl -n "$NS" scale deploy/"$APP" --replicas=0
 
 # 2. Restore onto the original PVC. `delete: true` removes files that are not
 #    in the snapshot, so the volume ends up exactly as it was backed up.
+#    For audiobookshelf-config that includes the live database, which the file
+#    snapshot excludes: do "Restore audiobookshelf's database" afterwards,
+#    before step 4.
 kubectl -n "$NS" get schedules.k8up.io backup -o json \
   | jq --arg snap "$SNAPSHOT" --arg pvc "$PVC" \
       '{apiVersion: "k8up.io/v1", kind: "Restore",
@@ -336,7 +348,15 @@ kubectl -n "$NS" get schedules.k8up.io backup -o json \
   | kubectl -n "$NS" create -f -
 kubectl -n "$NS" get restores.k8up.io -w
 
-# 3. Hand control back to Flux; resuming re-applies replicas: 1.
+# 3. Verify the original PVC now matches the copy verified above — Completed
+#    is not proof (see above). restore-verify still mounts both volumes.
+kubectl -n "$NS" exec restore-verify -- sh -c '
+  cd /live     && find . -type f ! -path "./lost+found/*" -exec sha256sum {} + | sort -k 2 > /tmp/live.sum
+  cd /restored && find . -type f ! -path "./lost+found/*" -exec sha256sum {} + | sort -k 2 > /tmp/restored.sum
+  diff /tmp/live.sum /tmp/restored.sum && echo IDENTICAL'
+
+# 4. Only when IDENTICAL: hand control back to Flux; resuming re-applies
+#    replicas: 1.
 flux resume kustomization apps
 ```
 
@@ -393,22 +413,55 @@ spec:
 EOF
 ```
 
-Then swap the files from a pod that mounts the volume (the same pod spec with
-a shell command works). Move the old database **and its companion files** aside
+Check the pod succeeded (`kubectl -n "$NS" get pod restore-absdb` shows
+`Completed`; `kubectl -n "$NS" logs restore-absdb` shows no error). The swap
+below also refuses to touch anything if the restored file is missing or empty.
+
+Then swap the files. Move the old database **and its companion files** aside
 together: audiobookshelf leaves SQLite in its default rollback-journal mode, and
 an `absdatabase.sqlite-journal` left over from an interrupted write would be
-rolled back into the restored database on first open, corrupting it.
+rolled back into the restored database on first open, corrupting it. The
+completed `restore-absdb` pod cannot be reused (pod specs are immutable), so
+delete it and run the swap in a fresh pod:
 
 ```bash
-cd /config && mkdir -p pre-restore \
-  && for f in absdatabase.sqlite absdatabase.sqlite-journal absdatabase.sqlite-wal absdatabase.sqlite-shm; do
-       [ -e "$f" ] && mv "$f" pre-restore/
-     done \
-  && mv absdatabase.sqlite.restored absdatabase.sqlite
+kubectl -n "$NS" delete pod restore-absdb
+kubectl -n "$NS" apply -f - <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restore-absdb-swap
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsUser: 0
+  containers:
+    - name: swap
+      image: alpine:3.22
+      command: ["sh", "-euc"]
+      args:
+        - |
+          cd /config
+          # Refuse to touch anything unless the restored file is there and non-empty
+          test -s absdatabase.sqlite.restored
+          mkdir -p pre-restore
+          for f in absdatabase.sqlite absdatabase.sqlite-journal absdatabase.sqlite-wal absdatabase.sqlite-shm; do
+            if [ -e "$f" ]; then mv "$f" pre-restore/; fi
+          done
+          mv absdatabase.sqlite.restored absdatabase.sqlite
+          ls -l absdatabase.sqlite pre-restore/
+      volumeMounts:
+        - {name: config, mountPath: /config}
+  volumes:
+    - {name: config, persistentVolumeClaim: {claimName: audiobookshelf-config}}
+EOF
+kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded pod/restore-absdb-swap
+kubectl -n "$NS" logs restore-absdb-swap
+kubectl -n "$NS" delete pod restore-absdb-swap
 ```
 
-Delete the pods, then `flux resume kustomization apps`, which brings
-audiobookshelf back to one replica.
+Then `flux resume kustomization apps`, which brings audiobookshelf back to one
+replica. The previous database stays in `pre-restore/` until you delete it.
 
 ### Clean up after a restore
 
