@@ -134,7 +134,8 @@ talosctl get mountstatus u-local-path-provisioner --nodes 192.168.0.10
 The volume has to survive a reboot. At the next planned reboot of the node (on a
 single node this takes every workload down, so schedule it), re-run the two
 `get` commands above, and confirm that the data written in the end-to-end check
-below is still there.
+below is still there. Keep the `lpp-test` claim until that reboot has been
+checked.
 
 ### Verify provisioning end to end
 
@@ -199,7 +200,7 @@ kubectl logs -n flux-system deploy/kustomize-controller --since=1h \
   | grep -i podsecurity | grep -i local-path
 ```
 
-Clean up afterwards. Because the class uses `Retain`, deleting the claim leaves
+Clean up once the reboot check above is done too. Because the class uses `Retain`, deleting the claim leaves
 the PV and its directory behind, and both need the steps below.
 
 ### Release a retained volume
