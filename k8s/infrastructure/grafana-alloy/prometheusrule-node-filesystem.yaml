@@ -2,9 +2,9 @@
 # Cloud ruler by Grafana Alloy (mimir.rules.kubernetes) and evaluated there
 # against container_fs_{limit,usage}_bytes from the kubelet's cAdvisor endpoint
 # (cadvisor scrape job). The cadvisor_filter allow-list keeps these two names
-# only for the node root container (id="/") on block-device partitions, which
-# on a Talos node is the EPHEMERAL partition (/dev/nvme0n1p4 on
-# homelab-node-01). The rules do not name a device, so a second node's
+# only for the node root container (id="/") on /dev devices whose name ends in
+# a digit, which on a Talos node today is only the EPHEMERAL partition
+# (/dev/nvme0n1p4 on homelab-node-01). The rules do not name a device, so a second node's
 # EPHEMERAL is covered without a rule change.
 #
 # EPHEMERAL holds etcd, container images, the kubelet, logs and every
@@ -37,7 +37,8 @@ spec:
           annotations:
             summary: "Node EPHEMERAL filesystem over 70% used"
             description: >-
-              {{ $labels.device }} on {{ $labels.instance }} is
+              {{ $labels.device }} on the node at {{ $labels.instance }}
+              (its InternalIP; `kubectl get nodes -o wide`) is
               {{ $value | humanizePercentage }} used. The kubelet starts
               image GC and pod eviction at ~85%, and eviction frees no volume
               data. Find what is growing (docs/node-filesystem-alerting.md):
@@ -48,6 +49,8 @@ spec:
           # nothing and never fires. This fires if its expression has no
           # result at all: the cadvisor_filter allow-list changed, the
           # cadvisor scrape broke, or the device label no longer matches.
+          # It covers all nodes together: with a second node, losing only
+          # one node's series does not fire it.
           expr: absent(container_fs_usage_bytes{id="/"} / container_fs_limit_bytes{id="/"})
           for: 1h
           labels:

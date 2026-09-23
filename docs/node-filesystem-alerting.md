@@ -52,7 +52,9 @@ There is one level only. A critical level would sit where the kubelet's own
 `NodeFilesystemMetricsAbsent` guards the usage alert: over a missing metric the
 usage expression returns nothing, and an alert over nothing never fires. It
 fires if the allow-list below is changed, the cAdvisor scrape breaks, or the
-device label stops matching.
+device label stops matching. It looks at all nodes together, so once there is a
+second node it fires only when every node's series are gone; one node losing
+its series goes unnoticed.
 
 ## Metrics used
 
@@ -65,14 +67,20 @@ kubelet's own summary of `EPHEMERAL` (`.node.fs` in `stats/summary`).
 The same names are exported for every container, and the root container also
 reports 17 other mounts (tmpfs, overlay and bind mounts), some of them full by
 design (e.g. a 128KiB mount at 100%). Alloy's `cadvisor_filter` therefore keeps
-these two names only when `id="/"` and `device` is a block-device partition
-(`/dev/<name>` ending in a digit, e.g. `/dev/nvme0n1p4`, `/dev/sda4`). That adds
-two series per node. On a Talos node the only such filesystem the kubelet sees
-is `EPHEMERAL`.
+these two names only when `id="/"` and `device` is a `/dev/<name>` ending in a
+digit (e.g. `/dev/nvme0n1p4`, `/dev/sda4`). That adds two series per node. On
+homelab-node-01 the only such filesystem the kubelet sees is `EPHEMERAL`.
 
 The rules do not name a device, so a second node's `EPHEMERAL` is covered
-without a change. A partition-type user volume, if a node ever gets one, is
-expected to appear as another block device and be alerted on in the same way.
+without a change. Any other matching device the kubelet comes to see, such as
+a partition-type user volume or a loop mount, would be alerted on in the same
+way, under the same `EPHEMERAL` summary. A read-only loop mount is always 100%
+used, so if one appears, narrow the `device` part of the regex rather than
+silencing the alert.
+
+The alert's `instance` label is the scrape address, the node's InternalIP and
+kubelet port (e.g. `100.119.230.112:10250`), not its name. `kubectl get nodes -o
+wide` maps one to the other.
 
 `kube_node_status_condition{condition="DiskPressure"}` (kube-state-metrics) is
 not used: it turns true at the kubelet's eviction thresholds, which is what this
