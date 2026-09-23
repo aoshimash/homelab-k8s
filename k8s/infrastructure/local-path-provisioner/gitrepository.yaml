@@ -1,0 +1,21 @@
+# local-path-provisioner publishes no Helm repository; the chart exists only in
+# the upstream git repository under deploy/chart/. The chart is therefore fetched
+# from git and the HelmRelease references this source instead of a
+# HelmRepository.
+#
+# The version pin is `ref.tag`, not the HelmRelease's `spec.chart.spec.version`
+# (Flux ignores that field for GitRepository sources). Renovate's flux manager
+# tracks `ref.tag` through the github-tags datasource and proposes bumps as PRs.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: local-path-provisioner
+  namespace: flux-system
+spec:
+  interval: 1h0m0s
+  url: https://github.com/rancher/local-path-provisioner
+  ref:
+    tag: v0.0.37
+  # Only the chart is needed; skip the Go sources, tests and docs.
+  sparseCheckout:
+    - deploy/chart

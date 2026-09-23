@@ -1,0 +1,61 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: local-path-provisioner
+  namespace: local-path-storage
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: ./deploy/chart/local-path-provisioner
+      sourceRef:
+        kind: GitRepository
+        name: local-path-provisioner
+        namespace: flux-system
+      # No `version`: it is ignored for GitRepository sources. The version is
+      # pinned by `ref.tag` in gitrepository.yaml. `Revision` builds a new chart
+      # artifact whenever the fetched revision changes, so what runs is what the
+      # tag points to. A tag is mutable upstream; see docs/local-path-provisioner.md.
+      reconcileStrategy: Revision
+  releaseName: local-path-provisioner
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # The chart's default helper image is `busybox:latest`, a floating tag.
+    # Pin it like every other image in this repository (see docs/renovate.md).
+    # The helper pod runs the setup/teardown scripts that create and delete
+    # volume directories on the node.
+    helperImage:
+      repository: docker.io/library/busybox
+      tag: 1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+    # The Talos user volume from infra/talos/talconfig.yaml. The chart default
+    # (/opt/local-path-provisioner) is read-only on Talos.
+    nodePathMap:
+      - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+        paths:
+          - /var/mnt/local-path-provisioner
+    storageClass:
+      name: local-path
+      # Longhorn still owns every existing volume and stays the default until
+      # the migration is complete (#299). Flipping this early would send new
+      # claims to a provisioner that has not been exercised.
+      defaultClass: false
+      # Retain while volumes are being migrated off Longhorn, so a mistake while
+      # moving a PVC does not delete its data. Revisit once the migration is
+      # complete.
+      reclaimPolicy: Retain
+      # Chart default, set explicitly because it is a decision (#302): volumes
+      # are node-bound, and binding waits for the pod so a claim lands on the
+      # node its consumer is scheduled to once a second node joins.
+      volumeBindingMode: WaitForFirstConsumer
+      # <namespace>/<claim>/<pv-name>, so a volume can be found on disk by its
+      # namespace and claim without consulting the cluster. The provisioner
+      # requires the pattern to start with <namespace>/<claim>/. The trailing PV
+      # name keeps each volume's directory unique: with Retain, a claim deleted
+      # and recreated under the same name would otherwise be bound to the old
+      # claim's retained data.
+      pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}/{{ .PVName }}"
