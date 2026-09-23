@@ -20,7 +20,7 @@ Concretely:
 | Kind of dependency | How it is pinned |
 |--------------------|------------------|
 | Helm chart | `spec.chart.spec.version` — an exact version, never omitted |
-| Helm chart fetched from git (no Helm repository upstream) | `ref.tag` on the Flux `GitRepository` the HelmRelease references — Flux ignores `spec.chart.spec.version` for git sources |
+| Helm chart fetched from git (no Helm repository upstream) | `ref.tag` on the Flux `GitRepository` the HelmRelease references — Flux ignores `spec.chart.spec.version` for git sources. A tag is mutable upstream, unlike a digest; see [local-path-provisioner.md](local-path-provisioner.md#why-these-settings) |
 | Container image | `repository:tag@sha256:...` — tag *and* digest |
 | Talos / Kubernetes | exact `vX.Y.Z` in `infra/talos/talconfig.yaml` |
 | GitHub Action | tag + commit SHA (`helpers:pinGitHubActionDigests`) |

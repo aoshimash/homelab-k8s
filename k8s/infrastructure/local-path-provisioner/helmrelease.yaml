@@ -14,7 +14,8 @@ spec:
         namespace: flux-system
       # No `version`: it is ignored for GitRepository sources. The version is
       # pinned by `ref.tag` in gitrepository.yaml. `Revision` builds a new chart
-      # artifact whenever that tag changes, so what runs always matches the pin.
+      # artifact whenever the fetched revision changes, so what runs is what the
+      # tag points to. A tag is mutable upstream; see docs/local-path-provisioner.md.
       reconcileStrategy: Revision
   releaseName: local-path-provisioner
   install:

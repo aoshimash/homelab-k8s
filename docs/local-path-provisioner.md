@@ -45,8 +45,15 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   patches on a ConfigMap instead of chart values.
 - **`reconcileStrategy: Revision`.** For a `GitRepository` source, Flux ignores
   `spec.chart.spec.version`. The pin is `ref.tag`, and `Revision` rebuilds the
-  chart artifact whenever that tag moves, so the chart that runs is the chart
-  the pin names.
+  chart artifact whenever the fetched revision changes, so the chart that runs
+  is the chart the tag points to. A git tag is a mutable pin, unlike a digest:
+  if upstream force-moves a tag, the change is deployed without a reviewed
+  commit here. The default `ChartVersion` strategy would not avoid that. It
+  would only stop redeploying while the chart version stayed the same, and the
+  cluster would then run something other than what the tag names. Pinning
+  `ref.commit` instead would close the gap, but Renovate's flux manager tracks
+  commits rather than tags when `commit` is set. The tag was chosen so version
+  bumps still arrive as PRs.
 - **Not the default class.** Longhorn owns every existing volume. Making this
   the default before any volume has moved would send new claims to a
   provisioner that has not been exercised yet.
@@ -107,8 +114,11 @@ configured in `talosconfig`. Outside the LAN, pass the tailnet IP instead; see
 
 The user volume is declared in `infra/talos/talconfig.yaml` and, like every
 Talos change, is applied by hand after the change merges. Apply it before any
-claim uses the `local-path` class; until then the provisioner is running but has
-no root to provision into. Adding the document does not require a reboot.
+claim uses the `local-path` class. A claim created earlier does not fail: the
+helper pod mounts the volume's parent directory as a `DirectoryOrCreate`
+`hostPath`, so it provisions into a plain directory it creates under
+`/var/mnt/local-path-provisioner` on `EPHEMERAL`, outside the user volume Talos
+manages. Adding the document does not require a reboot.
 
 ```bash
 cd infra/talos
@@ -120,6 +130,11 @@ talosctl apply-config --nodes 192.168.0.10 \
 talosctl get volumestatus u-local-path-provisioner --nodes 192.168.0.10
 talosctl get mountstatus u-local-path-provisioner --nodes 192.168.0.10
 ```
+
+The volume has to survive a reboot. At the next planned reboot of the node (on a
+single node this takes every workload down, so schedule it), re-run the two
+`get` commands above, and confirm that the data written in the end-to-end check
+below is still there.
 
 ### Verify provisioning end to end
 
@@ -168,6 +183,20 @@ kubectl logs -n lpp-test test
 
 # The directory is named after the namespace and claim
 talosctl ls --nodes 192.168.0.10 /var/mnt/local-path-provisioner/lpp-test/test
+```
+
+Also confirm that Flux applied the component without PodSecurity violations.
+The helper pod is created on demand, so a missing `privileged` label would first
+surface when a claim is provisioned:
+
+```bash
+flux get kustomizations infrastructure
+flux get helmreleases -n local-path-storage
+# A rejected pod shows up as a FailedCreate warning here
+kubectl get events -n local-path-storage --field-selector type=Warning
+# Other namespaces log `restricted` warnings routinely; only local-path ones matter
+kubectl logs -n flux-system deploy/kustomize-controller --since=1h \
+  | grep -i podsecurity | grep -i local-path
 ```
 
 Clean up afterwards. Because the class uses `Retain`, deleting the claim leaves
