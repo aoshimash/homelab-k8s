@@ -15,7 +15,7 @@ This document describes CloudNativePG PostgreSQL cluster operations, troubleshoo
 - **Backup Schedule**: Daily at 18:00 UTC (03:00 JST)
 - **Backup Retention**: 7 days
 - **Backup Target**: Cloudflare R2 (S3-compatible)
-- **Longhorn Backup Exclusion**: PostgreSQL PVC is excluded from Longhorn recurring backups (backups handled directly by CloudNativePG)
+- **Longhorn PVC Backups**: PostgreSQL PVC is **not** excluded from Longhorn recurring backups — it sits in the `default` recurring-job group and is backed up daily by `backup-daily` alongside CNPG's own backups. CNPG's R2 backup remains the authoritative restore path; see [Backup Configuration Notes](#backup-configuration-notes)
 
 ## Configuration Files
 
