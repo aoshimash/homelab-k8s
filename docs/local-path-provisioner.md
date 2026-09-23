@@ -200,8 +200,9 @@ kubectl logs -n flux-system deploy/kustomize-controller --since=1h \
   | grep -i podsecurity | grep -i local-path
 ```
 
-Clean up once the reboot check above is done too. Because the class uses `Retain`, deleting the claim leaves
-the PV and its directory behind, and both need the steps below.
+Clean up once the reboot check above is done too. Because the class uses
+`Retain`, deleting the claim leaves the PV and its directory behind, and both
+need the steps below.
 
 ### Release a retained volume
 
