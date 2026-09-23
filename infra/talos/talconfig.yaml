@@ -93,3 +93,20 @@ nodes:
         name: tailscale
         environment:
           - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
+      # Root directory for local-path-provisioner (k8s/infrastructure/local-path-provisioner),
+      # mounted at /var/mnt/local-path-provisioner and propagated into the kubelet.
+      #
+      # `directory`, not the default `partition` type: this node has one disk and
+      # EPHEMERAL already spans all of it, so there is no free space to carve a
+      # partition from. EPHEMERAL cannot be shrunk in place either — Talos honours
+      # a VolumeConfig only when the volume is first provisioned — so a partition
+      # would mean re-provisioning EPHEMERAL, which on a single node wipes etcd
+      # and every workload's data. A directory volume lives on EPHEMERAL instead,
+      # with no filesystem-level isolation: its capacity is whatever EPHEMERAL has
+      # free, shared with etcd, containerd and the kubelet. See issue #302 and
+      # docs/local-path-provisioner.md.
+      - |-
+        apiVersion: v1alpha1
+        kind: UserVolumeConfig
+        name: local-path-provisioner
+        volumeType: directory

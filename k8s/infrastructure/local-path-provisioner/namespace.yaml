@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-path-storage
+  # The provisioner's helper pods mount the node's /var/mnt/local-path-provisioner
+  # as a hostPath to create and delete volume directories, which the cluster's
+  # default `baseline` Pod Security level rejects. Talos's local storage guide
+  # labels this namespace privileged for the same reason.
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

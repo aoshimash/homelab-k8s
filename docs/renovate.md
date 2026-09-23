@@ -20,6 +20,7 @@ Concretely:
 | Kind of dependency | How it is pinned |
 |--------------------|------------------|
 | Helm chart | `spec.chart.spec.version` — an exact version, never omitted |
+| Helm chart fetched from git (no Helm repository upstream) | `ref.tag` on the Flux `GitRepository` the HelmRelease references — Flux ignores `spec.chart.spec.version` for git sources |
 | Container image | `repository:tag@sha256:...` — tag *and* digest |
 | Talos / Kubernetes | exact `vX.Y.Z` in `infra/talos/talconfig.yaml` |
 | GitHub Action | tag + commit SHA (`helpers:pinGitHubActionDigests`) |
@@ -38,6 +39,7 @@ Neither is acceptable in this repository.
 | Type | Location | Manager |
 |------|----------|---------|
 | Helm chart versions | `k8s/infrastructure/**`, `k8s/apps/**`, `k8s/configs/**` | flux |
+| Chart git tags (`GitRepository` `ref.tag`) | same paths | flux (`github-tags` datasource) |
 | Images in HelmRelease `values` | same paths | flux |
 | Images in plain manifests | same paths, excluding `**/helmrelease.yaml` | kubernetes |
 | Talos Linux | `infra/talos/talconfig.yaml` | regex customManager (`github-releases`) |
