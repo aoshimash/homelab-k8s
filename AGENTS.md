@@ -73,6 +73,7 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 - CRDs skipped in kubeconform validation: `HelmRelease, HelmRepository, Kustomization, GitRepository, CiliumNetworkPolicy, PrometheusRule` (see `SKIP_KINDS` in Taskfile.yaml)
 - Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes)
 - The `docs/` directory contains operational documentation for each component
+- A `docs/` record meant to outlive a change must not depend on the current contents of files that change removes. Do not link to a doc scheduled for deletion, and do not assert what another file currently says — state the fact inline and attribute it to a commit SHA, which git keeps after the file is gone
 - `specs/` is a historical archive of feature planning documents — read-only reference, do not edit
 - Talos OS / Kubernetes versions are managed by Renovate via customManagers in `renovate.json5` and arrive as **separate PRs** (their apply procedures and blast radius differ). After merging, apply the change manually with `talosctl` per the procedure in `docs/talos-operations.md` (`#renovate-upgrade-flow`).
 - A PR that changes `renovate.json5` must pass `npx --yes --package renovate@latest renovate-config-validator --strict renovate.json5` before it is opened. Without `@latest`, npx reuses whatever Renovate it has cached (37.x was seen), which wrongly rejects Renovate 42+ options this config relies on (`managerFilePatterns`, `minimumReleaseAgeBehaviour`).
