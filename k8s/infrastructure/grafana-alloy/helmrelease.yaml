@@ -187,13 +187,23 @@ spec:
             forward_to = [prometheus.relabel.cadvisor_filter.receiver]
           }
 
-          // Keep only core cadvisor metrics
+          // Keep only core cadvisor metrics, plus the node filesystem
+          // capacity/usage behind the node-filesystem alert rules.
+          // The regex is matched against "<__name__>;<id>;<device>":
+          // - the first alternative keeps the core metrics for every
+          //   container and device;
+          // - the second keeps container_fs_{limit,usage}_bytes only for the
+          //   node root container (id="/") on a /dev device whose name
+          //   ends in a digit (e.g. /dev/nvme0n1p4, the EPHEMERAL
+          //   partition; also /dev/sda4, /dev/dm-0 or /dev/loop0). The same
+          //   names exist for every container and for 17 other mounts of
+          //   the root container (tmpfs, overlay, bind), all dropped.
           prometheus.relabel "cadvisor_filter" {
             forward_to = [prometheus.relabel.add_cluster.receiver]
 
             rule {
-              source_labels = ["__name__"]
-              regex = "container_cpu_usage_seconds_total|container_cpu_cfs_throttled_seconds_total|container_memory_working_set_bytes|container_memory_usage_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_fs_reads_bytes_total|container_fs_writes_bytes_total|up"
+              source_labels = ["__name__", "id", "device"]
+              regex = "(container_cpu_usage_seconds_total|container_cpu_cfs_throttled_seconds_total|container_memory_working_set_bytes|container_memory_usage_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_fs_reads_bytes_total|container_fs_writes_bytes_total|up);.*|container_fs_(limit|usage)_bytes;/;/dev/[^/]*[0-9]"
               action = "keep"
             }
           }

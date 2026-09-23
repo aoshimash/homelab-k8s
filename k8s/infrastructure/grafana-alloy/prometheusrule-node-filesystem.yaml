@@ -1,0 +1,66 @@
+# Node filesystem (EPHEMERAL, /var) capacity alerts. Synced to the Grafana
+# Cloud ruler by Grafana Alloy (mimir.rules.kubernetes) and evaluated there
+# against container_fs_{limit,usage}_bytes from the kubelet's cAdvisor endpoint
+# (cadvisor scrape job). The cadvisor_filter allow-list keeps these two names
+# only for the node root container (id="/") on /dev devices whose name ends in
+# a digit, which on a Talos node today is only the EPHEMERAL partition
+# (/dev/nvme0n1p4 on homelab-node-01). The rules do not name a device, so a second node's
+# EPHEMERAL is covered without a rule change.
+#
+# EPHEMERAL holds etcd, container images, the kubelet, logs and every
+# local-path volume, and local-path-provisioner does not enforce a volume's
+# requested size. The kubelet only acts at ~85% used (evictionHard
+# nodefs.available 10% / imagefs.available 15%, imageGCHighThresholdPercent 85),
+# and evicting a pod frees no volume data. See docs/node-filesystem-alerting.md.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-filesystem-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kubelet
+    role: node-capacity-alerts
+spec:
+  groups:
+    - name: node-filesystem
+      rules:
+        - alert: NodeEphemeralFilesystemUsageHigh
+          # 70% used leaves ~150GB of the 997GB disk before the kubelet
+          # starts image GC and eviction at ~85%. Single level: a critical
+          # one would sit where the kubelet's own DiskPressure already does.
+          # for: 15m keeps a burst (a large image pull) from firing it.
+          expr: container_fs_usage_bytes{id="/"} / container_fs_limit_bytes{id="/"} > 0.7
+          for: 15m
+          labels:
+            severity: warning
+            component: node-filesystem
+          annotations:
+            summary: "Node EPHEMERAL filesystem over 70% used"
+            description: >-
+              {{ $labels.device }} on the node at {{ $labels.instance }}
+              (its InternalIP; `kubectl get nodes -o wide`) is
+              {{ $value | humanizePercentage }} used. The kubelet starts
+              image GC and pod eviction at ~85%, and eviction frees no volume
+              data. Find what is growing (docs/node-filesystem-alerting.md):
+              `kubectl get --raw /api/v1/nodes/<node>/proxy/stats/summary`
+              and `talosctl usage --depth 1 /var`.
+        - alert: NodeFilesystemMetricsAbsent
+          # NodeEphemeralFilesystemUsageHigh over a missing metric returns
+          # nothing and never fires. This fires if its expression has no
+          # result at all: the cadvisor_filter allow-list changed, the
+          # cadvisor scrape broke, or the device label no longer matches.
+          # It covers all nodes together: with a second node, losing only
+          # one node's series does not fire it.
+          expr: absent(container_fs_usage_bytes{id="/"} / container_fs_limit_bytes{id="/"})
+          for: 1h
+          labels:
+            severity: warning
+            component: node-filesystem
+          annotations:
+            summary: "Node filesystem metrics absent"
+            description: >-
+              No node root filesystem series (container_fs_usage_bytes /
+              container_fs_limit_bytes with id="/") has reached Grafana Cloud
+              for 1h, so NodeEphemeralFilesystemUsageHigh cannot fire. Check
+              the Alloy pods, the cadvisor scrape job and the cadvisor_filter
+              allow-list in k8s/infrastructure/grafana-alloy/helmrelease.yaml.
