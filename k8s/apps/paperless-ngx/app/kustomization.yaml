@@ -8,3 +8,4 @@ resources:
   - secret-paperless.sops.yaml
   - secret-db.sops.yaml
   - ingress.yaml
+  - k8up-schedule.yaml

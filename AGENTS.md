@@ -26,7 +26,7 @@ task security:all      # Trivy all severities (informational)
 
 Flux reconciles three layers from `k8s/` in dependency order:
 
-1. **`k8s/infrastructure/`** — Cluster infrastructure (Helm-based): Cilium CNI, Longhorn storage, Tailscale operator, Grafana Alloy, kube-state-metrics, metrics-server, CloudNativePG, Actions Runner Controller
+1. **`k8s/infrastructure/`** — Cluster infrastructure (Helm-based): Cilium CNI, Longhorn storage, K8up backups, Tailscale operator, Grafana Alloy, kube-state-metrics, metrics-server, CloudNativePG, Actions Runner Controller
 2. **`k8s/configs/`** — Post-infrastructure configuration: Tailscale ingress/proxy, PostgreSQL cluster + databases, ARC runner definitions. Depends on `infrastructure` and waits for Tailscale operator health.
 3. **`k8s/apps/`** — User applications: Audiobookshelf, Home Assistant, Vikunja. Depends on `configs`.
 4. **Private apps** (`homelab-k8s-private` repo) — Components with private configuration (e.g., radigo-recorder). Deployed via Flux multi-source reconciliation with `dependsOn: apps`.

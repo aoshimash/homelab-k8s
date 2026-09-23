@@ -1,0 +1,35 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: k8up
+  namespace: k8up
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: k8up
+      sourceRef:
+        kind: HelmRepository
+        name: k8up
+        namespace: flux-system
+      # Pinned to avoid automatic upgrades; managed by Renovate.
+      version: 4.10.0
+  releaseName: k8up
+  # The chart ships its CRDs in crds/, which Helm installs once and never
+  # upgrades. CreateReplace makes a Renovate chart bump carry the matching CRDs.
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    k8up:
+      # Opt-in backups: a PVC is backed up only when it carries
+      # `k8up.io/backup: "true"`. The chart default (false) backs up every
+      # PVC in a namespace that has a Schedule. See docs/k8up.md.
+      skipWithoutAnnotation: true
+      # Schedules in this repository are written in UTC.
+      timezone: UTC

@@ -3,6 +3,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: home-assistant-config
   namespace: home-assistant
+  annotations:
+    # Opt-in K8up backup (docs/k8up.md).
+    k8up.io/backup: "true"
 spec:
   accessModes:
     - ReadWriteOnce
