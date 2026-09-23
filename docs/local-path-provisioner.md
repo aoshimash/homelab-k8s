@@ -216,6 +216,8 @@ kubectl patch pv <name> -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
 
 Renovate's flux manager tracks `ref.tag` in `gitrepository.yaml` through the
 `github-tags` datasource, and proposes bumps with the grouped `Helm charts` PR.
+The tag itself is the pin. `pinDigests` is turned off for this dependency in
+`renovate.json5`, because a tag ref has no field for a commit digest.
 The provisioner image comes from the chart's defaults, so it moves with the tag.
 The helper image lives in the HelmRelease values and arrives with the grouped
 `container images` PR. See [renovate.md](renovate.md).
