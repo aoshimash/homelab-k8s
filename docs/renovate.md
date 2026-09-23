@@ -23,6 +23,7 @@ Concretely:
 | Container image | `repository:tag@sha256:...` — tag *and* digest |
 | Talos / Kubernetes | exact `vX.Y.Z` in `infra/talos/talconfig.yaml` |
 | GitHub Action | tag + commit SHA (`helpers:pinGitHubActionDigests`) |
+| Tool version passed to an action's `with:` input (e.g. `aqua_version`) | exact version only — the input has no slot for a digest, so `pinDigests` is turned off for depType `uses-with` |
 
 Omitting `spec.chart.spec.version` makes a HelmRelease follow whatever the Helm
 repository serves, *and* makes the chart invisible to Renovate — the flux manager

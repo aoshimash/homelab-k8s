@@ -133,6 +133,18 @@
       "matchUpdateTypes": ["pin", "replacement"],
       "minimumReleaseAge": null
     },
+    // The top-level pinDigests also reaches versions the github-actions manager
+    // reads from an action's `with:` input (depType `uses-with`, e.g.
+    // aqua-installer's `aqua_version`). That input is a plain version string
+    // with no slot for a digest, so the pin can never be written and the branch
+    // fails with "Digest is not updated" on every run (renovate/pin-dependencies,
+    // 2026-09-23). The `uses:` lines themselves are depType `action` and stay
+    // pinned by helpers:pinGitHubActionDigests.
+    {
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["uses-with"],
+      "pinDigests": false
+    },
     // GHCR returns no release timestamp, so *version* updates for images hosted
     // there cannot be aged either, and Renovate suppresses PR creation entirely
     // while their status is yellow — the update never surfaces at all. Seen here
