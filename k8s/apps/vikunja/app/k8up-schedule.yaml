@@ -1,0 +1,37 @@
+# Daily K8up (restic) backup of this namespace's PVCs to Cloudflare R2.
+# Only PVCs annotated k8up.io/backup: "true" are included — the operator runs
+# with skipWithoutAnnotation. Times are UTC. See docs/k8up.md.
+apiVersion: k8up.io/v1
+kind: Schedule
+metadata:
+  name: backup
+  namespace: vikunja
+spec:
+  backend:
+    repoPasswordSecretRef:
+      name: k8up-backup
+      key: RESTIC_PASSWORD
+    s3:
+      endpoint: https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com
+      # One restic repository per namespace, under a prefix of the shared bucket.
+      bucket: homelab-k8up-backups/vikunja
+      accessKeyIDSecretRef:
+        name: k8up-backup
+        key: ACCESS_KEY_ID
+      secretAccessKeySecretRef:
+        name: k8up-backup
+        key: SECRET_ACCESS_KEY
+  # Root, so the backup reads files regardless of owner and mode, and a restore
+  # writes them back with their original ownership.
+  podSecurityContext:
+    runAsUser: 0
+  backup:
+    # 19:00 UTC, after Longhorn's backup-daily (18:30 UTC) has started, so
+    # the two do not begin reading the same volumes at the same moment.
+    schedule: "0 19 * * *"
+  prune:
+    schedule: "0 20 * * 0"
+    retention:
+      keepDaily: 30
+  check:
+    schedule: "0 21 * * 0"

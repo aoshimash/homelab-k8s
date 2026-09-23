@@ -22,3 +22,9 @@ spec:
       kind: HelmRelease
       name: tailscale-operator
       namespace: tailscale
+    # K8up's CRDs (Schedule) must exist before k8s/apps/ applies the per-app
+    # backup Schedules; apps depends on configs, so waiting here orders them.
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: k8up
+      namespace: k8up

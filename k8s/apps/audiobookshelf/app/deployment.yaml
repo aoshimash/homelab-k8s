@@ -21,6 +21,16 @@ spec:
     metadata:
       labels:
         app: audiobookshelf
+      annotations:
+        # K8up runs this in the container at backup time and stores its stdout
+        # as /audiobookshelf-audiobookshelf.sqlite in the restic repository.
+        # VACUUM INTO writes a transactionally consistent copy of the live
+        # database, unlike a file-level copy of an open SQLite file. The image
+        # has no sqlite3 CLI, so the app's own node sqlite3 module does it; a
+        # non-zero exit fails the backup job. See docs/k8up.md.
+        k8up.io/backupcommand: >-
+          sh -c 'f=$(mktemp -u /tmp/k8up-absdb-XXXXXX) && cd /app && node -e "const s=require(\"sqlite3\");const d=new s.Database(\"/config/absdatabase.sqlite\",s.OPEN_READONLY,e=>{if(e){console.error(e.message);process.exit(1)}});d.run(\"VACUUM INTO ?\",[process.argv[1]],e=>{if(e){console.error(e.message);process.exit(1)}d.close()})" "$f" && cat "$f"; rc=$?; rm -f "$f"; exit $rc'
+        k8up.io/file-extension: .sqlite
     spec:
       securityContext:
         runAsNonRoot: true
