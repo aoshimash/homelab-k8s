@@ -1,0 +1,80 @@
+# K8up (restic) backup alerts. Synced to the Grafana Cloud ruler by Grafana
+# Alloy (mimir.rules.kubernetes) and evaluated there against two
+# remote-written sources:
+# - k8up_schedule_last_job_succeeded from the K8up operator (k8up scrape job),
+#   which says whether the last job a Schedule started succeeded.
+# - kube_customresource_k8up_snapshot_timestamp_seconds from kube-state-metrics
+#   (CustomResourceState over K8up Snapshot resources), one series per restic
+#   snapshot, labelled with its namespace and path.
+# Failure alone is not enough: a backup-command dump whose pod is not Running
+# is skipped without failing the Backup, so only per-path freshness catches it.
+# The chart's own metrics.prometheusRule is not used (see docs/backup-alerting.md).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: k8up-backup-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: k8up
+    role: backup-alerts
+spec:
+  groups:
+    - name: k8up-backup
+      rules:
+        - alert: K8upJobFailed
+          # 1 = the last job of this type the Schedule started succeeded,
+          # 0 = it failed. Stays 0 until a later run of the same type succeeds.
+          # Covers every scheduled job type (backup daily, prune and check
+          # weekly). The operator keeps this in memory: a restart drops the
+          # series until the next job of that type finishes.
+          expr: k8up_schedule_last_job_succeeded == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: k8up
+          annotations:
+            summary: "K8up job failed"
+            description: >-
+              The last K8up {{ $labels.jobType }} job started by Schedule
+              {{ $labels.schedule }} in {{ $labels.namespace }} failed. Check
+              `kubectl -n {{ $labels.namespace }} get jobs` and the job log,
+              and the k8up-backup credentials / R2 connectivity.
+        - alert: K8upBackupStale
+          # Newest snapshot per backed-up path older than 26h (daily schedule
+          # at 19:00 UTC + buffer). Every path in every namespace is covered
+          # without a rule change, including backup-command dumps such as
+          # /audiobookshelf-audiobookshelf.sqlite. A path that is no longer
+          # backed up keeps its snapshots under restic retention and alerts
+          # until they are forgotten (see docs/backup-alerting.md).
+          expr: (time() - max by (namespace, path) (kube_customresource_k8up_snapshot_timestamp_seconds)) > 93600
+          for: 15m
+          labels:
+            severity: critical
+            component: k8up
+          annotations:
+            summary: "K8up backup stale"
+            description: >-
+              The newest K8up snapshot of {{ $labels.path }} in
+              {{ $labels.namespace }} is over 26h old despite the daily
+              schedule. Backups of this path have stopped or are being
+              skipped (for a backup-command dump: its pod was not Running at
+              backup time). If the path was retired on purpose, forget its
+              snapshots.
+        - alert: K8upSnapshotMetricsAbsent
+          # K8upBackupStale over a missing metric returns nothing and never
+          # fires. This fires if no snapshot series reaches Grafana Cloud at
+          # all (kube-state-metrics down or misconfigured, or every Snapshot
+          # resource gone).
+          expr: absent(kube_customresource_k8up_snapshot_timestamp_seconds)
+          for: 1h
+          labels:
+            severity: critical
+            component: k8up
+          annotations:
+            summary: "K8up snapshot metrics absent"
+            description: >-
+              No kube_customresource_k8up_snapshot_timestamp_seconds series
+              has reached Grafana Cloud for 1h, so K8upBackupStale cannot
+              fire. Check the kube-state-metrics pod and its
+              CustomResourceState config, and that
+              `kubectl get snapshots.k8up.io -A` lists snapshots.

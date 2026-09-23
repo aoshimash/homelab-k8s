@@ -127,6 +127,18 @@ spec:
             }
           }
 
+          // Discover the K8up operator metrics service (k8up-metrics, :8080)
+          discovery.kubernetes "k8up" {
+            role = "service"
+            namespaces {
+              names = ["k8up"]
+            }
+            selectors {
+              role  = "service"
+              label = "app.kubernetes.io/name=k8up"
+            }
+          }
+
           // =============================================================================
           // METRICS COLLECTION
           // =============================================================================
@@ -225,6 +237,27 @@ spec:
             rule {
               source_labels = ["__name__"]
               regex  = "cnpg_collector_last_available_backup_timestamp|cnpg_collector_last_failed_backup_timestamp|cnpg_collector_first_recoverability_point|cnpg_collector_up|up"
+              action = "keep"
+            }
+          }
+
+          // Scrape the K8up operator (scheduled job outcome metrics).
+          // Unlike the Longhorn/CNPG targets, no "namespace" target label is
+          // set: the metrics carry their own "namespace" (the backed-up
+          // namespace), which a target label would push to exported_namespace.
+          prometheus.scrape "k8up" {
+            targets    = discovery.kubernetes.k8up.targets
+            job_name   = "k8up"
+            forward_to = [prometheus.relabel.k8up_filter.receiver]
+          }
+
+          // Keep only the K8up metric the backup alert rules use
+          prometheus.relabel "k8up_filter" {
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex  = "k8up_schedule_last_job_succeeded|up"
               action = "keep"
             }
           }

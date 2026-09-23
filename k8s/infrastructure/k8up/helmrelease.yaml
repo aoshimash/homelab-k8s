@@ -33,3 +33,10 @@ spec:
       skipWithoutAnnotation: true
       # Schedules in this repository are written in UTC.
       timezone: UTC
+    metrics:
+      # The chart's default rules need a Pushgateway, a kube-state-metrics
+      # jobs collector, or, as written, can never match, and none checks
+      # snapshot freshness. The alerts are hand-written in
+      # grafana-alloy/prometheusrule-backup-k8up.yaml instead.
+      prometheusRule:
+        enabled: false

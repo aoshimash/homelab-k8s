@@ -21,6 +21,7 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 | Prune | Sundays 20:00 UTC, `keepDaily: 30` |
 | Check | Sundays 21:00 UTC (`restic check`) |
 | Job user | root (`podSecurityContext.runAsUser: 0`) |
+| Alerting | `K8upJobFailed`, `K8upBackupStale`, `K8upSnapshotMetricsAbsent` → Slack; see [backup-alerting.md](backup-alerting.md#k8up) |
 
 ### Backed-up volumes
 
@@ -141,9 +142,11 @@ Running pods, and when it finds none it creates no dump job at all, so the
 Backup still reports success. Because the file copy excludes the live database,
 the newest database snapshot is then simply older than the rest. Older dump
 snapshots are kept by retention, so what is lost is freshness, not the
-database. Check the date of the newest `/audiobookshelf-audiobookshelf.sqlite`
-snapshot (see "List snapshots") after any day audiobookshelf was down at
-19:00 UTC.
+database. The `K8upBackupStale` alert catches this: it fires when the newest
+snapshot of any backed-up path, this dump included, is more than 26h old (see
+[backup-alerting.md](backup-alerting.md#k8up)). To check by hand, look at the
+date of the newest `/audiobookshelf-audiobookshelf.sqlite` snapshot (see "List
+snapshots").
 
 Adding a new application with an embedded database: use the same pattern — a
 backup command that streams a consistent dump, plus an exclude for the live
@@ -496,7 +499,8 @@ kubectl -n "$NS" logs job/<backup-job-name>
 - audiobookshelf: a failure in the backup command appears in the job log as the
   command's stderr (for example `SQLITE_CANTOPEN`). The dump runs in the
   audiobookshelf container itself; if that pod is not Running, no dump job is
-  created and nothing fails (see "command-based SQLite dump" above).
+  created and nothing fails (see "command-based SQLite dump" above). Only
+  `K8upBackupStale` reports it.
 
 ### Repository locked
 
