@@ -292,7 +292,7 @@ spec:
   containers:
     - name: verify
       image: alpine:3.22
-      command: ["sleep", "3600"]
+      command: ["sleep", "infinity"]
       volumeMounts:
         - {name: live, mountPath: /live, readOnly: true}
         - {name: restored, mountPath: /restored, readOnly: true}
@@ -300,7 +300,7 @@ spec:
     - {name: live, persistentVolumeClaim: {claimName: $PVC, readOnly: true}}
     - {name: restored, persistentVolumeClaim: {claimName: restore-$PVC}}
 EOF
-kubectl -n "$NS" wait --for=condition=Ready pod/restore-verify
+kubectl -n "$NS" wait --for=condition=Ready pod/restore-verify --timeout=5m
 
 kubectl -n "$NS" exec restore-verify -- sh -c '
   cd /live     && find . -type f ! -path "./lost+found/*" -exec sha256sum {} + | sort -k 2 > /tmp/live.sum
@@ -455,7 +455,7 @@ spec:
   volumes:
     - {name: config, persistentVolumeClaim: {claimName: audiobookshelf-config}}
 EOF
-kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded pod/restore-absdb-swap
+kubectl -n "$NS" wait --timeout=5m --for=jsonpath='{.status.phase}'=Succeeded pod/restore-absdb-swap
 kubectl -n "$NS" logs restore-absdb-swap
 kubectl -n "$NS" delete pod restore-absdb-swap
 ```
