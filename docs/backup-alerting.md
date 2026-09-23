@@ -56,8 +56,8 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
   `cnpg_collector_first_recoverability_point`. *(Deprecated since CNPG 1.26 but
   functional with the in-core Barman Cloud R2 backups this cluster uses.)*
 - **K8up operator** (Service `k8up-metrics` in `k8up`, `:8080`):
-  `k8up_schedule_last_job_succeeded{namespace, schedule, jobType}` — `1` if
-  the last job of that type a Schedule started succeeded, `0` if it failed.
+  `k8up_jobs_failed_counter{namespace, jobType}` — the number of Backup,
+  Check and Prune objects that failed since the operator started.
 - **K8up snapshots** (kube-state-metrics, from `snapshots.k8up.io`):
   `kube_customresource_k8up_snapshot_timestamp_seconds{namespace, path, snapshot}`
   — the time of each restic snapshot. It is forwarded by the existing
@@ -71,7 +71,7 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
 | `LonghornBackupOverdue` | no successful backup in >26h (`!= 0`) | Daily schedule 18:30 UTC + buffer; never-backed-up volumes excluded |
 | `CNPGBackupFailed` | `last_failed > last_available` for 5m | A failure newer than the last good backup |
 | `CNPGBackupOverdue` | no successful backup in >26h (`> 0`) | Daily schedule 18:00 UTC + buffer |
-| `K8upJobFailed` | `k8up_schedule_last_job_succeeded == 0` for 5m | The last scheduled backup, check or prune job failed; clears when a later run of that type succeeds |
+| `K8upJobFailed` | `k8up_jobs_failed_counter` increased: backup in the last 26h, check/prune in the last 8d; for 5m | Clears once the window holds no failure: ~2h (backup) or ~1d (check/prune) after the next run, if it succeeds |
 | `K8upBackupStale` | newest snapshot of a `(namespace, path)` older than 26h, for 15m | Daily schedule 19:00 UTC + buffer; every path, including backup-command dumps |
 | `K8upSnapshotMetricsAbsent` | no snapshot series at all, for 1h | Guards `K8upBackupStale`, which cannot fire over a missing metric |
 
@@ -85,21 +85,29 @@ K8up (restic) backs up opted-in PVCs daily at 19:00 UTC, one Schedule named
 rules are in `prometheusrule-backup-k8up.yaml`. They use two signals, because
 neither is enough alone.
 
-**Failure: `K8upJobFailed`.** The operator sets
-`k8up_schedule_last_job_succeeded` when a job it started from a Schedule
-finishes: `1` on success, `0` on failure, per `(namespace, schedule, jobType)`.
-The value stays `0` until the next run of that type succeeds, like
-`CNPGBackupFailed`. It covers the daily backup and the weekly prune and
-`restic check`. Limits:
+**Failure: `K8upJobFailed`.** The operator increments
+`k8up_jobs_failed_counter{namespace, jobType}` once when a Backup, Check or
+Prune object first becomes Failed, whether a Schedule or a person created it.
+The alert fires when the counter increased within one schedule period plus a
+buffer: 26h for the daily backup, 8d for the weekly prune and `restic check`.
+It keeps firing while failures keep landing inside that window, and clears
+once the window holds none — about 2h (backup) or 1d (check/prune) after the
+next run, if that run succeeds. The counter lives in operator memory and
+restarts at 0 with the operator; `increase()` treats that as a counter reset,
+so a restart neither fires nor clears the alert.
 
-- Only Backup, Check and Prune objects labelled `k8up.io/schedule-name` are
-  recorded. The operator adds that label to the ones a Schedule creates; an
-  on-demand Backup without it does not move the metric.
-- The value lives in operator memory. An operator restart drops the series
-  until the next job of that type finishes, which resolves a firing alert
-  without anything being fixed. For backups the freshness alert still catches
-  it within a day; a failed weekly prune or check stays hidden until the next
-  Sunday run.
+K8up also exports `k8up_schedule_last_job_succeeded{namespace, schedule,
+jobType}`, which looks like the better fit (`1`/`0` for the last job a
+Schedule started). It is not used, because in K8up `v2.16.0`:
+
+- The Backup controller reconciles its Jobs with its own `ReconcileJobStatus`
+  (`operator/backupcontroller/controller.go`), which never sets this gauge. It
+  exists for check and prune only; a failed backup never shows up in it.
+- For check and prune, every reconcile of every retained object (the operator
+  keeps up to 3 failed and 3 successful ones by default) re-sets the gauge from
+  that object's Job, in no particular order. On an operator start or a cache
+  resync it can flip back to an old failure after a later success, or hide the
+  latest failure.
 
 **Freshness: `K8upBackupStale`.** Failure alerting cannot see a backup that
 produces nothing and still succeeds. audiobookshelf's database is saved by a
@@ -372,9 +380,8 @@ Slack. Revert afterwards.
 wrong repository password. This changes no credentials, Secret or Schedule, so
 Flux does not need suspending and nothing has to be restored afterwards:
 `restic init` refuses a repository that already exists, and a wrong password
-cannot open it, so nothing is written to it. The Backup carries the
-`k8up.io/schedule-name: backup` label, so the operator records its outcome in
-`k8up_schedule_last_job_succeeded` like a scheduled run.
+cannot open it, so nothing is written to it. The failed Backup increments
+`k8up_jobs_failed_counter{jobType="backup"}` like a scheduled one.
 
 1. **Start the failing backup** (vikunja has no backup command, so only the
    volume backup runs):
@@ -382,8 +389,7 @@ cannot open it, so nothing is written to it. The Backup carries the
    NS=vikunja
    kubectl -n "$NS" get schedules.k8up.io backup -o json \
      | jq '{apiVersion: "k8up.io/v1", kind: "Backup",
-            metadata: {generateName: "verify-alert-",
-                       labels: {"k8up.io/schedule-name": "backup"}},
+            metadata: {generateName: "verify-alert-"},
             spec: {backend: (.spec.backend | .repoPasswordSecretRef.key = "ACCESS_KEY_ID"),
                    podSecurityContext: .spec.podSecurityContext}}' \
      | kubectl -n "$NS" create -f -
@@ -391,26 +397,19 @@ cannot open it, so nothing is written to it. The Backup carries the
    The job's pods fail because restic cannot open the repository
    (`wrong password or no key found`). The Job is
    retried up to the operator's backoff limit (6 by default), so it takes about
-   10 minutes to be marked failed. The metric then drops to `0`, and after the
+   10 minutes to be marked failed. The counter then goes up, and after the
    rule's `for: 5m`, `K8upJobFailed` fires → Slack. **Confirm the firing (🔴)
    message.**
-2. **Resolve it** with the same Backup and the real password:
+2. **Clean up** the Backup (its Job and pods go with it). The counter has
+   already been incremented, so this does not affect the alert:
    ```bash
-   kubectl -n "$NS" get schedules.k8up.io backup -o json \
-     | jq '{apiVersion: "k8up.io/v1", kind: "Backup",
-            metadata: {generateName: "verify-resolve-",
-                       labels: {"k8up.io/schedule-name": "backup"}},
-            spec: {backend: .spec.backend,
-                   podSecurityContext: .spec.podSecurityContext}}' \
-     | kubectl -n "$NS" create -f -
-   ```
-   When it completes the metric returns to `1`, `K8upJobFailed` clears, and a
-   resolved (🟢) notification is sent. **Confirm the resolved message.**
-3. **Clean up** the two Backups (their Jobs and pods go with them):
-   ```bash
-   kubectl -n "$NS" get backups.k8up.io -o name | grep '/verify-' \
+   kubectl -n "$NS" get backups.k8up.io -o name | grep '/verify-alert-' \
      | xargs kubectl -n "$NS" delete
    ```
+3. **Wait for the resolve.** The alert clears when the failure leaves the 26h
+   window, provided the scheduled backups in between succeed, and a resolved
+   (🟢) notification is sent. **Confirm the resolved message** about 26h after
+   the failure.
 
 **`K8upBackupStale`.** Waiting 26h for a real gap is not practical, so check
 that the expression evaluates against real data instead. In Grafana Cloud

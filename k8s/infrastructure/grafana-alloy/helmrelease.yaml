@@ -241,7 +241,7 @@ spec:
             }
           }
 
-          // Scrape the K8up operator (scheduled job outcome metrics).
+          // Scrape the K8up operator (job failure counter).
           // Unlike the Longhorn/CNPG targets, no "namespace" target label is
           // set: the metrics carry their own "namespace" (the backed-up
           // namespace), which a target label would push to exported_namespace.
@@ -257,7 +257,7 @@ spec:
 
             rule {
               source_labels = ["__name__"]
-              regex  = "k8up_schedule_last_job_succeeded|up"
+              regex  = "k8up_jobs_failed_counter|up"
               action = "keep"
             }
           }

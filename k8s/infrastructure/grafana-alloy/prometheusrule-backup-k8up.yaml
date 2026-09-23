@@ -1,8 +1,8 @@
 # K8up (restic) backup alerts. Synced to the Grafana Cloud ruler by Grafana
 # Alloy (mimir.rules.kubernetes) and evaluated there against two
 # remote-written sources:
-# - k8up_schedule_last_job_succeeded from the K8up operator (k8up scrape job),
-#   which says whether the last job a Schedule started succeeded.
+# - k8up_jobs_failed_counter from the K8up operator (k8up scrape job), which
+#   counts Backup/Check/Prune objects that failed, per namespace and job type.
 # - kube_customresource_k8up_snapshot_timestamp_seconds from kube-state-metrics
 #   (CustomResourceState over K8up Snapshot resources), one series per restic
 #   snapshot, labelled with its namespace and path.
@@ -22,12 +22,19 @@ spec:
     - name: k8up-backup
       rules:
         - alert: K8upJobFailed
-          # 1 = the last job of this type the Schedule started succeeded,
-          # 0 = it failed. Stays 0 until a later run of the same type succeeds.
-          # Covers every scheduled job type (backup daily, prune and check
-          # weekly). The operator keeps this in memory: a restart drops the
-          # series until the next job of that type finishes.
-          expr: k8up_schedule_last_job_succeeded == 0
+          # A backup failed in the last 26h (daily schedule + buffer), or a
+          # check/prune in the last 8d (weekly + a day). The counter goes up
+          # once when an object first becomes Failed; increase() absorbs the
+          # reset on an operator restart. Keeps firing while failures land
+          # inside the window; clears once the window holds none, which is
+          # about 2h (backup) or 1d (check/prune) after the next run if that
+          # run succeeds.
+          # k8up_schedule_last_job_succeeded is not used: in K8up v2.16.0 it
+          # is never set for backups, and for check/prune it is re-set from
+          # every retained object in arbitrary order (docs/backup-alerting.md).
+          expr: >-
+            increase(k8up_jobs_failed_counter{jobType="backup"}[26h]) > 0
+            or increase(k8up_jobs_failed_counter{jobType=~"check|prune"}[8d]) > 0
           for: 5m
           labels:
             severity: critical
@@ -35,8 +42,8 @@ spec:
           annotations:
             summary: "K8up job failed"
             description: >-
-              The last K8up {{ $labels.jobType }} job started by Schedule
-              {{ $labels.schedule }} in {{ $labels.namespace }} failed. Check
+              A K8up {{ $labels.jobType }} job in {{ $labels.namespace }}
+              failed recently (backup: last 26h, check/prune: last 8d). Check
               `kubectl -n {{ $labels.namespace }} get jobs` and the job log,
               and the k8up-backup credentials / R2 connectivity.
         - alert: K8upBackupStale
