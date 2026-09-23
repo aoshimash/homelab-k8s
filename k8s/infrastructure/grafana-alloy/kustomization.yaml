@@ -10,3 +10,4 @@ resources:
   - prometheusrule-backup-cnpg.yaml
   - prometheusrule-backup-k8up.yaml
   - prometheusrule-failed-pods.yaml
+  - prometheusrule-node-filesystem.yaml

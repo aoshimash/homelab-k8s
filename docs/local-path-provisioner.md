@@ -93,6 +93,11 @@ filesystem of its own. A runaway volume can fill `/var` and take etcd down with
 it. Longhorn had the same exposure, because its data also lives on `EPHEMERAL`
 (`/var/lib/longhorn`).
 
+`NodeEphemeralFilesystemUsageHigh` warns in Slack when `EPHEMERAL` passes 70%
+used, about 150GB before the kubelet starts image GC and eviction at ~85%.
+Eviction frees no volume data, so the alert is the point to find the growing
+volume by hand. See [node-filesystem-alerting.md](node-filesystem-alerting.md).
+
 Check free space on `EPHEMERAL`, and how much of it the volumes use:
 
 ```bash
