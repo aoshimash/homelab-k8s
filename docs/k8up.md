@@ -13,7 +13,7 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 
 | Item | Value |
 |------|-------|
-| Chart | `k8up/k8up` 4.10.0 (operator v2.16.0), CRDs bundled in the chart |
+| Chart | `k8up/k8up`, version pinned in `k8s/infrastructure/k8up/helmrelease.yaml`; CRDs bundled in the chart |
 | Operator namespace | `k8up` |
 | Selection | `k8up.skipWithoutAnnotation: true` — only PVCs annotated `k8up.io/backup: "true"` |
 | Target | R2 bucket `homelab-k8up-backups`, one restic repository per namespace at `homelab-k8up-backups/<namespace>` |
@@ -51,12 +51,14 @@ excluded twice over.
   deleted without touching the others.
 - **`keepDaily: 30`.** The decision record left retention to be set here rather
   than carried over. 30 daily snapshots keeps the recovery window Longhorn's
-  `backup-daily` job has today (`retain: 30`), so moving to K8up does not
-  shorten how far back a volume can be recovered. restic deduplicates, so extra
-  daily snapshots of mostly-unchanged data cost little in R2.
-- **19:00 UTC.** Longhorn's `backup-daily` starts at 18:30 UTC and keeps
-  running while both systems coexist; starting K8up half an hour later avoids
-  both reading the same volumes from the same moment.
+  `backup-daily` RecurringJob had when K8up was introduced (`retain: 30` as of
+  `5dc5e70`), so moving to K8up does not shorten how far back a volume can be
+  recovered. restic deduplicates, so extra daily snapshots of mostly-unchanged
+  data cost little in R2.
+- **19:00 UTC.** Longhorn's `backup-daily` started at 18:30 UTC
+  (`cron: "30 18 * * *"` as of `5dc5e70`) and keeps running while both systems
+  coexist; starting K8up half an hour later avoids both reading the same
+  volumes from the same moment.
 - **Root job pods.** The applications run as different users (audiobookshelf
   99, paperless-ngx and vikunja 1000, Home Assistant root). Running backups as
   root lets restic read every file whatever its owner and mode, and running
@@ -132,6 +134,16 @@ crash-consistent. Two annotations handle it:
    file-level backup of the volume does not also store a torn copy of the
    database. Everything else on the volume (`migrations/` etc.) is copied as
    files.
+
+**If the audiobookshelf pod is not Running at backup time, that day gets no
+database snapshot — and nothing fails.** K8up only runs backup commands in
+Running pods, and when it finds none it creates no dump job at all, so the
+Backup still reports success. Because the file copy excludes the live database,
+the newest database snapshot is then simply older than the rest. Older dump
+snapshots are kept by retention, so what is lost is freshness, not the
+database. Check the date of the newest `/audiobookshelf-audiobookshelf.sqlite`
+snapshot (see "List snapshots") after any day audiobookshelf was down at
+19:00 UTC.
 
 Adding a new application with an embedded database: use the same pattern — a
 backup command that streams a consistent dump, plus an exclude for the live
@@ -249,8 +261,8 @@ kubectl -n "$NS" get schedules.k8up.io backup -o json \
                podSecurityContext: .spec.podSecurityContext}}' \
   | kubectl -n "$NS" create -f -
 
-# 3. Wait for the job to complete
-kubectl -n "$NS" get restores.k8up.io,jobs -w
+# 3. Wait for the job to complete (kubectl can watch only one resource type)
+kubectl -n "$NS" get restores.k8up.io -w
 ```
 
 The snapshot's `/data/<pvc>` prefix is stripped on restore, so the files land
@@ -297,11 +309,42 @@ automatic on a single node.
 
 ### Put restored data into service
 
-Scale the application to zero, point its Deployment's `claimName` at
-`restore-<pvc>` in Git (or copy the restored files onto the original PVC from
-a pod that mounts both), then scale back up. If the original PVC is gone
-entirely, create it under its original name instead of `restore-<pvc>` and
-restore straight into it — the application finds its data where it expects.
+Once the copy in `restore-<pvc>` checks out, restore the same snapshot onto
+the **original** PVC — the one defined in Git, which keeps its
+`k8up.io/backup: "true"` annotation. Do not repoint the Deployment at
+`restore-<pvc>`: that PVC exists only in the cluster and is annotated `"false"`,
+so the application would run on a volume that is neither in Git nor backed up.
+
+```bash
+APP=vikunja   # the Deployment using $PVC
+
+# 1. Stop Flux from reverting the scale-down (it re-applies replicas: 1 from
+#    Git on every reconcile), then stop the application.
+flux suspend kustomization apps
+kubectl -n "$NS" scale deploy/"$APP" --replicas=0
+
+# 2. Restore onto the original PVC. `delete: true` removes files that are not
+#    in the snapshot, so the volume ends up exactly as it was backed up.
+kubectl -n "$NS" get schedules.k8up.io backup -o json \
+  | jq --arg snap "$SNAPSHOT" --arg pvc "$PVC" \
+      '{apiVersion: "k8up.io/v1", kind: "Restore",
+        metadata: {name: ("restore-inplace-" + $pvc)},
+        spec: {snapshot: $snap, paths: [("/data/" + $pvc)], delete: true,
+               restoreMethod: {folder: {claimName: $pvc}},
+               backend: .spec.backend,
+               podSecurityContext: .spec.podSecurityContext}}' \
+  | kubectl -n "$NS" create -f -
+kubectl -n "$NS" get restores.k8up.io -w
+
+# 3. Hand control back to Flux; resuming re-applies replicas: 1.
+flux resume kustomization apps
+```
+
+If the original PVC is gone entirely, recreate it from its manifest in Git
+(`kubectl apply -f k8s/apps/<app>/app/pvc.yaml` — identical to what Flux would
+apply) while `apps` is still suspended and the application is scaled to zero,
+then restore into it as in step 2. Resuming `apps` before the restore would
+start the application on an empty volume.
 
 ### Restore audiobookshelf's database
 
@@ -312,12 +355,15 @@ and is not part of the `audiobookshelf-config` snapshot. Extract it with
 ```bash
 NS=audiobookshelf
 SNAPSHOT=<id of the /audiobookshelf-audiobookshelf.sqlite snapshot>
+REPO=$(kubectl -n "$NS" get schedules.k8up.io backup -o json \
+  | jq -r '.spec.backend.s3 | "s3:\(.endpoint)/\(.bucket)"')
+# restic comes from the image the running operator uses
+IMG=$(kubectl -n k8up get deploy k8up -o jsonpath='{.spec.template.spec.containers[0].image}')
 
-# Stop audiobookshelf so nothing holds the database open
+# Stop audiobookshelf so nothing holds the database open (suspend first, or
+# Flux scales it back up)
+flux suspend kustomization apps
 kubectl -n "$NS" scale deploy/audiobookshelf --replicas=0
-
-kubectl -n "$NS" get schedules.k8up.io backup -o json | jq -r '.spec.backend.s3 | "s3:\(.endpoint)/\(.bucket)"'
-# -> RESTIC_REPOSITORY for the pod below
 
 kubectl -n "$NS" apply -f - <<EOF
 apiVersion: v1
@@ -330,13 +376,13 @@ spec:
     runAsUser: 0
   containers:
     - name: restic
-      image: ghcr.io/k8up-io/k8up:v2.16.0
+      image: $IMG
       command: ["sh", "-c"]
       args:
         - restic dump "$SNAPSHOT" /audiobookshelf-audiobookshelf.sqlite > /config/absdatabase.sqlite.restored
           && chown 99:99 /config/absdatabase.sqlite.restored
       env:
-        - {name: RESTIC_REPOSITORY, value: "<from the jq command above>"}
+        - {name: RESTIC_REPOSITORY, value: "$REPO"}
         - {name: RESTIC_PASSWORD, valueFrom: {secretKeyRef: {name: k8up-backup, key: RESTIC_PASSWORD}}}
         - {name: AWS_ACCESS_KEY_ID, valueFrom: {secretKeyRef: {name: k8up-backup, key: ACCESS_KEY_ID}}}
         - {name: AWS_SECRET_ACCESS_KEY, valueFrom: {secretKeyRef: {name: k8up-backup, key: SECRET_ACCESS_KEY}}}
@@ -347,15 +393,28 @@ spec:
 EOF
 ```
 
-Then, from the same kind of pod, move `absdatabase.sqlite.restored` over
-`absdatabase.sqlite` (keeping the old file aside), delete the pod, and scale
-audiobookshelf back to 1.
+Then swap the files from a pod that mounts the volume (the same pod spec with
+a shell command works). Move the old database **and its companion files** aside
+together: audiobookshelf leaves SQLite in its default rollback-journal mode, and
+an `absdatabase.sqlite-journal` left over from an interrupted write would be
+rolled back into the restored database on first open, corrupting it.
+
+```bash
+cd /config && mkdir -p pre-restore \
+  && for f in absdatabase.sqlite absdatabase.sqlite-journal absdatabase.sqlite-wal absdatabase.sqlite-shm; do
+       [ -e "$f" ] && mv "$f" pre-restore/
+     done \
+  && mv absdatabase.sqlite.restored absdatabase.sqlite
+```
+
+Delete the pods, then `flux resume kustomization apps`, which brings
+audiobookshelf back to one replica.
 
 ### Clean up after a restore
 
 ```bash
 kubectl -n "$NS" delete pod restore-verify --ignore-not-found
-kubectl -n "$NS" delete restores.k8up.io "restore-$PVC"
+kubectl -n "$NS" delete restores.k8up.io "restore-$PVC" "restore-inplace-$PVC" --ignore-not-found
 kubectl -n "$NS" delete pvc "restore-$PVC"
 ```
 
@@ -383,7 +442,8 @@ kubectl -n "$NS" logs job/<backup-job-name>
   `spec.podSecurityContext` on the Schedule.
 - audiobookshelf: a failure in the backup command appears in the job log as the
   command's stderr (for example `SQLITE_CANTOPEN`). The dump runs in the
-  audiobookshelf container itself, so that pod must be Running.
+  audiobookshelf container itself; if that pod is not Running, no dump job is
+  created and nothing fails (see "command-based SQLite dump" above).
 
 ### Repository locked
 
