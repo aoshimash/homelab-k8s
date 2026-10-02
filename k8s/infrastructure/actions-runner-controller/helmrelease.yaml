@@ -14,7 +14,7 @@ spec:
         namespace: flux-system
       # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
       # Keep in step with the gha-runner-scale-set charts in k8s/configs/arc-runners.
-      version: 0.14.2
+      version: 0.15.0
   releaseName: arc-controller
   install:
     createNamespace: false
