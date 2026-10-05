@@ -309,8 +309,12 @@ fresh `initdb`. Change `cluster.yaml` as follows and merge it:
   `Expected empty archive` in the pod log.
 
 `bootstrap` is only read when the Cluster object is created. If a broken
-`postgres-cluster` object still exists, merge the change first and then delete
-the object, so Flux recreates it from the recovery spec. Remove `bootstrap` and
+`postgres-cluster` object still exists, stop Flux from touching it before the
+change merges: `flux suspend kustomization configs`, delete the object, merge,
+then `flux resume kustomization configs`, so Flux creates it from the recovery
+spec. Merging while the old instance still runs would point its archiving at
+the new `serverName` folder, and the recovered cluster would then stop on
+`Expected empty archive`. Remove `bootstrap` and
 `externalClusters` again in a follow-up change once the cluster is running.
 
 > **Tip**: For an exact point-in-time match, set
@@ -349,7 +353,9 @@ and the volume backups run.
    removing the old instance later leaves its data behind:
 
    ```bash
-   OLD=postgres-cluster-1   # the instance being replaced
+   # the instance being replaced: the current (only) primary
+   OLD=$(kubectl get clusters.postgresql.cnpg.io postgres-cluster -n postgres \
+     -o jsonpath='{.status.currentPrimary}')
    PV=$(kubectl get pvc -n postgres "$OLD" -o jsonpath='{.spec.volumeName}')
    kubectl patch pv "$PV" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
    ```
@@ -379,7 +385,11 @@ and the volume backups run.
    does neither, so check the pod by hand first:
 
    ```bash
-   NEW=postgres-cluster-2   # the instance on the new storage class
+   # The instance on the new storage class. The operator reuses the lowest
+   # free serial, so take it from the PVC on the new class (an instance is
+   # named after its PVC) rather than assuming -2.
+   NEW=$(kubectl get pvc -n postgres -l cnpg.io/cluster=postgres-cluster \
+     -o jsonpath='{.items[?(@.spec.storageClassName=="local-path")].metadata.name}')
    kubectl get pod -n postgres "$NEW"
    kubectl patch clusters.postgresql.cnpg.io postgres-cluster -n postgres \
      --subresource=status --type=merge -p "{\"status\":{
