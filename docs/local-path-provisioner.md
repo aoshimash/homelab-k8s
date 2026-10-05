@@ -22,7 +22,7 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | Reclaim policy | `local-path`: `Retain`, set for the migration and kept on purpose (see [Why these settings](#why-these-settings)). `local-path-ephemeral`: `Delete` |
 | Binding mode | `WaitForFirstConsumer` |
 | Root on the node | `/var/mnt/local-path-provisioner`, a Talos user volume of type `directory` |
-| On-disk layout | `<namespace>/<claim>/<pv-name>/` under the root |
+| On-disk layout | `local-path`: `<namespace>/<claim>/<pv-name>/` under the root. `local-path-ephemeral`: `<namespace>/<claim>/` |
 | Helper image | `docker.io/library/busybox`, pinned by tag and digest |
 | Capacity | **not enforced**. A PVC's requested size is documentation only |
 
@@ -98,15 +98,22 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | `local-path` | `Retain` | yes | Application data. Every data volume names it explicitly |
 | `local-path-ephemeral` | `Delete` | no | Claims that live and die with a pod, such as the Actions Runner Controller work volume (`k8s/configs/arc-runners/helmrelease.yaml`) |
 
-Both classes are served by the same provisioner, from the same root and with the
-same on-disk layout. What matters is the difference in what happens when a
-claim is deleted. (The chart's class also sets `allowVolumeExpansion: true` and a
+Both classes are served by the same provisioner, from the same root. What
+matters is the difference in what happens when a claim is deleted. (The chart's class also sets `allowVolumeExpansion: true` and a
 `defaultVolumeType: hostPath` annotation. Neither changes anything here: capacity
 is not enforced, and `hostPath` is the provisioner's default volume type.)
 With `Delete`, Kubernetes deletes the PV, and the provisioner runs its helper
 pod with the teardown script, which removes the directory (`rm -rf "$VOL_DIR"`
 in the chart's default `configmap.teardown`). Without the second class every
 runner job would leave a `Released` PV and its directory behind.
+
+The ephemeral class lays volumes out as `<namespace>/<claim>/`, one level
+shallower than `local-path`. Teardown removes only the volume's own directory.
+With the extra `<pv-name>` level, each runner job would still leave its empty
+`<claim>` directory behind (observed on the first ARC run after
+[#305](https://github.com/aoshimash/homelab-k8s/issues/305)). Ephemeral claim
+names are unique per runner pod, and nothing is retained, so the PV-name level
+is not needed to keep directories apart.
 
 The chart creates only one StorageClass, so `local-path-ephemeral` is a plain
 manifest in `k8s/infrastructure/local-path-provisioner/storageclass-ephemeral.yaml`.

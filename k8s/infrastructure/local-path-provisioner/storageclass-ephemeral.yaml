@@ -8,16 +8,24 @@
 # set and no `storageClassConfigs`, every class uses the same config
 # (`pickConfig` in provisioner.go, v0.0.37). The chart creates only one class,
 # so this one is a plain manifest. provisioner, parameters, reclaimPolicy and
-# volumeBindingMode are immutable: changing them means replacing the class.
+# volumeBindingMode are immutable, so `force: enabled` lets Flux replace the
+# class when one of them changes. Replacing a StorageClass does not touch
+# existing PVs.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: local-path-ephemeral
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
+    kustomize.toolkit.fluxcd.io/force: enabled
 provisioner: cluster.local/local-path-provisioner
 parameters:
-  # Same layout as `local-path`, so a directory can be traced to its claim.
-  pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}/{{ .PVName }}"
+  # <namespace>/<claim>, one level shallower than `local-path`. The teardown
+  # script removes only the volume's own directory, so with a trailing
+  # <pv-name> level every runner job would leave its empty <claim> directory
+  # behind. Ephemeral claim names are unique per pod, and Delete removes the
+  # directory with the claim, so the PV-name level adds nothing here. The
+  # provisioner requires the pattern to start with <namespace>/<claim>/.
+  pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}/"
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
