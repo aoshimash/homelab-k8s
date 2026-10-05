@@ -19,6 +19,15 @@ export SOPS_AGE_KEY_FILE=/path/to/age.agekey
 > route to host`). Override the endpoint and node with the node's **tailnet IP**
 > instead, e.g. `--endpoints <tailnet-ip> --nodes <tailnet-ip>`. Find it with
 > `kubectl get node -o wide` (INTERNAL-IP) or `tailscale status`.
+>
+> `talosctl upgrade-k8s` needs one more override: it also talks to the
+> Kubernetes API, and by default uses the cluster endpoint from the machine
+> config (`https://192.168.0.10:6443`), which `--endpoints` does not change.
+> Over the tailnet it fails with `error detecting the lowest Kubernetes version
+> ... dial tcp 192.168.0.10:6443: connect: no route to host` until you add
+> `--endpoint https://<tailnet-ip>:6443` (singular — the Kubernetes API, not the
+> Talos API). `talosctl health` did not need this when last run over the tailnet
+> (2026-10-05).
 
 ## Upgrading Talos Linux
 
@@ -395,6 +404,13 @@ talosctl --talosconfig clusterconfig/talosconfig \
   --endpoints 192.168.0.10 --nodes 192.168.0.10 \
   upgrade-k8s --to "${K8S_VERSION}"
 ```
+
+> Operating over the tailnet? Replace `192.168.0.10` with the node's tailnet IP
+> in `--endpoints` and `--nodes`, **and** add
+> `--endpoint https://<tailnet-ip>:6443` — see the note under
+> [Prerequisites](#prerequisites). Adding `--dry-run` first prints the plan:
+> the component versions, plus any changes to Talos' bootstrap manifests
+> (CoreDNS etc.) that the upgrade will apply alongside.
 
 Verification:
 
