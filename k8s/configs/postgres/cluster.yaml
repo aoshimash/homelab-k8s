@@ -6,8 +6,9 @@ metadata:
 spec:
   # Temporarily 2 while PGDATA moves off Longhorn (#304). The second instance
   # is created on the storageClass below and becomes primary by switchover.
-  # Returning this to 1 then removes the Longhorn instance: on scale-down the
-  # operator never removes the primary, only the highest-serial ready replica.
+  # Returning this to 1 then removes the Longhorn instance: with both pods
+  # running, scale-down skips the primary and removes the highest-serial ready
+  # replica.
   # See docs/cloudnative-pg.md, "Move the cluster to another storage class".
   instances: 2
   # Records the K8up backup decision for PGDATA: deliberately not backed up by

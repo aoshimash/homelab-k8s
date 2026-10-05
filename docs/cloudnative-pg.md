@@ -244,9 +244,11 @@ EOF
 kubectl wait --for=condition=Ready clusters.postgresql.cnpg.io/postgres-restore-drill \
   -n postgres --timeout=30m
 
-# 4. Compare the restored data with production. Run the same queries against
-#    postgres-cluster-<n> (the current primary) and postgres-restore-drill-1.
-for POD in postgres-restore-drill-1 <current-primary>; do
+# 4. Compare the restored data with production: run the same queries against
+#    the drill and the current primary.
+PRIMARY=$(kubectl get clusters.postgresql.cnpg.io postgres-cluster -n postgres \
+  -o jsonpath='{.status.currentPrimary}')
+for POD in postgres-restore-drill-1 "$PRIMARY"; do
   echo "== $POD"
   kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d vikunja -Atc \
     "SELECT 'projects',count(*) FROM projects UNION ALL SELECT 'tasks',count(*) FROM tasks
@@ -287,20 +289,29 @@ the drill's newest row was from 16:03:05 UTC, and production had written three
 more by 16:13:05. That gap is the archived-WAL lag: the drill replays only WAL
 that is already in R2, and `archive_timeout` here is 5 minutes.
 
-**Restoring for real.** If the production cluster is lost, the same manifest is
-the starting point, with these changes:
+**Restoring for real.** If the production cluster is lost, restore through
+Git, not with `kubectl apply`: Flux owns `postgres-cluster` through
+`k8s/configs/postgres/cluster.yaml` and would recreate it from that file with a
+fresh `initdb`. Change `cluster.yaml` as follows and merge it:
 
-- Name it `postgres-cluster`, so the `-rw` Service, the application Secrets and
-  the `databases.postgresql.cnpg.io` and `scheduledbackups.postgresql.cnpg.io`
-  objects, which all refer to that name, keep working.
-- Give it the `backup` section and `managed.roles` from `cluster.yaml`, with
-  `backup.barmanObjectStore.serverName` set to a name that is not
+- Keep the name `postgres-cluster`, so the `-rw` Service, the application
+  Secrets and the `databases.postgresql.cnpg.io` and
+  `scheduledbackups.postgresql.cnpg.io` objects, which all refer to that name,
+  keep working. Keep `backup`, `managed.roles`, the image and the preload.
+- Add `bootstrap.recovery` and `externalClusters` exactly as in the drill
+  manifest above.
+- Set `backup.barmanObjectStore.serverName` to a name that is not
   `postgres-cluster` (for example `postgres-cluster-v2`). CloudNativePG's
   recovery documentation says not to share one object store configuration
   between backup and recovery unless each cluster has its own `serverName`, so
   that archiving cannot overwrite the backups being restored. If the folder is
   not empty, its safety check stops the cluster in `Setting up primary` with
   `Expected empty archive` in the pod log.
+
+`bootstrap` is only read when the Cluster object is created. If a broken
+`postgres-cluster` object still exists, merge the change first and then delete
+the object, so Flux recreates it from the recovery spec. Remove `bootstrap` and
+`externalClusters` again in a follow-up change once the cluster is running.
 
 > **Tip**: For an exact point-in-time match, set
 > `bootstrap.recovery.recoveryTarget.targetTime`, which replays WAL only up to
@@ -338,7 +349,8 @@ and the volume backups run.
    removing the old instance later leaves its data behind:
 
    ```bash
-   PV=$(kubectl get pvc -n postgres <current-instance> -o jsonpath='{.spec.volumeName}')
+   OLD=postgres-cluster-1   # the instance being replaced
+   PV=$(kubectl get pvc -n postgres "$OLD" -o jsonpath='{.spec.volumeName}')
    kubectl patch pv "$PV" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
    ```
 
@@ -346,22 +358,29 @@ and the volume backups run.
    [Check the user volume before creating a claim](local-path-provisioner.md#check-the-user-volume-before-creating-a-claim).
 3. **Add an instance on the new class.** In `cluster.yaml`, set the new
    `storageClass` and `instances: 2`, and merge. The operator clones a new
-   replica from the primary onto a PVC of the new class. Wait until it streams
-   and has caught up:
+   replica from the primary onto a PVC of the new class. Wait until the
+   Cluster reports both instances ready, the replica streams, and its replayed
+   LSN has reached the primary's current one (`replay_lag` alone is not
+   enough: it is empty when the primary is idle):
 
    ```bash
-   kubectl get pods,pvc -n postgres
-   kubectl exec -n postgres <primary> -c postgres -- psql -U postgres -Atc \
-     "SELECT application_name, state, sync_state, replay_lag FROM pg_stat_replication"
+   kubectl get clusters.postgresql.cnpg.io,pods,pvc -n postgres
+   PRIMARY=$(kubectl get clusters.postgresql.cnpg.io postgres-cluster -n postgres \
+     -o jsonpath='{.status.currentPrimary}')
+   kubectl exec -n postgres "$PRIMARY" -c postgres -- psql -U postgres -Atc \
+     "SELECT application_name, state, pg_current_wal_lsn(), replay_lsn FROM pg_stat_replication"
    ```
 
 4. **Switch over to the new instance.** With the `kubectl cnpg` plugin:
-   `kubectl cnpg promote postgres-cluster <new-instance>`. Without it, make the
-   same status change the plugin makes
-   (`internal/cmd/plugin/promote/promote.go` in 1.30.1):
+   `kubectl cnpg promote postgres-cluster <new-instance>`. Without it, set the
+   status fields the plugin sets (`internal/cmd/plugin/promote/promote.go` in
+   1.30.1). The plugin also checks that the target pod exists and is not
+   fenced, and sets the Cluster's `Ready` condition to `False`. The patch below
+   does neither, so check the pod by hand first:
 
    ```bash
-   NEW=<new-instance>
+   NEW=postgres-cluster-2   # the instance on the new storage class
+   kubectl get pod -n postgres "$NEW"
    kubectl patch clusters.postgresql.cnpg.io postgres-cluster -n postgres \
      --subresource=status --type=merge -p "{\"status\":{
        \"targetPrimary\":\"$NEW\",
@@ -375,11 +394,20 @@ and the volume backups run.
    reconnected, that WAL archiving continues
    (`ContinuousArchiving` is `True` and `pg_stat_archiver` advances on the new
    primary), and that an on-demand backup completes.
-5. **Remove the old instance.** Set `instances: 1` and merge. On scale-down
-   the operator never removes the primary. It removes the ready replica with
-   the highest serial (`findDeletableInstance` in
-   `internal/controller/replicas.go`), which is now the old instance, together
-   with its PVC. Its PV stays `Released` because of step 2.
+5. **Remove the old instance.** First check that both pods are running and
+   ready, that the new instance is the primary, and that the old one is a
+   streaming replica. On scale-down the operator first removes an instance that
+   has no pod, with no primary check. Otherwise it skips the primary and removes
+   the ready replica with the highest serial (`findDeletableInstance` in
+   `internal/controller/replicas.go`). With both pods up, that is the old
+   instance:
+
+   ```bash
+   kubectl get pods -n postgres -L cnpg.io/instanceRole
+   ```
+
+   Then set `instances: 1` and merge. The operator deletes the old instance and
+   its PVC. Its PV stays `Released` because of step 2.
 
 ## Troubleshooting
 
