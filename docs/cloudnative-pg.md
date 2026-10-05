@@ -249,13 +249,19 @@ kubectl wait --for=condition=Ready clusters.postgresql.cnpg.io/postgres-restore-
 for POD in postgres-restore-drill-1 <current-primary>; do
   echo "== $POD"
   kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d vikunja -Atc \
-    "SELECT 'projects',count(*) FROM projects UNION ALL SELECT 'tasks',count(*) FROM tasks"
+    "SELECT 'projects',count(*) FROM projects UNION ALL SELECT 'tasks',count(*) FROM tasks
+     UNION ALL SELECT 'users',count(*) FROM users"
   kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d paperless -Atc \
     "SELECT 'documents',count(*) FROM documents_document"
   kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d homeassistant -Atc \
-    "SELECT 'states',count(*) FROM states UNION ALL SELECT 'statistics',count(*) FROM statistics"
+    "SELECT 'states',count(*) FROM states UNION ALL SELECT 'statistics',count(*) FROM statistics
+     UNION ALL SELECT 'statistics_meta',count(*) FROM statistics_meta"
   kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -Atc \
     "SELECT string_agg(datname, ',' ORDER BY datname) FROM pg_database"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -Atc \
+    "SELECT string_agg(rolname, ',' ORDER BY rolname) FROM pg_roles WHERE rolname !~ '^pg_'"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -Atc \
+    "SHOW shared_preload_libraries"
 done
 
 # 5. Delete the drill cluster. Its pod and PVC go with it; the PV stays,
