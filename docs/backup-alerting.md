@@ -211,7 +211,7 @@ treats `"false"` as an exclusion: it reads the annotation with Go's
 acts on also carries the decision, and the exclusion still holds if
 `skipWithoutAnnotation` is ever turned off.
 
-**CloudNativePG volumes.** The operator creates `postgres-cluster-1`, so the
+**CloudNativePG volumes.** The operator creates the instance PVCs (`postgres-cluster-<serial>`), so the
 marking lives in the `clusters.postgresql.cnpg.io` manifest as `spec.inheritedMetadata.annotations`.
 In CloudNativePG 1.30.1 the PVC builder applies the Cluster's inherited
 metadata when creating a PVC, and the Cluster reconcile loop patches it onto
@@ -383,7 +383,7 @@ This is a post-merge, live-cluster step — it cannot be done from the PR alone.
    ```bash
    flux resume kustomization configs
    flux reconcile kustomization configs --with-source   # re-applies the real secret
-   kubectl -n postgres delete pod postgres-cluster-1     # reload credential (brief restart)
+   kubectl -n postgres delete pod postgres-cluster-2     # the current primary; reload credential (brief restart)
    # wait for recovery — need Ready=True and ContinuousArchiving=True:
    kubectl -n postgres get cluster postgres-cluster \
      -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}'
@@ -413,7 +413,7 @@ Querying Grafana Cloud metrics needs `metrics:read`, which the in-cluster
 
 - **Raw backup timestamps** — read them straight from the instance:
   ```bash
-  kubectl -n postgres port-forward postgres-cluster-1 9187:9187 &
+  kubectl -n postgres port-forward postgres-cluster-2 9187:9187 &   # the current primary
   curl -s localhost:9187/metrics | grep '^cnpg_collector_last_'
   ```
 - **Alert state in the ruler** — `rules:read` (which `homelab-alloy` has) is enough:

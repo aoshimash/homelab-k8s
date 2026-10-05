@@ -39,7 +39,7 @@ Deliberately not backed up:
 
 | Namespace | PVC | Why |
 |-----------|-----|-----|
-| postgres | `postgres-cluster-1` | CloudNativePG PGDATA — a file-level copy of a live PostgreSQL data directory is not a valid backup; CloudNativePG's barman backup covers it. Marked `k8up.io/backup: "false"` through the Cluster's `spec.inheritedMetadata`, and the `postgres` namespace has no Schedule, so it is excluded twice over |
+| postgres | `postgres-cluster-2` (one PVC per instance, named after it) | CloudNativePG PGDATA — a file-level copy of a live PostgreSQL data directory is not a valid backup; CloudNativePG's barman backup covers it. Marked `k8up.io/backup: "false"` through the Cluster's `spec.inheritedMetadata`, and the `postgres` namespace has no Schedule, so it is excluded twice over |
 
 A new PVC goes into one of these two tables; see "Backup decision for every
 PVC" below.
