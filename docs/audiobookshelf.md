@@ -15,9 +15,12 @@ Audiobookshelf is a self-hosted podcast server deployed on the Kubernetes cluste
 - **Deployment**: Single replica running `ghcr.io/advplyr/audiobookshelf:latest`
 - **Service**: ClusterIP service exposing port 80
 - **Ingress**: Tailscale Ingress with hostname `audiobookshelf`
-- **Storage**: Two PersistentVolumeClaims:
+- **Storage**: Three PersistentVolumeClaims on the `local-path` StorageClass
+  ([local-path-provisioner.md](local-path-provisioner.md)). local-path does not
+  enforce capacity, so each request only records the expected size:
   - `audiobookshelf-config` (1Gi) - SQLite database and configuration
-  - `audiobookshelf-podcasts` (50Gi) - Podcast audio files
+  - `audiobookshelf-metadata` (1Gi) - Item metadata and covers, cache, logs, server backups
+  - `audiobookshelf-podcasts` (15Gi) - Podcast audio files
 
 ### Access Flow
 
@@ -30,7 +33,8 @@ Tailnet Device → Tailscale ProxyGroup → Ingress → Service → Pod
 ### Prerequisites
 
 - Flux CD running and reconciling
-- Longhorn storage class available
+- `local-path` StorageClass available, with its Talos user volume `ready` (see
+  [local-path-provisioner.md](local-path-provisioner.md#check-the-user-volume-before-creating-a-claim))
 - Tailscale Operator deployed
 - ProxyGroup `ingress-proxies` exists
 
@@ -63,7 +67,8 @@ kubectl get ingress -n audiobookshelf
 
 ### Storage
 
-- **Config volume** (`/config`): SQLite database, metadata cache, server configuration
+- **Config volume** (`/config`): SQLite database and server configuration
+- **Metadata volume** (`/metadata`): Item metadata and covers (`items/<id>/metadata.json`, `cover.jpg`), plus `cache/`, `logs/`, `backups/`, `streams/`
 - **Podcasts volume** (`/podcasts`): Podcast library directory
 
 ### Environment Variables
@@ -146,16 +151,19 @@ kubectl logs -n audiobookshelf -l app=audiobookshelf
 ### Storage Issues
 
 ```bash
-# Check Longhorn volumes
-kubectl get volumes.longhorn.io -n longhorn-system
-
 # Check PVC events
 kubectl describe pvc -n audiobookshelf audiobookshelf-podcasts
+
+# Free space on the node filesystem the volumes live on
+kubectl get --raw /api/v1/nodes/homelab-node-01/proxy/stats/summary \
+  | jq '.node.fs | {capacityGB: (.capacityBytes/1e9), availableGB: (.availableBytes/1e9)}'
 ```
 
 **Common issues**:
-- PVC stuck in Pending → Check Longhorn storage availability
-- Storage full → Increase PVC size or clean up old episodes
+- PVC stuck in Pending → Check the local-path provisioner and its Talos user
+  volume ([local-path-provisioner.md](local-path-provisioner.md))
+- Storage full → The PVC size is not enforced; the limit is free space on the
+  node's `EPHEMERAL` filesystem. Clean up old episodes
 
 ### Ingress Not Working
 
@@ -202,22 +210,16 @@ curl https://audiobookshelf.<tailnet>.ts.net/healthcheck
 
 ### Data Backup
 
-Audiobookshelf data is stored in persistent volumes:
-
-- **Config**: `/config` volume (1Gi) - Database and configuration
-- **Podcasts**: `/podcasts` volume (50Gi) - Audio files
-
-Backup strategies:
-
-1. **Longhorn snapshots**: Use Longhorn UI to create volume snapshots
-2. **PVC backup**: Export PVC data using `kubectl cp` or backup tools
-3. **Application export**: Use Audiobookshelf's built-in export features
+All three volumes (`audiobookshelf-config`, `audiobookshelf-metadata`,
+`audiobookshelf-podcasts`) are backed up daily to Cloudflare R2 by K8up. The
+open SQLite database is excluded from the file copy and captured by a
+command-based dump instead. See [k8up.md](k8up.md), which covers on-demand
+backups, listing snapshots and the database dump.
 
 ### Recovery
 
-1. Restore from Longhorn snapshot
-2. Or restore PVC from backup
-3. Restart pod to pick up restored data
+Restore with K8up as described in [k8up.md — Restore](k8up.md#restore),
+including "Restore audiobookshelf's database" for `absdatabase.sqlite`.
 
 ## Upgrades
 
