@@ -6,7 +6,6 @@ resources:
   # depends on, so the PrometheusRule CRD exists before the PrometheusRule
   # resources in grafana-alloy/ are applied. See k8s/flux/infra-crds-kustomization.yaml.
   - cilium/
-  - longhorn/
   - local-path-provisioner/
   - k8up/
   - tailscale/
