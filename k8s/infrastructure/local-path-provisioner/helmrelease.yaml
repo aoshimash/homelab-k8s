@@ -40,13 +40,19 @@ spec:
           - /var/mnt/local-path-provisioner
     storageClass:
       name: local-path
-      # Longhorn still owns every existing volume and stays the default until
-      # the migration is complete (#299). Flipping this early would send new
-      # claims to a provisioner that has not been exercised.
-      defaultClass: false
-      # Retain while volumes are being migrated off Longhorn, so a mistake while
-      # moving a PVC does not delete its data. Revisit once the migration is
-      # complete.
+      # The default class since Longhorn was removed (#305), so a claim that
+      # names no class still gets a volume. This class, not
+      # local-path-ephemeral (storageclass-ephemeral.yaml), is the default on
+      # purpose: a claim that forgets to name a class then keeps its data when
+      # it is deleted, instead of losing it.
+      defaultClass: true
+      # Retain was chosen while volumes were migrated off Longhorn, so a mistake
+      # while moving a PVC could not delete its data. It stays after the
+      # migration: the default-class choice above relies on it, and disposable
+      # claims use local-path-ephemeral. reclaimPolicy is immutable on a
+      # StorageClass, so changing it means replacing the class
+      # (docs/local-path-provisioner.md, "Change the reclaim policy (after the
+      # migration)").
       reclaimPolicy: Retain
       # Chart default, set explicitly because it is a decision (#302): volumes
       # are node-bound, and binding waits for the pod so a claim lands on the

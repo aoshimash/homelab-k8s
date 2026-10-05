@@ -61,7 +61,7 @@ If adding/removing extensions, create a new schematic at [Talos Image Factory](h
 5. Copy the generated Schematic ID
 
 **Current Extensions:**
-- `siderolabs/iscsi-tools` - Required for Longhorn storage
+- `siderolabs/iscsi-tools` - Added for Longhorn, which was removed in [#305](https://github.com/aoshimash/homelab-k8s/issues/305). Nothing needs it now; removing it from the schematic is deferred to the next Talos upgrade, and [#307](https://github.com/aoshimash/homelab-k8s/issues/307) decides whether to keep it
 - `siderolabs/tailscale` - VPN connectivity
 
 #### 3. Perform the Upgrade
@@ -69,8 +69,8 @@ If adding/removing extensions, create a new schematic at [Talos Image Factory](h
 > ⚠️ **Single Node Cluster Warning**: By default, `talosctl upgrade` cordons the
 > node and drains its pods before rebooting. On a single-node cluster the drain
 > cannot succeed — there is nowhere to move the pods, and any PodDisruptionBudget
-> with `ALLOWED DISRUPTIONS = 0` (Longhorn `instance-manager`, the CloudNativePG
-> primary) blocks eviction until the drain times out. The upgrade can also hang
+> with `ALLOWED DISRUPTIONS = 0` (the CloudNativePG primary) blocks eviction
+> until the drain times out. The upgrade can also hang
 > waiting for kubelet lifecycle finalizers.
 > See [GitHub Issue #11775](https://github.com/siderolabs/talos/issues/11775) for details.
 
@@ -91,7 +91,7 @@ talosctl dmesg -f --nodes 192.168.0.10
   un-satisfiable single-node drain or on blocking PodDisruptionBudgets.
 - Is not a "hard kill": Talos still runs its graceful shutdown sequence, sending
   SIGTERM + grace period to pods during the reboot. Stateful workloads
-  (CloudNativePG, Longhorn) recover via normal crash recovery on restart.
+  (CloudNativePG) recover via normal crash recovery on restart.
 
 > **Note — `--preserve` is gone:** Older docs and Talos guides told single-node
 > operators to pass `--preserve`. That flag controlled *ephemeral-partition data
@@ -291,11 +291,11 @@ kubectl run snat-check --rm -i --restart=Never --image=curlimages/curl:latest --
 #    Expect 200. A hang or connection failure means pod egress is broken.
 
 # 2. Tailscale ingress reachability, from a machine on the tailnet.
-for h in audiobookshelf home-assistant vikunja paperless longhorn; do
+for h in audiobookshelf home-assistant vikunja paperless; do
   printf '%s -> ' "$h"
   curl -sS -o /dev/null -w '%{http_code}\n' --max-time 15 "https://${h}.tail19032f.ts.net"
 done
-#    Expect 2xx/3xx for all five (paperless answers 302).
+#    Expect 2xx/3xx for all four (paperless answers 302).
 ```
 
 Cilium's own view of the datapath is worth a look on any reboot or CNI change:
@@ -515,7 +515,7 @@ future consideration but are **not** implemented today.
 
 | Extension | Purpose | Required For |
 |-----------|---------|--------------|
-| `siderolabs/iscsi-tools` | iSCSI initiator | Longhorn storage |
+| `siderolabs/iscsi-tools` | iSCSI initiator | Nothing since Longhorn was removed ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)); still in the schematic |
 | `siderolabs/tailscale` | VPN client | Remote access |
 | `siderolabs/util-linux-tools` | Misc utilities | Various tools |
 

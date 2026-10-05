@@ -6,9 +6,8 @@ vars:
   # CustomResourceDefinition: no generic schema covers arbitrary CRD specs (e.g. k8s/flux/flux-system/gotk-components.yaml)
   # Cluster, Database, ScheduledBackup: CloudNativePG CRDs
   # ProxyGroup: Tailscale operator CRD
-  # RecurringJob: Longhorn CRD
   # Schedule: K8up CRD
-  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy,PrometheusRule,CustomResourceDefinition,Cluster,Database,ScheduledBackup,ProxyGroup,RecurringJob,Schedule
+  SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy,PrometheusRule,CustomResourceDefinition,Cluster,Database,ScheduledBackup,ProxyGroup,Schedule
   TALOS_NODE: 192.168.0.10
   TALOS_DIR: infra/talos
   TALOS_CONFIG: '{{.TALOS_DIR}}/clusterconfig/talosconfig'

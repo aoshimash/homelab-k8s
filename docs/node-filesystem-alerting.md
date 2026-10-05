@@ -12,9 +12,8 @@ reach Slack through the same path as the backup alerts (see
 
 `EPHEMERAL` is the node's one large filesystem (`/dev/nvme0n1p4`, 997GB, the
 whole disk apart from Talos's system partitions). It holds etcd, container
-images, the kubelet, logs, Longhorn's data (`/var/lib/longhorn`) and every
-local-path volume (`/var/mnt/local-path-provisioner`). Nothing isolates one from
-another.
+images, the kubelet, logs and every local-path volume
+(`/var/mnt/local-path-provisioner`). Nothing isolates one from another.
 
 local-path-provisioner does not enforce a volume's requested size (see
 [local-path-provisioner.md](local-path-provisioner.md#capacity)), so one volume
@@ -104,10 +103,11 @@ alert has to get ahead of.
    ```
 
    `talosctl usage` adds up file sizes, not the blocks they use, so sparse
-   files count at their full size. Longhorn's replica files are sparse: on
-   2026-09-23 `/var/lib/longhorn` showed 244GB while the whole filesystem used
-   113GB. Compare directories with each other and over time, not with the
-   filesystem total.
+   files count at their full size. On 2026-09-23, before Longhorn was removed
+   ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)), its sparse
+   replica files under `/var/lib/longhorn` showed 244GB while the whole
+   filesystem used 113GB. Compare directories with each other and over time,
+   not with the filesystem total.
 
 3. Typical causes and what to do:
    - **A local-path volume** (`/var/mnt/local-path-provisioner/<namespace>/<claim>/`):

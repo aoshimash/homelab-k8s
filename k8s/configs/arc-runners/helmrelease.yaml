@@ -34,7 +34,11 @@ spec:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: "longhorn"
+        # The work volume is an ephemeral claim that lives as long as the
+        # runner pod. local-path-ephemeral reclaims with Delete, so the PV and
+        # its directory on the node go away with it; `local-path` (Retain)
+        # would leave both behind after every job.
+        storageClassName: "local-path-ephemeral"
         resources:
           requests:
             storage: 1Gi

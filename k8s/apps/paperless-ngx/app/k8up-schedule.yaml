@@ -26,8 +26,9 @@ spec:
   podSecurityContext:
     runAsUser: 0
   backup:
-    # 19:00 UTC, after Longhorn's backup-daily (18:30 UTC) has started, so
-    # the two do not begin reading the same volumes at the same moment.
+    # 19:00 UTC, an hour after the CloudNativePG daily backup (18:00 UTC), so a
+    # volume backup is never older than the database backup it pairs with
+    # (docs/cloudnative-pg.md, "Backup Configuration Notes").
     schedule: "0 19 * * *"
   prune:
     schedule: "0 20 * * 0"

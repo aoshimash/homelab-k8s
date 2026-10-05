@@ -1,10 +1,11 @@
 # local-path-provisioner - Local Storage on a Talos User Volume
 
 [rancher/local-path-provisioner](https://github.com/rancher/local-path-provisioner)
-provisions PersistentVolumes as plain directories on the node's disk. It is the
-storage class that replaces Longhorn, as recorded in
+provisions PersistentVolumes as plain directories on the node's disk. It
+replaced Longhorn, as recorded in
 [storage-migration-decision.md](storage-migration-decision.md). It was
-introduced by [#302](https://github.com/aoshimash/homelab-k8s/issues/302).
+introduced by [#302](https://github.com/aoshimash/homelab-k8s/issues/302), and
+Longhorn was removed by [#305](https://github.com/aoshimash/homelab-k8s/issues/305).
 
 There is no replication. A volume is a directory on one node, and it is lost if
 that node's disk is lost. Recovery comes from the R2 backups taken by K8up
@@ -16,9 +17,9 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 |------|-------|
 | Chart | `deploy/chart/local-path-provisioner` from the upstream git repository, pinned by `ref.tag` in `k8s/infrastructure/local-path-provisioner/gitrepository.yaml` |
 | Namespace | `local-path-storage` (Pod Security `privileged`) |
-| StorageClass | `local-path` (provisioner `cluster.local/local-path-provisioner`) |
-| Default class | **no**: Longhorn stays the default until the migration is complete |
-| Reclaim policy | `Retain` for the duration of the migration |
+| StorageClasses | `local-path` (from the chart) and `local-path-ephemeral` (`storageclass-ephemeral.yaml`), both provisioner `cluster.local/local-path-provisioner`. See [Two classes](#two-classes) |
+| Default class | `local-path`, since Longhorn was removed |
+| Reclaim policy | `local-path`: `Retain`, set for the migration and kept on purpose (see [Why these settings](#why-these-settings)). `local-path-ephemeral`: `Delete` |
 | Binding mode | `WaitForFirstConsumer` |
 | Root on the node | `/var/mnt/local-path-provisioner`, a Talos user volume of type `directory` |
 | On-disk layout | `<namespace>/<claim>/<pv-name>/` under the root |
@@ -54,13 +55,23 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   `ref.commit` instead would close the gap, but Renovate's flux manager tracks
   commits rather than tags when `commit` is set. The tag was chosen so version
   bumps still arrive as PRs.
-- **Not the default class.** Longhorn owns every existing volume. Making this
-  the default before any volume has moved would send new claims to a
-  provisioner that has not been exercised yet.
+- **`local-path` is the default class.** While Longhorn still held volumes it
+  stayed the default, so new claims did not go to a provisioner that had not
+  been exercised yet. Once every volume had moved and Longhorn was removed
+  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)), `local-path`
+  became the default, so a claim that names no class still gets a volume. The
+  default is the `Retain` class rather than `local-path-ephemeral` on purpose:
+  a claim that forgets to name a class keeps its data when it is deleted,
+  instead of losing it. A leaked directory can be cleaned up; deleted data
+  cannot be brought back.
 - **`Retain`.** During the migration, deleting a claim by mistake must not
   delete its data. The trade-off is that a deleted claim leaves a `Released` PV
   and its directory behind, which have to be cleaned up by hand (see
-  [Release a retained volume](#release-a-retained-volume)).
+  [Release a retained volume](#release-a-retained-volume)). The migration is
+  over and the policy stays: the default-class choice above relies on it, and
+  claims whose data is disposable use `local-path-ephemeral` instead (see
+  [Two classes](#two-classes) and
+  [Change the reclaim policy](#change-the-reclaim-policy-after-the-migration)).
 - **`WaitForFirstConsumer`.** This is the chart default. A volume is bound to
   the node it was created on. With this mode the volume is created on the node
   the consuming pod is scheduled to, which is what makes it behave correctly
@@ -80,6 +91,34 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   Security level is `baseline`, which forbids `hostPath` volumes, so the
   namespace is labelled `privileged`. Talos's guide does the same.
 
+## Two classes
+
+| Class | Reclaim policy | Default | For |
+|-------|----------------|---------|-----|
+| `local-path` | `Retain` | yes | Application data. Every data volume names it explicitly |
+| `local-path-ephemeral` | `Delete` | no | Claims that live and die with a pod, such as the Actions Runner Controller work volume (`k8s/configs/arc-runners/helmrelease.yaml`) |
+
+Both classes are served by the same provisioner, from the same root and with the
+same on-disk layout. What matters is the difference in what happens when a
+claim is deleted. (The chart's class also sets `allowVolumeExpansion: true` and a
+`defaultVolumeType: hostPath` annotation. Neither changes anything here: capacity
+is not enforced, and `hostPath` is the provisioner's default volume type.)
+With `Delete`, Kubernetes deletes the PV, and the provisioner runs its helper
+pod with the teardown script, which removes the directory (`rm -rf "$VOL_DIR"`
+in the chart's default `configmap.teardown`). Without the second class every
+runner job would leave a `Released` PV and its directory behind.
+
+The chart creates only one StorageClass, so `local-path-ephemeral` is a plain
+manifest in `k8s/infrastructure/local-path-provisioner/storageclass-ephemeral.yaml`.
+The provisioner serves any class that names it as provisioner. Its config sets
+`nodePathMap` and no `storageClassConfigs`, and in that case every class uses
+the same config (`pickConfig` in `provisioner.go`). The upstream README shows
+the same pattern with an extra class (`ssd-local-path`) and
+`reclaimPolicy: Delete`. The chart's `storageClassConfigs` value was not used:
+it replaces the single `storageClass` block, needs `nodePathMap: []` and gives
+each class its own path config, which would re-render the existing
+`local-path` class for no gain.
+
 ## Capacity
 
 The upstream README is explicit: capacity limits are not supported, and a
@@ -90,8 +129,8 @@ claim has no effect.
 The real limit is free space on `EPHEMERAL`. That space is shared with etcd,
 container images, logs and the kubelet, because a `directory` user volume has no
 filesystem of its own. A runaway volume can fill `/var` and take etcd down with
-it. Longhorn had the same exposure, because its data also lives on `EPHEMERAL`
-(`/var/lib/longhorn`).
+it. Longhorn, which this replaced, had the same exposure: its data also lived
+on `EPHEMERAL` (`/var/lib/longhorn`).
 
 `NodeEphemeralFilesystemUsageHigh` warns in Slack when `EPHEMERAL` passes 70%
 used, about 150GB before the kubelet starts image GC and eviction at ~85%.
@@ -248,7 +287,12 @@ kubectl run -n local-path-storage rm-volume --rm -it --restart=Never \
 
 ### Change the reclaim policy (after the migration)
 
-`Retain` is temporary. A StorageClass's `reclaimPolicy`, `parameters` (which
+`Retain` was set for the migration. Since
+[#305](https://github.com/aoshimash/homelab-k8s/issues/305), disposable claims
+use `local-path-ephemeral` instead, and the choice of `local-path` as the
+default class relies on it keeping data (see
+[Why these settings](#why-these-settings)). Revisit that choice before
+switching `local-path` to `Delete`. A StorageClass's `reclaimPolicy`, `parameters` (which
 include `pathPattern`), `provisioner` and `volumeBindingMode` are immutable in
 the Kubernetes API, so changing any of them in `helmrelease.yaml` cannot be
 applied as an in-place update. Plan it as its own change that replaces the

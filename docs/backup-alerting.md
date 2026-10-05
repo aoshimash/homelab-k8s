@@ -1,18 +1,20 @@
-# Backup-failure alerting (Longhorn, CloudNativePG & K8up)
+# Backup-failure alerting (CloudNativePG & K8up)
 
 Alerting that fires when a backup **fails** or becomes **overdue**, for
-Longhorn volume backups, CloudNativePG database backups and K8up volume
-backups, with notifications delivered to Slack. Implements
+CloudNativePG database backups and K8up volume backups, with notifications
+delivered to Slack. Implements
 [#234](https://github.com/aoshimash/homelab-k8s/issues/234); K8up coverage
 added by [#340](https://github.com/aoshimash/homelab-k8s/issues/340) (see
 [K8up](#k8up)); alerting on PVCs with no backup decision added by
 [#306](https://github.com/aoshimash/homelab-k8s/issues/306) (see
-[Backup coverage](#backup-coverage)).
+[Backup coverage](#backup-coverage)). #234 also covered Longhorn volume
+backups; those rules and their scrape were removed with Longhorn by
+[#305](https://github.com/aoshimash/homelab-k8s/issues/305).
 
 ## Why
 
 Data integrity is the one guarantee this cluster does not compromise on. Backups
-(Longhorn → R2, CloudNativePG → R2, K8up → R2) uphold it, but an unmonitored
+(CloudNativePG → R2, K8up → R2) uphold it, but an unmonitored
 backup is not a backup: a silent failure (bad credentials, R2 unreachable, a
 broken schedule) would only surface at restore time — exactly when it is too
 late.
@@ -43,16 +45,13 @@ Key pieces added:
 | K8up snapshot freshness metric | `k8s/infrastructure/kube-state-metrics/helmrelease.yaml` (`customResourceState`) | Flux |
 | PVC backup-annotation metric | `k8s/infrastructure/kube-state-metrics/helmrelease.yaml` (`metricAnnotationsAllowList`) | Flux |
 | Ruler sync + RBAC | `helmrelease.yaml` (`mimir.rules.kubernetes`) + `rbac-prometheusrules.yaml` | Flux |
-| Alert rules | `prometheusrule-backup-{longhorn,cnpg,k8up}.yaml` | Flux → Alloy → Grafana Cloud ruler |
+| Alert rules | `prometheusrule-backup-{cnpg,k8up}.yaml` | Flux → Alloy → Grafana Cloud ruler |
 | Slack routing | `grafana-cloud/alertmanager.yaml` | mimirtool (manual, **not** Flux) |
 
 ## Metrics used
 
 Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion):
 
-- **Longhorn** (`longhorn-manager` pods, `:9500`): `longhorn_backup_state`
-  (`4` = Error), `longhorn_volume_last_backup_at` (unix ts of last successful
-  backup, `0` if none), `longhorn_volume_robustness`.
 - **CloudNativePG** (instance pods, `:9187`):
   `cnpg_collector_last_available_backup_timestamp`,
   `cnpg_collector_last_failed_backup_timestamp`,
@@ -77,8 +76,6 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
 
 | Alert | Condition | Notes |
 |-------|-----------|-------|
-| `LonghornBackupFailed` | `longhorn_backup_state == 4` for 5m | A backup is in Error state |
-| `LonghornBackupOverdue` | no successful backup in >26h (`!= 0`) | Daily schedule 18:30 UTC + buffer; never-backed-up volumes excluded |
 | `CNPGBackupFailed` | `last_failed > last_available` for 5m | A failure newer than the last good backup |
 | `CNPGBackupOverdue` | no successful backup in >26h (`> 0`) | Daily schedule 18:00 UTC + buffer |
 | `K8upJobFailed` | `k8up_jobs_failed_counter` increased: backup in the last 26h, check/prune in the last 8d; for 5m | Clears once the window holds no failure: ~2h (backup) or ~1d (check/prune) after the next run, if it succeeds |
@@ -335,7 +332,7 @@ mimirtool rules list --address="$MIMIR_ADDRESS" --id="$MIMIR_TENANT_ID" --key="$
 ```
 
 In Grafana Cloud, the metrics should be queryable (e.g.
-`longhorn_volume_last_backup_at`, `cnpg_collector_last_available_backup_timestamp`)
+`kube_customresource_k8up_snapshot_timestamp_seconds`, `cnpg_collector_last_available_backup_timestamp`)
 and the alert rules should appear under Alerting → Alert rules (data-source-managed).
 
 ## Verifying alert delivery (Acceptance Criterion #3)
@@ -426,18 +423,6 @@ Querying Grafana Cloud metrics needs `metrics:read`, which the in-cluster
     "https://prometheus-prod-XX.grafana.net/api/prom/api/v1/rules?type=alert"
   # look for CNPGBackupFailed .state: inactive → pending → firing → inactive
   ```
-
-### Longhorn
-
-Induce a failure by temporarily setting an invalid backup target secret
-(`longhorn-r2-credentials`) or an unreachable `backupTarget`, then trigger the
-`backup-daily` recurring job (or create a manual backup) from the Longhorn UI.
-`longhorn_backup_state` goes to `4` (Error) → `LonghornBackupFailed` fires →
-Slack. Revert afterwards.
-
-> [!CAUTION]
-> Always restore the real credentials and confirm a subsequent backup succeeds.
-> Leaving broken credentials in place defeats the purpose of the backups.
 
 ### K8up
 

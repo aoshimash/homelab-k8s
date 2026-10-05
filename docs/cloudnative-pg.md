@@ -162,7 +162,7 @@ spec:
 EOF
 
 # Check backup status. Use the fully-qualified resource: the short name `backup`
-# resolves to `backups.longhorn.io`, which silently reports "No resources found".
+# also matches K8up's `backups.k8up.io` and can silently list the wrong kind.
 kubectl get backups.postgresql.cnpg.io -n postgres
 ```
 
@@ -456,9 +456,10 @@ and the volume backups run.
 - Step 5 removed `postgres-cluster-1` and its PVC. Its Longhorn PV,
   `pvc-a37d3284-abfb-4b6e-9887-96255f0385b6`, was deliberately left `Released`
   (reclaim policy `Retain`) as the last copy of the pre-move PGDATA. A
-  `Retain` PV is never deleted automatically: delete it, and its Longhorn
-  volume, when Longhorn is removed
-  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)).
+  `Retain` PV is never deleted automatically. It was deleted, with its Longhorn
+  volume, when Longhorn was removed
+  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)), after the
+  first scheduled backup on the new instance had completed.
 
 ## Troubleshooting
 
@@ -569,22 +570,24 @@ puts every volume in its `default` recurring-job group unless the StorageClass
 says otherwise. Those copies were crash-consistent snapshots of a running
 PGDATA, never the restore path.
 
-**Backup ordering relative to Longhorn PVC backups**: the CNPG daily database
-backup (18:00 UTC / 03:00 JST) is deliberately scheduled 30 minutes before
-Longhorn's `backup-daily` RecurringJob (18:30 UTC / 03:30 JST). For apps whose
-data spans both the CNPG database and a Longhorn PVC (e.g. paperless-ngx), a
+**Backup ordering relative to K8up PVC backups**: the CNPG daily database
+backup (18:00 UTC / 03:00 JST) is deliberately scheduled an hour before the
+K8up volume backups (19:00 UTC / 04:00 JST, see [k8up.md](k8up.md)). For apps
+whose data spans both the CNPG database and a PVC (e.g. paperless-ngx), a
 restore must not pair a database backup that is *newer* than the
 paired PVC backup: the database could reference files (e.g. media attachments)
 missing from the restored volume. The reverse ordering (PVC backup newer than
 the database backup) is comparatively safe — at worst a few files exist on disk
-that the database doesn't know about yet. Running the database backup
-immediately before the PVC backup keeps the two as close as possible while
-preserving the safe ordering.
+that the database doesn't know about yet. Running the database backup shortly
+before the PVC backup keeps the two close while preserving the safe ordering.
 
-The 30-minute buffer is based on observed CNPG daily backup durations of
-**4–25 seconds** (measured 2026-07-03 through 2026-07-10, all backups
-completed), so it is a very generous margin. If the database grows enough that
-backups approach the buffer, widen the gap and update both schedules together.
+Until [#305](https://github.com/aoshimash/homelab-k8s/issues/305) removed
+Longhorn, its `backup-daily` RecurringJob at 18:30 UTC was the PVC backup this
+ordering was built around, with a 30-minute buffer. That buffer was based on
+observed CNPG daily backup durations of **4–25 seconds** (measured 2026-07-03
+through 2026-07-10, all backups completed); the hour before K8up is wider
+still. If the database grows enough that backups approach the buffer, widen the
+gap and update the CNPG and K8up schedules together.
 
 ## Upgrade Procedures
 
