@@ -34,10 +34,11 @@ spec:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
         accessModes: ["ReadWriteOnce"]
-        # local-path reclaims with Retain, so every runner pod leaves a
-        # Released PV and its directory behind until they are cleaned up by
-        # hand (docs/local-path-provisioner.md, "Release a retained volume").
-        storageClassName: "local-path"
+        # The work volume is an ephemeral claim that lives as long as the
+        # runner pod. local-path-ephemeral reclaims with Delete, so the PV and
+        # its directory on the node go away with it; `local-path` (Retain)
+        # would leave both behind after every job.
+        storageClassName: "local-path-ephemeral"
         resources:
           requests:
             storage: 1Gi

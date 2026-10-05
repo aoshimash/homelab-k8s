@@ -1,0 +1,22 @@
+# A second class served by the same provisioner, for claims whose data is
+# thrown away with them (the Actions Runner Controller work volumes). Unlike
+# `local-path` (Retain, from the chart), deleting the claim deletes the PV and
+# the provisioner's helper pod removes its directory. Data volumes stay on
+# `local-path`. See docs/local-path-provisioner.md, "Two classes".
+#
+# The provisioner serves any StorageClass that names it: with `nodePathMap`
+# set and no `storageClassConfigs`, every class uses the same config
+# (`pickConfig` in provisioner.go, v0.0.37). The chart creates only one class,
+# so this one is a plain manifest. Every field except metadata is immutable.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-ephemeral
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: cluster.local/local-path-provisioner
+parameters:
+  # Same layout as `local-path`, so a directory can be traced to its claim.
+  pathPattern: "{{ .PVC.Namespace }}/{{ .PVC.Name }}/{{ .PVName }}"
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

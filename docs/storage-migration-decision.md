@@ -242,7 +242,9 @@ this section describes how the migration ended.
   policy `Retain`). [#305](https://github.com/aoshimash/homelab-k8s/issues/305)
   deleted those eight volumes only after the first scheduled CloudNativePG and
   K8up backups after the moves had succeeded, then uninstalled Longhorn.
-  `local-path` became the default StorageClass.
+  `local-path` (`Retain`) became the default StorageClass. A second class on
+  the same provisioner, `local-path-ephemeral` (`Delete`), took over the
+  Actions Runner Controller work volumes, which had been on Longhorn.
 - **The orphaned claim.** `data-vikunja-postgresql-0` was there for the
   2026-09-21 measurement, and gone by 2026-09-23: the description of
   [#338](https://github.com/aoshimash/homelab-k8s/pull/338), merged that day,

@@ -40,8 +40,11 @@ spec:
           - /var/mnt/local-path-provisioner
     storageClass:
       name: local-path
-      # The only StorageClass since Longhorn was removed (#305), so it is the
-      # default: a claim that names no class still gets a volume.
+      # The default class since Longhorn was removed (#305), so a claim that
+      # names no class still gets a volume. This class, not
+      # local-path-ephemeral (storageclass-ephemeral.yaml), is the default on
+      # purpose: a claim that forgets to name a class then keeps its data when
+      # it is deleted, instead of losing it.
       defaultClass: true
       # Retain was chosen while volumes were migrated off Longhorn, so a mistake
       # while moving a PVC could not delete its data. The migration is complete,
