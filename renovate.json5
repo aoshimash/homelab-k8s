@@ -253,7 +253,7 @@
       "matchPackageNames": ["ghcr.io/home-assistant/home-assistant"],
       "prBodyNotes": [
         "**Back up before merging** — Home Assistant migrates the recorder schema in the `homeassistant` database one way. Because the tag is CalVer, Renovate reports a new year as a major and a new month as a minor: both run recorder migrations, so this note applies to either.",
-        "Back up the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days) and the `home-assistant-config` volume — which holds `.storage`, i.e. every UI-configured integration — via [docs/longhorn.md — Create an On-Demand Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/longhorn.md#create-an-on-demand-backup).",
+        "Back up the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days) and the `home-assistant-config` volume — which holds `.storage`, i.e. every UI-configured integration — via [docs/k8up.md — Trigger an on-demand backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/k8up.md#trigger-an-on-demand-backup).",
         "A schema step below `LIVE_MIGRATION_MIN_SCHEMA_VERSION` blocks startup until it finishes rather than migrating in the background, so expect the pod to stay unready for the duration. Read the backward-incompatible changes for every release between the running version and the target."
       ]
     }
