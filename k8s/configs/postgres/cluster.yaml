@@ -5,6 +5,17 @@ metadata:
   namespace: postgres
 spec:
   instances: 1
+  # Records the K8up backup decision for PGDATA: deliberately not backed up by
+  # K8up, because a file-level copy of a live PostgreSQL data directory is not
+  # a valid backup; CloudNativePG's barman backup below covers it. The operator
+  # copies inheritedMetadata onto every object it creates for this Cluster,
+  # PVCs included, and keeps existing ones in sync, so a replacement cluster
+  # or a new instance gets the marking without a separate manifest. Keep this
+  # when replacing the Cluster: without it, K8upBackupAnnotationMissing fires
+  # for the new PVC. See docs/k8up.md, "Backup decision for every PVC".
+  inheritedMetadata:
+    annotations:
+      k8up.io/backup: "false"
   # vectorchord-enabled image (Postgres major 16 unchanged). It was adopted for
   # Immich's Smart Search and facial recognition, which need vchord + pgvector +
   # earthdistance. Immich has since been removed, so nothing here uses those
