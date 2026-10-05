@@ -1,10 +1,11 @@
 # local-path-provisioner - Local Storage on a Talos User Volume
 
 [rancher/local-path-provisioner](https://github.com/rancher/local-path-provisioner)
-provisions PersistentVolumes as plain directories on the node's disk. It is the
-storage class that replaces Longhorn, as recorded in
+provisions PersistentVolumes as plain directories on the node's disk. It
+replaced Longhorn, as recorded in
 [storage-migration-decision.md](storage-migration-decision.md). It was
-introduced by [#302](https://github.com/aoshimash/homelab-k8s/issues/302).
+introduced by [#302](https://github.com/aoshimash/homelab-k8s/issues/302), and
+Longhorn was removed by [#305](https://github.com/aoshimash/homelab-k8s/issues/305).
 
 There is no replication. A volume is a directory on one node, and it is lost if
 that node's disk is lost. Recovery comes from the R2 backups taken by K8up
@@ -17,8 +18,8 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | Chart | `deploy/chart/local-path-provisioner` from the upstream git repository, pinned by `ref.tag` in `k8s/infrastructure/local-path-provisioner/gitrepository.yaml` |
 | Namespace | `local-path-storage` (Pod Security `privileged`) |
 | StorageClass | `local-path` (provisioner `cluster.local/local-path-provisioner`) |
-| Default class | **no**: Longhorn stays the default until the migration is complete |
-| Reclaim policy | `Retain` for the duration of the migration |
+| Default class | **yes**, since Longhorn was removed: it is the cluster's only StorageClass |
+| Reclaim policy | `Retain`, set for the migration and not yet changed (see [Change the reclaim policy](#change-the-reclaim-policy-after-the-migration)) |
 | Binding mode | `WaitForFirstConsumer` |
 | Root on the node | `/var/mnt/local-path-provisioner`, a Talos user volume of type `directory` |
 | On-disk layout | `<namespace>/<claim>/<pv-name>/` under the root |
@@ -54,13 +55,21 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   `ref.commit` instead would close the gap, but Renovate's flux manager tracks
   commits rather than tags when `commit` is set. The tag was chosen so version
   bumps still arrive as PRs.
-- **Not the default class.** Longhorn owns every existing volume. Making this
-  the default before any volume has moved would send new claims to a
-  provisioner that has not been exercised yet.
+- **The default class.** While Longhorn still held volumes it stayed the
+  default, so new claims did not go to a provisioner that had not been
+  exercised yet. Once every volume had moved and Longhorn was removed
+  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)), this became
+  the only StorageClass and the default, so a claim that names no class still
+  gets a volume.
 - **`Retain`.** During the migration, deleting a claim by mistake must not
   delete its data. The trade-off is that a deleted claim leaves a `Released` PV
   and its directory behind, which have to be cleaned up by hand (see
-  [Release a retained volume](#release-a-retained-volume)).
+  [Release a retained volume](#release-a-retained-volume)). The migration is
+  over, but the policy stays until the class is replaced (see
+  [Change the reclaim policy](#change-the-reclaim-policy-after-the-migration)).
+  Until then, every Actions Runner Controller job leaves one behind too: each
+  runner pod gets an ephemeral work volume on this class
+  (`k8s/configs/arc-runners/helmrelease.yaml`).
 - **`WaitForFirstConsumer`.** This is the chart default. A volume is bound to
   the node it was created on. With this mode the volume is created on the node
   the consuming pod is scheduled to, which is what makes it behave correctly
@@ -90,8 +99,8 @@ claim has no effect.
 The real limit is free space on `EPHEMERAL`. That space is shared with etcd,
 container images, logs and the kubelet, because a `directory` user volume has no
 filesystem of its own. A runaway volume can fill `/var` and take etcd down with
-it. Longhorn had the same exposure, because its data also lives on `EPHEMERAL`
-(`/var/lib/longhorn`).
+it. Longhorn, which this replaced, had the same exposure: its data also lived
+on `EPHEMERAL` (`/var/lib/longhorn`).
 
 `NodeEphemeralFilesystemUsageHigh` warns in Slack when `EPHEMERAL` passes 70%
 used, about 150GB before the kubelet starts image GC and eviction at ~85%.

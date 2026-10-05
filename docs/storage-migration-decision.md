@@ -1,7 +1,7 @@
 # Storage migration decision: Longhorn → local-path-provisioner + K8up
 
 - **Date**: 2026-09-23
-- **Status**: Accepted; implementation tracked by [#299](https://github.com/aoshimash/homelab-k8s/issues/299)
+- **Status**: Accepted and implemented, tracked by [#299](https://github.com/aoshimash/homelab-k8s/issues/299). Longhorn was removed on 2026-10-05 by [#305](https://github.com/aoshimash/homelab-k8s/issues/305); see [Outcome](#outcome)
 - **Supersedes**: `specs/002-longhorn-r2-backup/` (2026-01-02)
 
 Statements about the cluster in the present tense describe it **as of
@@ -46,8 +46,8 @@ documentation for the version this repository pins states: *"We only support
 upgrading to v1.12.1 from v1.11.x. For other versions, please upgrade to v1.11.x
 first."* This repository had already written the rule down for itself, in
 `k8s/infrastructure/longhorn/helmrelease.yaml`, in the form it took at the time
-(`v1.7.3 → v1.8.x → v1.9.x → v1.10.x`) — that file goes away with the component,
-and git keeps it.
+(`v1.7.3 → v1.8.x → v1.9.x → v1.10.x`, still worded so as of `1cd5537`) — that
+file went away with the component in #305, and git keeps it.
 
 Every other dependency here is pinned in Git and updated by Renovate as a
 reviewable PR — that is the whole maintenance model of this repository (see
@@ -167,8 +167,8 @@ elsewhere?** If yes, it is not backed up.
 | `paperless-media` | yes | Scanned originals — the archive itself |
 | `home-assistant-config` | yes | Hand-built configuration and history |
 | `vikunja-files` | yes | User-uploaded attachments |
-| `postgres-cluster-1` (CNPG PGDATA) | **no** | Covered by CloudNativePG's own barman backups to R2 |
-| `data-vikunja-postgresql-0` | **no** | Not migrated either — an orphan from the move to CloudNativePG (`state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet), to be deleted by [#305](https://github.com/aoshimash/homelab-k8s/issues/305) |
+| `postgres-cluster-<serial>` (CNPG PGDATA; `postgres-cluster-1` when this was written) | **no** | Covered by CloudNativePG's own barman backups to R2 |
+| `data-vikunja-postgresql-0` | **no** | Not migrated either — an orphan from the move to CloudNativePG (`state=detached`, `robustness=unknown`, and the `vikunja` namespace has no StatefulSet). [#305](https://github.com/aoshimash/homelab-k8s/issues/305) was to delete it, but it was already gone (see [Outcome](#outcome)) |
 
 `immich-library` was in this list when #299 was written and is no longer, per the
 delta noted above. The in-scope set totalled about 11.2Gi as measured on
@@ -229,6 +229,41 @@ Not reversed, and still binding:
 - The intent behind FR-009 — operator-visible backup success/failure signals.
   With the Longhorn UI gone this is served by metrics and alerts rather than a
   dashboard.
+
+## Outcome
+
+Added on 2026-10-05, when Longhorn was removed. Unlike the rest of this record,
+this section describes how the migration ended.
+
+- **Volumes.** The seven application volumes moved to `local-path` in
+  [#303](https://github.com/aoshimash/homelab-k8s/issues/303), and the
+  CloudNativePG cluster in [#304](https://github.com/aoshimash/homelab-k8s/issues/304).
+  Each move kept the old Longhorn volume as a fallback copy (`Released`, reclaim
+  policy `Retain`). [#305](https://github.com/aoshimash/homelab-k8s/issues/305)
+  deleted those eight volumes only after the first scheduled CloudNativePG and
+  K8up backups after the moves had succeeded, then uninstalled Longhorn.
+  `local-path` became the default StorageClass.
+- **The orphaned claim.** `data-vikunja-postgresql-0` was there for the
+  2026-09-21 measurement, and gone by 2026-09-23: the description of
+  [#338](https://github.com/aoshimash/homelab-k8s/pull/338), merged that day,
+  records it absent from `kubectl get pvc -A`. What deleted it in between was
+  not recorded. #305 found no claim, PersistentVolume or Longhorn volume left
+  for it.
+- **Longhorn's R2 backups.** They stay in the bucket `homelab-longhorn-backups`
+  for a 30-day grace period, until 2026-11-05. Then the bucket and its
+  bucket-scoped API token are deleted, by hand in the Cloudflare dashboard
+  ([#360](https://github.com/aoshimash/homelab-k8s/issues/360)). Uninstalling
+  Longhorn leaves them in place: longhorn-manager v1.13.0 clears and deletes its
+  backup target before it deletes the backup objects in the cluster, so it never
+  deletes their data in R2 (`controller/uninstall_controller.go`). Nothing prunes
+  them in the meantime. Restoring one means installing Longhorn again with the
+  bucket as its backup target; the procedure was in `docs/longhorn.md`
+  ("Restore from R2 Backup") as of `1cd5537`.
+- **`siderolabs/iscsi-tools`.** It was in the Talos schematic for Longhorn and
+  nothing needs it now. Removing it needs a new schematic and an upgrade, which
+  is not worth doing on its own, so it is deferred to the next Talos upgrade.
+  [#307](https://github.com/aoshimash/homelab-k8s/issues/307) decides whether to
+  keep it when the second node's extensions are aligned.
 
 ## Sources
 

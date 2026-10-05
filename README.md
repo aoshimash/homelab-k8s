@@ -6,8 +6,9 @@ Infrastructure as Code for my homelab kubernetes cluster.
 
 ## Storage
 
-- **Longhorn** is managed via Flux under `k8s/infrastructure/longhorn/`.
-- For operator workflow (including SOPS + age and Cloudflare R2 backups), see `specs/002-longhorn-r2-backup/quickstart.md`.
+- **local-path-provisioner** provisions volumes as directories on a Talos user volume, managed via Flux under `k8s/infrastructure/local-path-provisioner/`. See [docs/local-path-provisioner.md](docs/local-path-provisioner.md).
+- **K8up** backs up opted-in volumes to Cloudflare R2 with restic. See [docs/k8up.md](docs/k8up.md).
+- Why Longhorn was replaced: [docs/storage-migration-decision.md](docs/storage-migration-decision.md).
 
 ## Development
 

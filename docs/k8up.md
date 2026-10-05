@@ -1,7 +1,7 @@
 # K8up - Volume Backups to R2
 
 K8up backs up selected PersistentVolumeClaims to Cloudflare R2 with restic. It
-replaces Longhorn's recurring backups as part of the storage migration recorded
+replaced Longhorn's recurring backups as part of the storage migration recorded
 in [storage-migration-decision.md](storage-migration-decision.md); implemented
 by [#301](https://github.com/aoshimash/homelab-k8s/issues/301).
 
@@ -60,10 +60,13 @@ PVC" below.
   `5dc5e70`), so moving to K8up does not shorten how far back a volume can be
   recovered. restic deduplicates, so extra daily snapshots of mostly-unchanged
   data cost little in R2.
-- **19:00 UTC.** Longhorn's `backup-daily` started at 18:30 UTC
-  (`cron: "30 18 * * *"` as of `5dc5e70`) and keeps running while both systems
-  coexist; starting K8up half an hour later avoids both reading the same
-  volumes from the same moment.
+- **19:00 UTC.** Chosen while Longhorn's `backup-daily` still ran at 18:30 UTC
+  (`cron: "30 18 * * *"` as of `5dc5e70`), so the two would not start reading
+  the same volumes at the same moment. Longhorn has since been removed
+  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)). The time
+  stays because it also falls an hour after the CloudNativePG daily backup
+  (18:00 UTC): a volume backup is then never older than the database backup it
+  pairs with (see [cloudnative-pg.md](cloudnative-pg.md#backup-configuration-notes)).
 - **Root job pods.** The applications run as different users (audiobookshelf
   99, paperless-ngx and vikunja 1000, Home Assistant root). Running backups as
   root lets restic read every file whatever its owner and mode, and running
@@ -224,8 +227,7 @@ unannotated also excludes it, but fires `K8upBackupAnnotationMissing` (see
 ## Operations
 
 Use the fully qualified resource names. Short names are ambiguous in this
-cluster: `backup` also matches Longhorn's `backups.longhorn.io` and
-CloudNativePG's `backups.postgresql.cnpg.io`.
+cluster: `backup` also matches CloudNativePG's `backups.postgresql.cnpg.io`.
 
 ### Check status
 

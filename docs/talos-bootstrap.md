@@ -363,7 +363,7 @@ talosctl reset --graceful=false --reboot
 
 - **Schematic ID**: `e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b`
 - **Extensions**:
-  - `siderolabs/iscsi-tools` (for Longhorn storage)
+  - `siderolabs/iscsi-tools` (added for Longhorn, which was removed in [#305](https://github.com/aoshimash/homelab-k8s/issues/305); not needed now, removal deferred to the next Talos upgrade)
   - `siderolabs/tailscale`
 - **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0)
 

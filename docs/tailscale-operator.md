@@ -94,10 +94,7 @@ k8s/infrastructure/
 │   └── kustomization.yaml
 └── tailscale-config/             # CRD-dependent resources
     ├── proxygroup.yaml
-    ├── kustomization.yaml
-    └── smoke/
-        ├── ingress-longhorn.yaml
-        └── kustomization.yaml
+    └── kustomization.yaml
 ```
 
 ### Creating OAuth Secret

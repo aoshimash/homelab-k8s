@@ -26,7 +26,7 @@ task security:all      # Trivy all severities (informational)
 
 Flux reconciles three layers from `k8s/` in dependency order:
 
-1. **`k8s/infrastructure/`** — Cluster infrastructure (Helm-based): Cilium CNI, Longhorn storage, local-path-provisioner storage, K8up backups, Tailscale operator, Grafana Alloy, kube-state-metrics, metrics-server, CloudNativePG, Actions Runner Controller
+1. **`k8s/infrastructure/`** — Cluster infrastructure (Helm-based): Cilium CNI, local-path-provisioner storage, K8up backups, Tailscale operator, Grafana Alloy, kube-state-metrics, metrics-server, CloudNativePG, Actions Runner Controller
 2. **`k8s/configs/`** — Post-infrastructure configuration: Tailscale ingress/proxy, PostgreSQL cluster + databases, ARC runner definitions. Depends on `infrastructure` and waits for Tailscale operator health.
 3. **`k8s/apps/`** — User applications: Audiobookshelf, Home Assistant, Vikunja. Depends on `configs`.
 4. **Private apps** (`homelab-k8s-private` repo) — Components with private configuration (e.g., radigo-recorder). Deployed via Flux multi-source reconciliation with `dependsOn: apps`.
@@ -74,7 +74,7 @@ All secrets use **SOPS + Age** encryption. Rules defined in `.sops.yaml`.
 - Trivy skip rules: `KSV0014` (readOnlyRootFilesystem — audiobookshelf needs writable volumes)
 - The `docs/` directory contains operational documentation for each component
 - A `docs/` record meant to outlive a change must not depend on the current contents of files that change removes. Do not link to a doc scheduled for deletion, and do not assert what another file currently says — state the fact inline and attribute it to a commit SHA, which git keeps after the file is gone
-- Each component that writes to Cloudflare R2 gets its own bucket and an API token scoped to that bucket only (e.g. `homelab-longhorn-backups`, `homelab-postgres-backups`, `homelab-k8up-backups`). Do not reuse another component's bucket or token, so removing one component never strands another's backups or credentials
+- Each component that writes to Cloudflare R2 gets its own bucket and an API token scoped to that bucket only (e.g. `homelab-postgres-backups`, `homelab-k8up-backups`). Do not reuse another component's bucket or token, so removing one component never strands another's backups or credentials
 - In docs and commands, refer to custom resources by their fully qualified name (e.g. `backups.k8up.io`, `backups.postgresql.cnpg.io`). Short names such as `backup` are ambiguous in this cluster — several operators define a `Backup` kind — and can silently return another operator's resources
 - `specs/` is a historical archive of feature planning documents — read-only reference, do not edit
 - Talos OS / Kubernetes versions are managed by Renovate via customManagers in `renovate.json5` and arrive as **separate PRs** (their apply procedures and blast radius differ). After merging, apply the change manually with `talosctl` per the procedure in `docs/talos-operations.md` (`#renovate-upgrade-flow`).
