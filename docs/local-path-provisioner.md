@@ -81,7 +81,8 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   provisioner requires a custom pattern to start with `<namespace>/<claim>/`.
   The trailing PV name keeps each volume's directory unique. Under `Retain`, a
   claim that is deleted and recreated with the same name would otherwise be
-  handed the previous claim's leftover data.
+  handed the previous claim's leftover data. This is the `local-path` layout;
+  `local-path-ephemeral` drops the PV-name level (see [Two classes](#two-classes)).
 - **Pinned helper image.** The provisioner runs a short-lived helper pod to
   create and delete volume directories. The chart's default image for that pod
   is `busybox:latest`, a floating tag, which the
@@ -115,7 +116,9 @@ With the extra `<pv-name>` level, each runner job would still leave its empty
 added in [#361](https://github.com/aoshimash/homelab-k8s/pull/361), for
 [#305](https://github.com/aoshimash/homelab-k8s/issues/305)). Ephemeral claim
 names are unique per runner pod, and nothing is retained, so the PV-name level
-is not needed to keep directories apart.
+is not needed to keep directories apart. Never give an ephemeral claim the name of
+a deleted `local-path` claim in the same namespace: its directory would be the
+retained claim's parent, and teardown would delete the retained data with it.
 
 The chart creates only one StorageClass, so `local-path-ephemeral` is a plain
 manifest in `k8s/infrastructure/local-path-provisioner/storageclass-ephemeral.yaml`.
