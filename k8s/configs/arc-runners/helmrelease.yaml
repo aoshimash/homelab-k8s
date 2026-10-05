@@ -34,7 +34,10 @@ spec:
       type: kubernetes
       kubernetesModeWorkVolumeClaim:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: "longhorn"
+        # local-path reclaims with Retain, so every runner pod leaves a
+        # Released PV and its directory behind until they are cleaned up by
+        # hand (docs/local-path-provisioner.md, "Release a retained volume").
+        storageClassName: "local-path"
         resources:
           requests:
             storage: 1Gi

@@ -67,33 +67,6 @@ spec:
             }
           }
 
-          // Discover Longhorn manager pods (backup metrics on :9500)
-          discovery.kubernetes "longhorn_manager" {
-            role = "pod"
-            namespaces {
-              names = ["longhorn-system"]
-            }
-            selectors {
-              role  = "pod"
-              label = "app=longhorn-manager"
-            }
-          }
-
-          // Keep only the :9500 metrics port; carry the namespace label
-          discovery.relabel "longhorn_manager" {
-            targets = discovery.kubernetes.longhorn_manager.targets
-
-            rule {
-              source_labels = ["__meta_kubernetes_pod_container_port_number"]
-              regex         = "9500"
-              action        = "keep"
-            }
-            rule {
-              source_labels = ["__meta_kubernetes_namespace"]
-              target_label  = "namespace"
-            }
-          }
-
           // Discover CloudNativePG instance pods (backup metrics on :9187)
           discovery.kubernetes "cnpg_instances" {
             role = "pod"
@@ -215,24 +188,6 @@ spec:
             forward_to = [prometheus.relabel.add_cluster.receiver]
           }
 
-          // Scrape Longhorn manager (backup + volume health metrics)
-          prometheus.scrape "longhorn" {
-            targets    = discovery.relabel.longhorn_manager.output
-            job_name   = "longhorn-manager"
-            forward_to = [prometheus.relabel.longhorn_filter.receiver]
-          }
-
-          // Keep only backup-relevant Longhorn metrics
-          prometheus.relabel "longhorn_filter" {
-            forward_to = [prometheus.relabel.add_cluster.receiver]
-
-            rule {
-              source_labels = ["__name__"]
-              regex  = "longhorn_backup_state|longhorn_volume_last_backup_at|longhorn_volume_robustness|up"
-              action = "keep"
-            }
-          }
-
           // Scrape CloudNativePG instances (backup metrics)
           prometheus.scrape "cnpg" {
             targets    = discovery.relabel.cnpg_instances.output
@@ -252,7 +207,7 @@ spec:
           }
 
           // Scrape the K8up operator (job failure counter).
-          // Unlike the Longhorn/CNPG targets, no "namespace" target label is
+          // Unlike the CNPG target, no "namespace" target label is
           // set: the metrics carry their own "namespace" (the backed-up
           // namespace), which a target label would push to exported_namespace.
           prometheus.scrape "k8up" {
@@ -391,36 +346,6 @@ spec:
             stage.drop {
               expression          = "\"logger\":\"(backup|database|pooler|scheduledbackup)-resource\".*\"msg\":\"(Validation for|Defaulting for) "
               drop_counter_reason = "cnpg_webhook_validation_noise"
-            }
-
-            // Drop the client-go v1 Endpoints deprecation warning emitted
-            // by longhorn-manager (longhorn-system). client-go prints this
-            // line unconditionally whenever the deprecated Endpoints API is
-            // used — there is no config knob to suppress it. Longhorn's
-            // migration to EndpointSlice is tracked upstream in
-            // longhorn/longhorn#10796 (milestone v1.13.0, not yet
-            // implemented); remove this stage once Longhorn ships the
-            // migration (v1.13.0+).
-            stage.drop {
-              expression          = "Warning: v1 Endpoints is deprecated in v1\\.33\\+; use discovery\\.k8s\\.io/v1 EndpointSlice"
-              drop_counter_reason = "longhorn_endpoints_deprecation_noise"
-            }
-
-            // Drop longhorn-manager admission-webhook info logs for
-            // BackupVolume patchOps. The mutating webhook logs
-            // "%s patchOps: %s" (webhook/admission/mutator.go) on every
-            // mutating admission request, and the BackupVolume
-            // controller's routine finalizer patches trigger it
-            // continuously. This is working-as-designed logging, not a
-            // bug — there is no upstream issue to link. A targeted filter
-            // is deliberately preferred over the global
-            // defaultSettings.logLevel knob, which would silence all
-            // Longhorn info logs. The regex requires both "patchOps" and
-            // "BackupVolume" in the line so other (rarer, potentially
-            // informative) webhook patch logs still pass through.
-            stage.drop {
-              expression          = "(BackupVolume.*patchOps|patchOps.*BackupVolume)"
-              drop_counter_reason = "longhorn_backupvolume_patchops_noise"
             }
 
             // INTERIM: Drop the tailscaled LocalAPI access log for

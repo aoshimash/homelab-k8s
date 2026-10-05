@@ -4,9 +4,9 @@ metadata:
   name: postgres-cluster-daily
   namespace: postgres
 spec:
-  # Daily at 18:00 UTC (03:00 JST). Scheduled 30 minutes before Longhorn's
-  # backup-daily RecurringJob (18:30 UTC) so the database backup always
-  # completes before the PVC backup begins (see docs/cloudnative-pg.md).
+  # Daily at 18:00 UTC (03:00 JST). Scheduled an hour before the K8up volume
+  # backups (19:00 UTC) so the database backup always completes before the
+  # paired PVC backup begins (see docs/cloudnative-pg.md).
   schedule: "0 0 18 * * *"
   backupOwnerReference: cluster
   cluster:

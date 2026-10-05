@@ -62,7 +62,11 @@ nodes:
     controlPlane: true
     installDisk: /dev/nvme0n1
     # Image Factory Schematic: https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.12.0
-    # Extensions: siderolabs/iscsi-tools (for Longhorn), siderolabs/tailscale
+    # Extensions: siderolabs/iscsi-tools, siderolabs/tailscale
+    # iscsi-tools was added for Longhorn, which was removed in #305; nothing in
+    # the cluster needs it now. Dropping it means a new schematic, so it is
+    # deferred to the next Talos upgrade. #307 (second node) decides whether to
+    # keep it when it aligns the extensions across nodes.
     talosImageURL: factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b
     patches:
       # Wipe disk on install

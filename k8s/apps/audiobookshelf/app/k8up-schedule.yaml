@@ -26,8 +26,8 @@ spec:
   podSecurityContext:
     runAsUser: 0
   backup:
-    # 19:00 UTC, after Longhorn's backup-daily (18:30 UTC) has started, so
-    # the two do not begin reading the same volumes at the same moment.
+    # 19:00 UTC, the same time as every other namespace. audiobookshelf has no
+    # CloudNativePG database; see docs/k8up.md, "Why these settings".
     schedule: "0 19 * * *"
   prune:
     schedule: "0 20 * * 0"
