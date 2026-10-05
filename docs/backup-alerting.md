@@ -212,7 +212,7 @@ acts on also carries the decision, and the exclusion still holds if
 `skipWithoutAnnotation` is ever turned off.
 
 **CloudNativePG volumes.** The operator creates `postgres-cluster-1`, so the
-marking lives in the `Cluster` manifest as `spec.inheritedMetadata.annotations`.
+marking lives in the `clusters.postgresql.cnpg.io` manifest as `spec.inheritedMetadata.annotations`.
 In CloudNativePG 1.30.1 the PVC builder applies the Cluster's inherited
 metadata when creating a PVC, and the Cluster reconcile loop patches it onto
 existing PVCs (`pkg/reconciler/persistentvolumeclaim/metadata.go`), so a

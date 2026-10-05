@@ -188,7 +188,7 @@ Where the annotation goes:
 - **A PVC defined in Git** (`k8s/apps/<app>/app/pvc.yaml`):
   `metadata.annotations`.
 - **A CloudNativePG volume**: the operator creates the PVCs, so the annotation
-  goes in the `Cluster` manifest under `spec.inheritedMetadata.annotations`
+  goes in the `clusters.postgresql.cnpg.io` manifest under `spec.inheritedMetadata.annotations`
   (`k8s/configs/postgres/cluster.yaml`). CloudNativePG copies inherited
   metadata onto every object it creates for the Cluster, PVCs included, and
   keeps existing ones in sync, so a new instance or a replacement cluster is

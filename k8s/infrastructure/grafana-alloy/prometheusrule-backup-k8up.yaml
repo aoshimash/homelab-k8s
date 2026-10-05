@@ -112,8 +112,9 @@ spec:
             summary: "PVC has no K8up backup decision"
             description: >-
               PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
-              has no valid k8up.io/backup annotation, so K8up does not back
-              it up. Decide whether its data is worth protecting and set
+              has no k8up.io/backup annotation set to exactly "true" or
+              "false", so whether K8up backs it up was never decided
+              explicitly. Decide whether its data is worth protecting and set
               k8up.io/backup to "true" or "false" on the PVC in Git (for a
               CloudNativePG volume, in the Cluster's inheritedMetadata). See
               docs/k8up.md, "Backup decision for every PVC".
