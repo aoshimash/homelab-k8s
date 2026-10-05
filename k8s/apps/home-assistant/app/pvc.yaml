@@ -9,7 +9,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn
+  storageClassName: local-path
   resources:
     requests:
-      storage: 5Gi
+      # local-path does not enforce capacity; this records the expected size
+      # (docs/local-path-provisioner.md#capacity).
+      storage: 1Gi
