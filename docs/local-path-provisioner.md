@@ -99,7 +99,8 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | `local-path-ephemeral` | `Delete` | no | Claims that live and die with a pod, such as the Actions Runner Controller work volume (`k8s/configs/arc-runners/helmrelease.yaml`) |
 
 Both classes are served by the same provisioner, from the same root. What
-matters is the difference in what happens when a claim is deleted. (The chart's class also sets `allowVolumeExpansion: true` and a
+matters is the difference in what happens when a claim is deleted. (The chart's
+class also sets `allowVolumeExpansion: true` and a
 `defaultVolumeType: hostPath` annotation. Neither changes anything here: capacity
 is not enforced, and `hostPath` is the provisioner's default volume type.)
 With `Delete`, Kubernetes deletes the PV, and the provisioner runs its helper
@@ -110,7 +111,8 @@ runner job would leave a `Released` PV and its directory behind.
 The ephemeral class lays volumes out as `<namespace>/<claim>/`, one level
 shallower than `local-path`. Teardown removes only the volume's own directory.
 With the extra `<pv-name>` level, each runner job would still leave its empty
-`<claim>` directory behind (observed on the first ARC run after
+`<claim>` directory behind (observed on the first ARC run after the class was
+added in [#361](https://github.com/aoshimash/homelab-k8s/pull/361), for
 [#305](https://github.com/aoshimash/homelab-k8s/issues/305)). Ephemeral claim
 names are unique per runner pod, and nothing is retained, so the PV-name level
 is not needed to keep directories apart.
