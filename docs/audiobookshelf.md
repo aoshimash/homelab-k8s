@@ -19,7 +19,7 @@ Audiobookshelf is a self-hosted podcast server deployed on the Kubernetes cluste
   ([local-path-provisioner.md](local-path-provisioner.md)). local-path does not
   enforce capacity, so each request only records the expected size:
   - `audiobookshelf-config` (1Gi) - SQLite database and configuration
-  - `audiobookshelf-metadata` (1Gi) - Item metadata, cache, logs, server backups
+  - `audiobookshelf-metadata` (1Gi) - Item metadata and covers, cache, logs, server backups
   - `audiobookshelf-podcasts` (15Gi) - Podcast audio files
 
 ### Access Flow
@@ -68,7 +68,7 @@ kubectl get ingress -n audiobookshelf
 ### Storage
 
 - **Config volume** (`/config`): SQLite database and server configuration
-- **Metadata volume** (`/metadata`): Item metadata (`items/`), `cache/`, `logs/`, `backups/`, `streams/`
+- **Metadata volume** (`/metadata`): Item metadata and covers (`items/<id>/metadata.json`, `cover.jpg`), plus `cache/`, `logs/`, `backups/`, `streams/`
 - **Podcasts volume** (`/podcasts`): Podcast library directory
 
 ### Environment Variables
