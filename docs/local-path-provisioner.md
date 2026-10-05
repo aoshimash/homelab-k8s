@@ -118,20 +118,33 @@ configured in `talosconfig`. Outside the LAN, pass the tailnet IP instead; see
 ### Apply the Talos user volume
 
 The user volume is declared in `infra/talos/talconfig.yaml` and, like every
-Talos change, is applied by hand after the change merges. Apply it before any
-claim uses the `local-path` class. A claim created earlier does not fail: the
-helper pod mounts the volume's parent directory as a `DirectoryOrCreate`
-`hostPath`, so it provisions into a plain directory it creates under
-`/var/mnt/local-path-provisioner` on `EPHEMERAL`, outside the user volume Talos
-manages. Adding the document does not require a reboot.
+Talos change, is applied by hand after the change merges. Adding the document
+does not require a reboot.
+
+Apply it before any claim uses the `local-path` class. Until it is applied,
+provisioning fails. The helper pod mounts the volume's parent directory as a
+`DirectoryOrCreate` `hostPath`, and `/var/mnt` is read-only on Talos, so the pod
+never starts (`mkdir /var/mnt/local-path-provisioner: read-only file system`).
+The claim stays `Pending`. This happened once: the volume was merged in
+`9aeaacb` but was not on the node until 2026-10-05, and the first migration
+attempt in #303 failed this way.
 
 ```bash
 cd infra/talos
 talhelper genconfig --no-gitignore
 talosctl apply-config --nodes 192.168.0.10 \
   --file clusterconfig/homelab-cluster-homelab-node-01.yaml
+```
 
-# Expect phase `ready`, type `directory`
+### Check the user volume before creating a claim
+
+Run this before the first claim on the `local-path` class, and again after any
+Talos apply or reboot. `volumestatus` must show type `directory` and phase
+`ready`, and `mountstatus` must show the target
+`/var/mnt/local-path-provisioner`. `NotFound` means the volume is not on the
+node: apply the config above first.
+
+```bash
 talosctl get volumestatus u-local-path-provisioner --nodes 192.168.0.10
 talosctl get mountstatus u-local-path-provisioner --nodes 192.168.0.10
 ```
