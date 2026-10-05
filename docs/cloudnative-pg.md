@@ -10,12 +10,13 @@ This document describes CloudNativePG PostgreSQL cluster operations, troubleshoo
 
 - **PostgreSQL Version**: 16
 - **Instances**: 1 (single-node homelab deployment)
-- **Storage**: 10GB Longhorn PVC
-- **Storage Class**: `longhorn`
+- **Storage**: one PVC per instance, `10Gi` requested (not enforced; see below)
+- **Storage Class**: `local-path` since [#304](https://github.com/aoshimash/homelab-k8s/issues/304); `longhorn` before that. See [Move the cluster to another storage class](#move-the-cluster-to-another-storage-class)
+- **Image**: `ghcr.io/tensorchord/cloudnative-vectorchord:16-1.1.1`, with `vchord.so` in `shared_preload_libraries`
 - **Backup Schedule**: Daily at 18:00 UTC (03:00 JST)
 - **Backup Retention**: 7 days
-- **Backup Target**: Cloudflare R2 (S3-compatible)
-- **Longhorn PVC Backups**: PostgreSQL PVC is **not** excluded from Longhorn recurring backups — it sits in the `default` recurring-job group and is backed up daily by `backup-daily` alongside CNPG's own backups. CNPG's R2 backup remains the authoritative restore path; see [Backup Configuration Notes](#backup-configuration-notes)
+- **Backup Target**: Cloudflare R2 (S3-compatible), bucket `homelab-postgres-backups`, folder `cnpg/postgres-cluster/` (barman `serverName` defaults to the Cluster name)
+- **Volume Backups**: none. PGDATA is marked `k8up.io/backup: "false"` and is not backed up by K8up; CNPG's barman backup to R2 is the only backup. See [Backup Configuration Notes](#backup-configuration-notes)
 
 ## Configuration Files
 
@@ -171,54 +172,208 @@ rollback window for a one-way migration actually lasts.
 
 ### Restore from Backup
 
-Restore creates a **new** cluster from an R2 backup via `bootstrap.recovery`, leaving
-the production `postgres-cluster` untouched. This doubles as a disaster-recovery drill.
-(Verified 2026-06-21: restored the `vikunja` database with row counts matching production.)
+Restore bootstraps a **new** cluster from the barman backups in R2 via
+`bootstrap.recovery`. It never restores in place, and it restores the whole
+instance: every database and role, including the `homeassistant` role and
+database, which were created by hand and are not declared in this repository.
+
+The procedure below is the restore drill performed on 2026-10-05 for
+[#304](https://github.com/aoshimash/homelab-k8s/issues/304), before the cluster
+moved to `local-path`. Run it as a drill whenever the restore path needs to be
+proven; it leaves the production `postgres-cluster` untouched.
+
+The drill cluster reads the backups through `externalClusters` with the
+in-tree `barmanObjectStore` form, the same form the production cluster uses to
+write them. It has **no `backup` section**, so it has no backup destination and
+cannot write to `homelab-postgres-backups`. Without one, the instance manager
+skips WAL archiving entirely (`pkg/management/postgres/archiver/archiver.go` in
+CloudNativePG 1.30.1).
 
 ```bash
-# 1. List available backups (Phase should be "completed")
+# 1. Confirm a recent completed backup exists. Recovery picks the newest
+#    completed backup in the folder and replays archived WAL up to the latest
+#    archived segment, unless a recoveryTarget says otherwise.
 kubectl get backups.postgresql.cnpg.io -n postgres \
   -o custom-columns=NAME:.metadata.name,PHASE:.status.phase,STOPPED:.status.stoppedAt
 
-# 2. Match the image to production — a mismatched image makes recovery fail
-kubectl get cluster -n postgres postgres-cluster -o jsonpath='{.spec.imageName}{"\n"}'
-
-# 3. Create the restore cluster.
-#    NOTE: recovery restores the WHOLE cluster (all databases: app/vikunja/paperless/...),
-#    not a single database. The referenced Backup object carries its own R2 path + credentials.
-kubectl apply -f - <<EOF
+# 2. Create the drill cluster. Image and shared_preload_libraries must match
+#    production: a physical restore needs the same PostgreSQL major and the same
+#    extension binaries.
+kubectl apply -f - <<'EOF'
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: postgres-cluster-test
+  name: postgres-restore-drill
   namespace: postgres
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:16   # match production (step 2)
+  inheritedMetadata:
+    annotations:
+      k8up.io/backup: "false"   # keeps K8upBackupAnnotationMissing quiet
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16-1.1.1
+  postgresql:
+    shared_preload_libraries:
+      - "vchord.so"
   storage:
     size: 10Gi
-    storageClass: longhorn
+    storageClass: local-path
+  # No `backup` section: this cluster must never write to the bucket it
+  # restores from.
   bootstrap:
     recovery:
-      backup:
-        name: <backup-name>
+      source: origin
+  externalClusters:
+    - name: origin
+      barmanObjectStore:
+        serverName: postgres-cluster   # the folder the production cluster writes to
+        destinationPath: "s3://homelab-postgres-backups/cnpg/"
+        endpointURL: "https://b2142226728f160a9b43fe01f0fe5f71.r2.cloudflarestorage.com"
+        s3Credentials:
+          accessKeyId:
+            name: postgres-r2-credentials
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: postgres-r2-credentials
+            key: ACCESS_SECRET_KEY
+        wal:
+          maxParallel: 8
 EOF
 
-# 4. Wait until Ready (CNPG runs a recovery Job first, then starts the pod)
-kubectl wait --for=condition=Ready cluster/postgres-cluster-test -n postgres --timeout=30m
+# 3. Wait until Ready. A full-recovery Job runs first, then the instance starts.
+#    On 2026-10-05 this took 50 seconds for ~660Mi of PGDATA.
+kubectl wait --for=condition=Ready clusters.postgresql.cnpg.io/postgres-restore-drill \
+  -n postgres --timeout=30m
 
-# 5. Verify restored data (example: vikunja row counts)
-kubectl exec -n postgres postgres-cluster-test-1 -c postgres -- \
-  psql -U postgres -d vikunja -c \
-  "SELECT 'projects',COUNT(*) FROM projects UNION ALL SELECT 'tasks',COUNT(*) FROM tasks;"
+# 4. Compare the restored data with production. Run the same queries against
+#    postgres-cluster-<n> (the current primary) and postgres-restore-drill-1.
+for POD in postgres-restore-drill-1 <current-primary>; do
+  echo "== $POD"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d vikunja -Atc \
+    "SELECT 'projects',count(*) FROM projects UNION ALL SELECT 'tasks',count(*) FROM tasks"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d paperless -Atc \
+    "SELECT 'documents',count(*) FROM documents_document"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -d homeassistant -Atc \
+    "SELECT 'states',count(*) FROM states UNION ALL SELECT 'statistics',count(*) FROM statistics"
+  kubectl exec -n postgres "$POD" -c postgres -- psql -U postgres -Atc \
+    "SELECT string_agg(datname, ',' ORDER BY datname) FROM pg_database"
+done
 
-# 6. Cleanup (removes the restore cluster, its pods and PVCs)
-kubectl delete cluster -n postgres postgres-cluster-test
+# 5. Delete the drill cluster. Its pod and PVC go with it; the PV stays,
+#    because the local-path class uses Retain.
+kubectl delete clusters.postgresql.cnpg.io -n postgres postgres-restore-drill
 ```
 
-> **Tip**: Restored row counts match production only if no writes happened after the
-> backup was taken. For an exact point-in-time match, pin a `targetTime` via
-> `bootstrap.recovery.recoveryTarget` (PITR), which replays WAL up to that timestamp.
+Then release the drill's PV and remove its directory, following
+[local-path-provisioner.md — Release a retained volume](local-path-provisioner.md#release-a-retained-volume).
+The directory is `postgres/postgres-restore-drill-1/<pv-name>` under the
+provisioner root. Remove the then-empty `postgres-restore-drill-1` directory as
+well.
+
+**Result on 2026-10-05.** The drill restored from the R2 folder
+`cnpg/postgres-cluster/` onto timeline 2 and reached Ready 50 seconds after
+it was created. The same seven databases were present (`app`, `homeassistant`,
+`paperless`, `postgres`, `template0`, `template1`, `vikunja`), as were the same
+roles, and `shared_preload_libraries` was `vchord.so`. Row counts matched
+production for `vikunja` (7 projects, 6 tasks, 1 user), `paperless` (11
+documents) and the stable `homeassistant` tables (8 `statistics_meta`, 37052
+`statistics`). `homeassistant.states` had 7198 rows against 7201 in production:
+the drill's newest row was from 16:03:05 UTC, and production had written three
+more by 16:13:05. That gap is the archived-WAL lag: the drill replays only WAL
+that is already in R2, and `archive_timeout` here is 5 minutes.
+
+**Restoring for real.** If the production cluster is lost, the same manifest is
+the starting point, with these changes:
+
+- Name it `postgres-cluster`, so the `-rw` Service, the application Secrets and
+  the `databases.postgresql.cnpg.io` and `scheduledbackups.postgresql.cnpg.io`
+  objects, which all refer to that name, keep working.
+- Give it the `backup` section and `managed.roles` from `cluster.yaml`, with
+  `backup.barmanObjectStore.serverName` set to a name that is not
+  `postgres-cluster` (for example `postgres-cluster-v2`). CloudNativePG's
+  recovery documentation says not to share one object store configuration
+  between backup and recovery unless each cluster has its own `serverName`, so
+  that archiving cannot overwrite the backups being restored. If the folder is
+  not empty, its safety check stops the cluster in `Setting up primary` with
+  `Expected empty archive` in the pod log.
+
+> **Tip**: For an exact point-in-time match, set
+> `bootstrap.recovery.recoveryTarget.targetTime`, which replays WAL only up to
+> that timestamp.
+
+> **Deprecation**: the in-tree `barmanObjectStore` form used here and in
+> `cluster.yaml` is deprecated in favour of the Barman Cloud Plugin, and the
+> CloudNativePG 1.30 release notes say it will be removed in 1.31.0. Both backup
+> and this restore procedure have to move to the plugin before the operator is
+> upgraded to 1.31.
+
+### Move the cluster to another storage class
+
+`spec.storage.storageClass` can be changed on an existing Cluster. In
+CloudNativePG 1.30.1 the validating webhook rejects only a smaller
+`storage.size` (`validateStorageConfigurationChange` in
+`internal/webhook/v1/cluster_webhook.go`), and the PVC reconciler adjusts only
+the size and VolumeAttributesClass of existing PVCs
+(`pkg/reconciler/persistentvolumeclaim/existing.go`). The new class therefore
+applies only to PVCs created after the change, and moving the data means
+replacing the instance. CloudNativePG's storage documentation describes the
+same idea for a multi-instance cluster: re-create each instance on a new PVC.
+This cluster has one instance, so it gets a temporary second one instead. That
+keeps the Cluster name, its Services and Secrets, the application connection
+strings, and the WAL archive folder. It is how the cluster moved from
+`longhorn` to `local-path` in [#304](https://github.com/aoshimash/homelab-k8s/issues/304).
+
+Do not run it between 17:45 and 19:30 UTC, when the CNPG daily backup (18:00)
+and the volume backups run.
+
+1. **Prove the backups restore, and take a fresh one.** Run the drill in
+   [Restore from Backup](#restore-from-backup), then take an on-demand backup
+   ([Create Manual Backup](#create-manual-backup)) and wait for `completed`.
+2. **Keep the old volume.** Set the current instance's PV to `Retain`, so that
+   removing the old instance later leaves its data behind:
+
+   ```bash
+   PV=$(kubectl get pvc -n postgres <current-instance> -o jsonpath='{.spec.volumeName}')
+   kubectl patch pv "$PV" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
+   ```
+
+   For a move to `local-path`, also run
+   [Check the user volume before creating a claim](local-path-provisioner.md#check-the-user-volume-before-creating-a-claim).
+3. **Add an instance on the new class.** In `cluster.yaml`, set the new
+   `storageClass` and `instances: 2`, and merge. The operator clones a new
+   replica from the primary onto a PVC of the new class. Wait until it streams
+   and has caught up:
+
+   ```bash
+   kubectl get pods,pvc -n postgres
+   kubectl exec -n postgres <primary> -c postgres -- psql -U postgres -Atc \
+     "SELECT application_name, state, sync_state, replay_lag FROM pg_stat_replication"
+   ```
+
+4. **Switch over to the new instance.** With the `kubectl cnpg` plugin:
+   `kubectl cnpg promote postgres-cluster <new-instance>`. Without it, make the
+   same status change the plugin makes
+   (`internal/cmd/plugin/promote/promote.go` in 1.30.1):
+
+   ```bash
+   NEW=<new-instance>
+   kubectl patch clusters.postgresql.cnpg.io postgres-cluster -n postgres \
+     --subresource=status --type=merge -p "{\"status\":{
+       \"targetPrimary\":\"$NEW\",
+       \"targetPrimaryTimestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000000Z)\",
+       \"phase\":\"Switchover in progress\",
+       \"phaseReason\":\"Switching over to $NEW\"}}"
+   ```
+
+   The former primary checkpoints, shuts down fast and comes back as a replica
+   of the new one. Then confirm that writes work, that the applications
+   reconnected, that WAL archiving continues
+   (`ContinuousArchiving` is `True` and `pg_stat_archiver` advances on the new
+   primary), and that an on-demand backup completes.
+5. **Remove the old instance.** Set `instances: 1` and merge. On scale-down
+   the operator never removes the primary. It removes the ready replica with
+   the highest serial (`findDeletableInstance` in
+   `internal/controller/replicas.go`), which is now the old instance, together
+   with its PVC. Its PV stays `Released` because of step 2.
 
 ## Troubleshooting
 
@@ -251,9 +406,14 @@ kubectl describe pod -n postgres -l cnpg.io/cluster=postgres-cluster
 kubectl get pvc -n postgres
 kubectl describe pvc -n postgres
 
-# Verify Longhorn storage class exists
-kubectl get storageclass longhorn
+# Verify the storage class exists
+kubectl get storageclass local-path
 ```
+
+A `local-path` claim stays `Pending` until its pod is scheduled
+(`WaitForFirstConsumer`), and stays `Pending` for good if the node's user
+volume is missing. See
+[local-path-provisioner.md — Check the user volume before creating a claim](local-path-provisioner.md#check-the-user-volume-before-creating-a-claim).
 
 ### Backup Failed
 
@@ -296,36 +456,33 @@ kubectl get cluster -n postgres postgres-cluster -o jsonpath='{.status.condition
 # Check PVC status
 kubectl get pvc -n postgres
 
-# Check Longhorn volume status
-kubectl get volumes.longhorn.io -n longhorn-system
+# Which directory on the node each instance's volume is
+kubectl get pv -o custom-columns=NAME:.metadata.name,CLAIM:.spec.claimRef.name,CLASS:.spec.storageClassName,PATH:.spec.hostPath.path \
+  | awk 'NR==1 || $2 ~ /^postgres-cluster-/'
 
-# Verify Longhorn is operational
-kubectl get pods -n longhorn-system
+# Provisioner and its helper pods
+kubectl get pods -n local-path-storage
+kubectl get events -n local-path-storage --field-selector type=Warning
 ```
+
+`local-path` does not enforce the requested size. PGDATA can grow until the
+node's `EPHEMERAL` filesystem is full; see
+[local-path-provisioner.md — Capacity](local-path-provisioner.md#capacity).
 
 ### Backup Configuration Notes
 
-**The PostgreSQL PVC is not excluded from Longhorn recurring backups.** An
-earlier version of this section said it was, via a
-`recurring-job-selector.longhorn.io` PVC annotation — that annotation does not
-exist in Longhorn, and the exclusion never took effect. `postgres-cluster-1` is
-in the `default` recurring-job group like every other volume and carries ~30
-`backup-daily` backups (~41 GB in R2). See
-[longhorn.md — How recurring jobs pick volumes](longhorn.md#how-recurring-jobs-pick-volumes).
+**PGDATA has no volume-level backup.** The instance PVCs carry
+`k8up.io/backup: "false"` through the Cluster's `spec.inheritedMetadata`, and the
+`postgres` namespace has no K8up Schedule, so K8up never copies them. A
+file-level copy of a running PostgreSQL data directory is not a valid backup.
+CNPG's barman backup to R2 is the only backup of the databases, and the only
+source the [Restore from Backup](#restore-from-backup) procedure uses.
 
-What this means in practice:
-
-- **CNPG's barman backup to R2 is the authoritative restore path for Postgres**,
-  and the only one this document's [Restore from Backup](#restore-from-backup)
-  procedure uses. Nothing about that changes.
-- The Longhorn copy is a crash-consistent snapshot of a **running** PGDATA
-  directory. It is not corrupt — Postgres would perform crash recovery on it —
-  but it is not a substitute for the barman backup and should not be reached for
-  first.
-- Excluding it would mean giving the CNPG cluster a StorageClass whose
-  `recurringJobSelector` is `[]`. `storageClassName` is immutable on a bound
-  PVC, so that is only available when the cluster's storage is next recreated,
-  and it is not worth a restore cycle on its own.
+While PGDATA was on Longhorn (until [#304](https://github.com/aoshimash/homelab-k8s/issues/304)),
+it was also copied by Longhorn's `backup-daily` RecurringJob, because Longhorn
+puts every volume in its `default` recurring-job group unless the StorageClass
+says otherwise. Those copies were crash-consistent snapshots of a running
+PGDATA, never the restore path.
 
 **Backup ordering relative to Longhorn PVC backups**: the CNPG daily database
 backup (18:00 UTC / 03:00 JST) is deliberately scheduled 30 minutes before
