@@ -21,7 +21,7 @@ spec:
         fsGroup: 1000
       initContainers:
         - name: download-jpn-tessdata
-          image: busybox:1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+          image: busybox:1.38@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
           command:
             - wget
             - -O
@@ -98,7 +98,7 @@ spec:
               type: RuntimeDefault
         - name: redis
           # NOTE: redis-alpine entrypoint uses su-exec requiring root
-          image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+          image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
