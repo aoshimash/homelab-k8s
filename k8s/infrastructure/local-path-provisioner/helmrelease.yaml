@@ -47,9 +47,10 @@ spec:
       # it is deleted, instead of losing it.
       defaultClass: true
       # Retain was chosen while volumes were migrated off Longhorn, so a mistake
-      # while moving a PVC could not delete its data. The migration is complete,
-      # but reclaimPolicy is immutable on a StorageClass: switching to Delete
-      # means replacing the class, and is its own change
+      # while moving a PVC could not delete its data. It stays after the
+      # migration: the default-class choice above relies on it, and disposable
+      # claims use local-path-ephemeral. reclaimPolicy is immutable on a
+      # StorageClass, so changing it means replacing the class
       # (docs/local-path-provisioner.md, "Change the reclaim policy (after the
       # migration)").
       reclaimPolicy: Retain

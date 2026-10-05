@@ -68,10 +68,10 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
   delete its data. The trade-off is that a deleted claim leaves a `Released` PV
   and its directory behind, which have to be cleaned up by hand (see
   [Release a retained volume](#release-a-retained-volume)). The migration is
-  over, but the policy stays until the class is replaced (see
+  over and the policy stays: the default-class choice above relies on it, and
+  claims whose data is disposable use `local-path-ephemeral` instead (see
+  [Two classes](#two-classes) and
   [Change the reclaim policy](#change-the-reclaim-policy-after-the-migration)).
-  Claims whose data is disposable use `local-path-ephemeral` instead (see
-  [Two classes](#two-classes)).
 - **`WaitForFirstConsumer`.** This is the chart default. A volume is bound to
   the node it was created on. With this mode the volume is created on the node
   the consuming pod is scheduled to, which is what makes it behave correctly
@@ -284,7 +284,12 @@ kubectl run -n local-path-storage rm-volume --rm -it --restart=Never \
 
 ### Change the reclaim policy (after the migration)
 
-`Retain` is temporary. A StorageClass's `reclaimPolicy`, `parameters` (which
+`Retain` was set for the migration. Since
+[#305](https://github.com/aoshimash/homelab-k8s/issues/305), disposable claims
+use `local-path-ephemeral` instead, and the choice of `local-path` as the
+default class relies on it keeping data (see
+[Why these settings](#why-these-settings)). Revisit that choice before
+switching `local-path` to `Delete`. A StorageClass's `reclaimPolicy`, `parameters` (which
 include `pathPattern`), `provisioner` and `volumeBindingMode` are immutable in
 the Kubernetes API, so changing any of them in `helmrelease.yaml` cannot be
 applied as an in-place update. Plan it as its own change that replaces the
