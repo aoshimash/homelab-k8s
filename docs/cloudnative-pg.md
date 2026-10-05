@@ -438,8 +438,9 @@ within about a minute. Step 4: the status patch at 16:34:26 promoted
 `postgres-cluster-2` on timeline 2 within 5 seconds. A `pg_isready` loop
 against `postgres-cluster-rw` failed from 16:34:26 to 16:34:34 and succeeded
 again at 16:34:35, so the write endpoint was down for about 9 seconds.
-`postgres-cluster-1` restarted once and rejoined as a streaming replica 17
-seconds later. Home Assistant's recorder logged one `SSL connection has been
+`postgres-cluster-1` restarted once, ran `pg_rewind` (which reported
+`no rewind required`) and was streaming from the new primary at 16:34:38; the
+Cluster reported both instances ready at 16:34:48. Home Assistant's recorder logged one `SSL connection has been
 closed unexpectedly` error and reconnected on its own. Vikunja and
 Paperless-ngx needed no restart either: afterwards Vikunja's `/health`, which
 pings the database, returned `OK`, and Paperless-ngx's ORM counted its 11
@@ -447,7 +448,12 @@ documents. WAL
 archiving continued into the same `cnpg/postgres-cluster/` folder: first
 `00000002.history`, then `000000020000011300000013` on the new timeline. The
 on-demand backup `post-switchover-304-20261005` completed, taken on
-`postgres-cluster-1` because of `prefer-standby`.
+`postgres-cluster-1` because of `prefer-standby`. Step 5 removed
+`postgres-cluster-1` and its PVC. Its Longhorn PV,
+`pvc-a37d3284-abfb-4b6e-9887-96255f0385b6`, was deliberately left `Released`
+(reclaim policy `Retain`) as the last copy of the pre-move PGDATA. A `Retain`
+PV is never deleted automatically: delete it, and its Longhorn volume, when
+Longhorn is removed ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)).
 
 ## Troubleshooting
 
