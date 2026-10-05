@@ -14,7 +14,13 @@ spec:
         namespace: flux-system
       # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
       # Keep in step with the gha-runner-scale-set charts in k8s/configs/arc-runners.
-      version: 0.14.2
+      # A minor bump needs a manual step after merge: the controller deletes
+      # every AutoscalingRunnerSet whose app.kubernetes.io/version label is on a
+      # different minor than itself, and Flux does not order this release
+      # before the scale sets. Once the new controller is Ready, run
+      # `flux reconcile hr <scale-set> -n arc-runners --force` for each scale set
+      # so Helm recreates any that were deleted mid-rollout.
+      version: 0.15.0
   releaseName: arc-controller
   # The chart ships its CRDs in crds/, which Helm installs once and never
   # upgrades. CreateReplace makes a Renovate chart bump carry the matching CRDs;
