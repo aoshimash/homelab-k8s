@@ -16,11 +16,17 @@ spec:
       # Keep in step with the gha-runner-scale-set charts in k8s/configs/arc-runners.
       version: 0.14.2
   releaseName: arc-controller
+  # The chart ships its CRDs in crds/, which Helm installs once and never
+  # upgrades. CreateReplace makes a Renovate chart bump carry the matching CRDs;
+  # without it the live CRDs stayed at their first-install schema while the
+  # controller moved on, and the API server pruned every newer field.
   install:
     createNamespace: false
+    crds: CreateReplace
     remediation:
       retries: 3
   upgrade:
+    crds: CreateReplace
     remediation:
       retries: 3
   values:
