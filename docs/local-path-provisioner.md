@@ -123,9 +123,10 @@ does not require a reboot.
 
 Apply it before any claim uses the `local-path` class. Until it is applied,
 provisioning fails. The helper pod mounts the volume's parent directory as a
-`DirectoryOrCreate` `hostPath`, and `/var/mnt` is read-only on Talos, so the pod
-never starts (`mkdir /var/mnt/local-path-provisioner: read-only file system`).
-The claim stays `Pending`. This happened once: the volume was merged in
+`DirectoryOrCreate` `hostPath`. On this node the kubelet could not create that
+directory under `/var/mnt`
+(`mkdir /var/mnt/local-path-provisioner: read-only file system`), so the pod
+never started and the claim stayed `Pending`. This happened once: the volume was merged in
 `9aeaacb` but was not on the node until 2026-10-05, and the first migration
 attempt in #303 failed this way.
 
