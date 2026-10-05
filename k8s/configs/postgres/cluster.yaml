@@ -4,7 +4,13 @@ metadata:
   name: postgres-cluster
   namespace: postgres
 spec:
-  instances: 1
+  # Temporarily 2 while PGDATA moves off Longhorn (#304). The second instance
+  # is created on the storageClass below and becomes primary by switchover.
+  # Returning this to 1 then removes the Longhorn instance: with both pods
+  # running, scale-down skips the primary and removes the highest-serial ready
+  # replica.
+  # See docs/cloudnative-pg.md, "Move the cluster to another storage class".
+  instances: 2
   # Records the K8up backup decision for PGDATA: deliberately not backed up by
   # K8up, because a file-level copy of a live PostgreSQL data directory is not
   # a valid backup; CloudNativePG's barman backup below covers it. The operator
@@ -29,16 +35,14 @@ spec:
     shared_preload_libraries:
       - "vchord.so"
   storage:
+    # local-path does not enforce capacity, so this size is documentation
+    # only. PGDATA was ~660Mi on 2026-10-05. It stays 10Gi because the
+    # CloudNativePG webhook rejects shrinking the storage size of an existing
+    # Cluster, and the size cannot be lowered without recreating it.
     size: 10Gi
-    storageClass: longhorn
-    # PGDATA is backed up by Longhorn's backup-daily job as well as by CNPG's
-    # own barman backup below. That is not the intent recorded here previously,
-    # but it is what happens: with no recurringJobSelector set anywhere,
-    # Longhorn puts every volume in the `default` group, which backup-daily
-    # targets. See docs/longhorn.md, "How recurring jobs pick volumes".
-    # CNPG's barman backup remains the authoritative restore path for Postgres;
-    # the Longhorn copy is a crash-consistent snapshot of a running PGDATA and
-    # is not the route docs/cloudnative-pg.md restores from.
+    # The storage class applies only to PVCs created after it changes. An
+    # existing instance keeps its volume until the instance is replaced.
+    storageClass: local-path
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
