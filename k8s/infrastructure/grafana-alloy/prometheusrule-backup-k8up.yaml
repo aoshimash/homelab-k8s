@@ -1,5 +1,5 @@
 # K8up (restic) backup alerts. Synced to the Grafana Cloud ruler by Grafana
-# Alloy (mimir.rules.kubernetes) and evaluated there against two
+# Alloy (mimir.rules.kubernetes) and evaluated there against three
 # remote-written sources:
 # - k8up_jobs_failed_counter from the K8up operator (k8up scrape job), which
 #   counts failed job objects per namespace and job type (backup/check/prune
@@ -7,8 +7,12 @@
 # - kube_customresource_k8up_snapshot_timestamp_seconds from kube-state-metrics
 #   (CustomResourceState over K8up Snapshot resources), one series per restic
 #   snapshot, labelled with its namespace and path.
+# - kube_persistentvolumeclaim_annotations from kube-state-metrics, one series
+#   per PVC carrying its k8up.io/backup annotation (metricAnnotationsAllowList).
 # Failure alone is not enough: a backup-command dump whose pod is not Running
 # is skipped without failing the Backup, so only per-path freshness catches it.
+# Neither catches a volume nobody opted in: backups are opt-in, so the
+# coverage group alerts on PVCs with no recorded backup decision.
 # The chart's own metrics.prometheusRule is not used (see docs/backup-alerting.md).
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -86,3 +90,49 @@ spec:
               fire. Check the kube-state-metrics pod and its
               CustomResourceState config, and that
               `kubectl get snapshots.k8up.io -A` lists snapshots.
+    - name: k8up-backup-coverage
+      rules:
+        - alert: K8upBackupAnnotationMissing
+          # Backups are opt-in (k8up.skipWithoutAnnotation), so a PVC nobody
+          # marked is silently not backed up. Every PVC must record a
+          # decision: k8up.io/backup "true" (back up) or "false" (deliberately
+          # not). A missing annotation means an absent label, which the regex
+          # below treats like any other non-matching value. K8up reads the
+          # value with Go's strconv.ParseBool and skips anything that does not
+          # parse as true, so a typo such as "yes" is not backed up either and
+          # alerts here too.
+          # 1h: nothing is lost before the next daily backup, and a PVC
+          # applied from Git carries its annotation from creation.
+          expr: kube_persistentvolumeclaim_annotations{annotation_k8up_io_backup!~"true|false"}
+          for: 1h
+          labels:
+            severity: warning
+            component: k8up
+          annotations:
+            summary: "PVC has no K8up backup decision"
+            description: >-
+              PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              has no k8up.io/backup annotation set to exactly "true" or
+              "false", so whether K8up backs it up was never decided
+              explicitly. Decide whether its data is worth protecting and set
+              k8up.io/backup to "true" or "false" on the PVC in Git (for a
+              CloudNativePG volume, in the Cluster's inheritedMetadata). See
+              docs/k8up.md, "Backup decision for every PVC".
+        - alert: K8upBackupAnnotationMetricsAbsent
+          # K8upBackupAnnotationMissing over a missing metric returns nothing
+          # and never fires. kube-state-metrics emits no
+          # kube_persistentvolumeclaim_annotations series at all when its
+          # metricAnnotationsAllowList has no persistentvolumeclaims entry.
+          expr: absent(kube_persistentvolumeclaim_annotations)
+          for: 1h
+          labels:
+            severity: warning
+            component: k8up
+          annotations:
+            summary: "PVC annotation metrics absent"
+            description: >-
+              No kube_persistentvolumeclaim_annotations series has reached
+              Grafana Cloud for 1h, so K8upBackupAnnotationMissing cannot
+              fire. Check the kube-state-metrics pod and that its
+              metricAnnotationsAllowList still lists
+              persistentvolumeclaims=[k8up.io/backup].

@@ -31,6 +31,15 @@ spec:
       - persistentvolumes
       - statefulsets
       - daemonsets
+    # Exposes each PVC's K8up backup decision as the annotation_k8up_io_backup
+    # label of kube_persistentvolumeclaim_annotations. With this entry, every
+    # PVC gets a series, with the label absent when the PVC has no such
+    # annotation; without it, the metric is not emitted at all. The
+    # K8upBackupAnnotationMissing alert
+    # (grafana-alloy/prometheusrule-backup-k8up.yaml) fires on PVCs whose
+    # value is neither "true" nor "false". See docs/backup-alerting.md.
+    metricAnnotationsAllowList:
+      - persistentvolumeclaims=[k8up.io/backup]
     # Per-path K8up backup freshness, read from K8up's Snapshot resources
     # (snapshots.k8up.io). After every successful backup or prune, the job
     # mirrors the namespace's restic snapshot list into Snapshot resources.

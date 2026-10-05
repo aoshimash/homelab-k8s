@@ -5,7 +5,9 @@ Longhorn volume backups, CloudNativePG database backups and K8up volume
 backups, with notifications delivered to Slack. Implements
 [#234](https://github.com/aoshimash/homelab-k8s/issues/234); K8up coverage
 added by [#340](https://github.com/aoshimash/homelab-k8s/issues/340) (see
-[K8up](#k8up)).
+[K8up](#k8up)); alerting on PVCs with no backup decision added by
+[#306](https://github.com/aoshimash/homelab-k8s/issues/306) (see
+[Backup coverage](#backup-coverage)).
 
 ## Why
 
@@ -39,6 +41,7 @@ Key pieces added:
 | PrometheusRule CRD | `k8s/infrastructure/prometheus-operator-crds/` (Helm) | Flux — separate `infra-crds` Kustomization (`wait: true`) that `infrastructure` depends on, so the CRD exists before any PrometheusRule is applied |
 | Backup metric scraping | `k8s/infrastructure/grafana-alloy/helmrelease.yaml` | Flux |
 | K8up snapshot freshness metric | `k8s/infrastructure/kube-state-metrics/helmrelease.yaml` (`customResourceState`) | Flux |
+| PVC backup-annotation metric | `k8s/infrastructure/kube-state-metrics/helmrelease.yaml` (`metricAnnotationsAllowList`) | Flux |
 | Ruler sync + RBAC | `helmrelease.yaml` (`mimir.rules.kubernetes`) + `rbac-prometheusrules.yaml` | Flux |
 | Alert rules | `prometheusrule-backup-{longhorn,cnpg,k8up}.yaml` | Flux → Alloy → Grafana Cloud ruler |
 | Slack routing | `grafana-cloud/alertmanager.yaml` | mimirtool (manual, **not** Flux) |
@@ -63,6 +66,12 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
   `kube_customresource_k8up_snapshot_timestamp_seconds{namespace, path, snapshot}`
   — the time of each restic snapshot. It is forwarded by the existing
   kube-state-metrics scrape, which has no allow-list.
+- **PVC backup annotations** (kube-state-metrics, `persistentvolumeclaims`
+  collector):
+  `kube_persistentvolumeclaim_annotations{namespace, persistentvolumeclaim, annotation_k8up_io_backup}`
+  — one series per PVC, value `1`, carrying the PVC's `k8up.io/backup`
+  annotation as a label (absent when the PVC has no such annotation). Forwarded
+  by the same scrape.
 
 ## Alert rules
 
@@ -75,6 +84,8 @@ Alloy scrapes these (kept to a tight allow-list to limit Grafana Cloud ingestion
 | `K8upJobFailed` | `k8up_jobs_failed_counter` increased: backup in the last 26h, check/prune in the last 8d; for 5m | Clears once the window holds no failure: ~2h (backup) or ~1d (check/prune) after the next run, if it succeeds |
 | `K8upBackupStale` | newest snapshot of a `(namespace, path)` older than 26h, for 15m | Daily schedule 19:00 UTC + buffer; every path, including backup-command dumps |
 | `K8upSnapshotMetricsAbsent` | no snapshot series at all, for 1h | Guards `K8upBackupStale`, which cannot fire over a missing metric |
+| `K8upBackupAnnotationMissing` | a PVC whose `k8up.io/backup` is neither `"true"` nor `"false"` (or absent), for 1h | `warning`; a volume with no backup decision, see [Backup coverage](#backup-coverage) |
+| `K8upBackupAnnotationMetricsAbsent` | no `kube_persistentvolumeclaim_annotations` series at all, for 1h | `warning`; guards `K8upBackupAnnotationMissing` |
 
 The 26h window (`93600s`) assumes the current daily schedules. Adjust the `expr`
 thresholds if the backup cadence changes.
@@ -167,6 +178,54 @@ backup data. Once it is no longer needed:
    prune, which clears the alert. To clear it at once, delete them:
    `kubectl -n <namespace> delete snapshots.k8up.io <name> ...`
    (the resource name is the first 8 characters of the snapshot ID).
+
+### Backup coverage
+
+The rules above watch volumes that are backed up. They cannot see one that
+never was: K8up backs up only PVCs annotated `k8up.io/backup: "true"`
+(`skipWithoutAnnotation`), so a new volume nobody marked is skipped without
+any error. `K8upBackupAnnotationMissing` makes that visible. Every PVC must
+record a decision, `"true"` or `"false"` (deliberately not backed up); a PVC
+with neither fires the alert. The convention, and where the annotation goes
+for each kind of PVC, is in [k8up.md](k8up.md), "Backup decision for every
+PVC".
+
+**Signal.** kube-state-metrics exposes PVC annotations only for keys listed in
+`metricAnnotationsAllowList`; it is set to
+`persistentvolumeclaims=[k8up.io/backup]`. With a `persistentvolumeclaims`
+entry present, the `persistentvolumeclaims` collector emits one
+`kube_persistentvolumeclaim_annotations` series per PVC, and the annotation
+becomes the `annotation_k8up_io_backup` label (characters outside
+`[a-zA-Z0-9_]` turn into `_`). A PVC without the annotation still gets a series,
+just without that label, so the rule's `annotation_k8up_io_backup!~"true|false"`
+matches it (in PromQL, a matcher that accepts the empty value also selects
+series that lack the label). With no
+`persistentvolumeclaims` entry the metric disappears entirely, which
+`K8upBackupAnnotationMetricsAbsent` reports.
+
+**Why `"false"` and not a separate exclusion annotation.** K8up v2.16.0 itself
+treats `"false"` as an exclusion: it reads the annotation with Go's
+`strconv.ParseBool` and skips a PVC whose value does not parse as true
+(`operator/backupcontroller/executor.go`), and its documentation describes
+`k8up.io/backup=false` as the way to exclude a PVC. So the one annotation K8up
+acts on also carries the decision, and the exclusion still holds if
+`skipWithoutAnnotation` is ever turned off.
+
+**CloudNativePG volumes.** The operator creates `postgres-cluster-1`, so the
+marking lives in the `clusters.postgresql.cnpg.io` manifest as `spec.inheritedMetadata.annotations`.
+In CloudNativePG 1.30.1 the PVC builder applies the Cluster's inherited
+metadata when creating a PVC, and the Cluster reconcile loop patches it onto
+existing PVCs (`pkg/reconciler/persistentvolumeclaim/metadata.go`), so a
+replacement cluster's PVCs are marked from creation. The same annotation lands
+on the instance Pods and the other objects the operator creates, where it has
+no effect.
+
+**Why kube-state-metrics, not a scheduled job.** A CronJob listing unmarked
+PVCs would also work, but it needs its own image, RBAC and a way to report
+(a metric push or a webhook), and its own failure would need alerting too.
+The annotation metric reuses the path every other backup alert takes:
+kube-state-metrics is already scraped unfiltered and its metrics already reach
+the ruler, so the change is one Helm value and two rules.
 
 ## Access policies & credentials (Grafana Cloud)
 
@@ -426,6 +485,44 @@ It should return one series per backed-up path, including
 newest snapshot (under `86400` plus the backup's run time, right after the
 daily backup). Compare with
 `kubectl get snapshots.k8up.io -A -o custom-columns='NS:.metadata.namespace,DATE:.spec.date,PATHS:.spec.paths'`.
+
+**`K8upBackupAnnotationMissing`.** First check the metric against the cluster.
+In Grafana Cloud Explore, `kube_persistentvolumeclaim_annotations` should
+return one series per PVC listed by `kubectl get pvc -A`, each with
+`annotation_k8up_io_backup` set to `true` or `false`, and the rule's expression
+should return nothing:
+
+```promql
+kube_persistentvolumeclaim_annotations{annotation_k8up_io_backup!~"true|false"}
+```
+
+To see it fire, create a PVC with no annotation. On `local-path`
+(`WaitForFirstConsumer`) it stays `Pending` and no volume is provisioned,
+because nothing mounts it. That is enough: kube-state-metrics reports every
+PVC, bound or not.
+
+```bash
+kubectl -n default create -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: verify-backup-decision
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Mi
+EOF
+```
+
+After the rule's `for: 1h`, `K8upBackupAnnotationMissing` fires for
+`default/verify-backup-decision` → Slack. **Confirm the firing (🔴) message**,
+then delete the PVC and confirm the resolved (🟢) one:
+
+```bash
+kubectl -n default delete pvc verify-backup-decision
+```
 
 ## Troubleshooting
 

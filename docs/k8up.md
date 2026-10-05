@@ -21,7 +21,7 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 | Prune | Sundays 20:00 UTC, `keepDaily: 30` |
 | Check | Sundays 21:00 UTC (`restic check`) |
 | Job user | root (`podSecurityContext.runAsUser: 0`) |
-| Alerting | `K8upJobFailed`, `K8upBackupStale`, `K8upSnapshotMetricsAbsent` → Slack; see [backup-alerting.md](backup-alerting.md#k8up) |
+| Alerting | `K8upJobFailed`, `K8upBackupStale`, `K8upSnapshotMetricsAbsent`, `K8upBackupAnnotationMissing`, `K8upBackupAnnotationMetricsAbsent` → Slack; see [backup-alerting.md](backup-alerting.md#k8up) |
 
 ### Backed-up volumes
 
@@ -35,10 +35,14 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 | paperless-ngx | `paperless-media` | Scanned originals |
 | vikunja | `vikunja-files` | Task attachments |
 
-Not backed up: `postgres/postgres-cluster-1` (CloudNativePG PGDATA — a
-file-level copy of a live PostgreSQL data directory is not a valid backup). It
-carries no annotation and the `postgres` namespace has no Schedule, so it is
-excluded twice over.
+Deliberately not backed up:
+
+| Namespace | PVC | Why |
+|-----------|-----|-----|
+| postgres | `postgres-cluster-1` | CloudNativePG PGDATA — a file-level copy of a live PostgreSQL data directory is not a valid backup; CloudNativePG's barman backup covers it. Marked `k8up.io/backup: "false"` through the Cluster's `spec.inheritedMetadata`, and the `postgres` namespace has no Schedule, so it is excluded twice over |
+
+A new PVC goes into one of these two tables; see "Backup decision for every
+PVC" below.
 
 ### Why these settings
 
@@ -83,9 +87,12 @@ k8s/infrastructure/k8up/
 └── kustomization.yaml
 
 k8s/apps/<app>/app/
-├── pvc.yaml                  # k8up.io/backup: "true" on backed-up PVCs
+├── pvc.yaml                  # k8up.io/backup: "true" or "false" on every PVC
 ├── k8up-schedule.yaml        # Schedule "backup": backend, schedule, retention
 └── secret-k8up-backup.sops.yaml  # Secret "k8up-backup" (SOPS)
+
+k8s/configs/postgres/
+└── cluster.yaml              # spec.inheritedMetadata: k8up.io/backup: "false" on PGDATA
 ```
 
 `k8s/flux/configs-kustomization.yaml` health-checks the `k8up` HelmRelease, so
@@ -152,6 +159,46 @@ Adding a new application with an embedded database: use the same pattern — a
 backup command that streams a consistent dump, plus an exclude for the live
 file.
 
+## Backup decision for every PVC
+
+Opt-in backups have one failure mode: a volume nobody marks is silently not
+backed up. So every PVC must carry a decision as its `k8up.io/backup`
+annotation, set in Git for every PVC that Git defines:
+
+| Value | Meaning |
+|-------|---------|
+| `"true"` | Back it up (see "Adding a Volume to Backups" below) |
+| `"false"` | Deliberately not backed up — the data can be regenerated, or something else backs it up |
+
+Choose by the question recorded in
+[storage-migration-decision.md](storage-migration-decision.md): can this data
+be regenerated from elsewhere? Deploying a new application includes making this
+decision for each of its volumes and adding the PVC to one of the tables in
+"Backed-up volumes" above.
+
+A PVC with no annotation, or with any other value, fires
+`K8upBackupAnnotationMissing` after 1h (see
+[backup-alerting.md](backup-alerting.md#backup-coverage)). Write exactly
+`"true"` or `"false"`: K8up parses the value as a boolean and skips anything
+that does not parse as true, so a typo such as `"yes"` is not backed up, and
+the alert accepts only these two spellings.
+
+Where the annotation goes:
+
+- **A PVC defined in Git** (`k8s/apps/<app>/app/pvc.yaml`):
+  `metadata.annotations`.
+- **A CloudNativePG volume**: the operator creates the PVCs, so the annotation
+  goes in the `clusters.postgresql.cnpg.io` manifest under `spec.inheritedMetadata.annotations`
+  (`k8s/configs/postgres/cluster.yaml`). CloudNativePG copies inherited
+  metadata onto every object it creates for the Cluster, PVCs included, and
+  keeps existing ones in sync, so a new instance or a replacement cluster is
+  marked without further work. Annotations under the Cluster's own
+  `metadata.annotations` are not used: CloudNativePG passes those on only for
+  keys its operator configuration lists, and none is configured here.
+- **A PVC created by hand** for an operation (e.g. a restore target): set
+  `"false"` when creating it, as "Restore a volume into a new PVC" does, and
+  delete it afterwards.
+
 ## Adding a Volume to Backups
 
 1. Annotate the PVC:
@@ -170,8 +217,9 @@ file.
 3. After it reconciles, trigger a backup (below) and confirm a snapshot for
    `/data/<pvc>` appears.
 
-To exclude a volume deliberately, leave it unannotated or set
-`k8up.io/backup: "false"`.
+To exclude a volume deliberately, set `k8up.io/backup: "false"`. Leaving it
+unannotated also excludes it, but fires `K8upBackupAnnotationMissing` (see
+"Backup decision for every PVC").
 
 ## Operations
 
@@ -484,6 +532,21 @@ kubectl -n "$NS" delete pvc "restore-$PVC"
   Secret.
 - Only `Bound` PVCs are considered. The operator log line for each PVC says why
   it was skipped.
+
+### `K8upBackupAnnotationMissing` is firing
+
+A PVC has no `k8up.io/backup` annotation, or one that is neither `"true"` nor
+`"false"`. List the PVCs and their values (`<none>` means unannotated):
+
+```bash
+kubectl get pvc -A \
+  -o custom-columns='NS:.metadata.namespace,PVC:.metadata.name,BACKUP:.metadata.annotations.k8up\.io/backup'
+```
+
+Make the decision and record it in Git as in "Backup decision for every PVC".
+A leftover PVC that nothing uses any more (e.g. a forgotten restore target) is
+better deleted than annotated. The alert resolves once the annotation reaches
+the cluster.
 
 ### Backup job fails
 
