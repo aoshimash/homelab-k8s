@@ -13,7 +13,7 @@ spec:
         name: grafana
         namespace: flux-system
       # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
-      version: 1.12.1
+      version: 1.13.0
   releaseName: grafana-alloy
   install:
     createNamespace: true
