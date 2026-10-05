@@ -4,13 +4,7 @@ metadata:
   name: postgres-cluster
   namespace: postgres
 spec:
-  # Temporarily 2 while PGDATA moves off Longhorn (#304). The second instance
-  # is created on the storageClass below and becomes primary by switchover.
-  # Returning this to 1 then removes the Longhorn instance: with both pods
-  # running, scale-down skips the primary and removes the highest-serial ready
-  # replica.
-  # See docs/cloudnative-pg.md, "Move the cluster to another storage class".
-  instances: 2
+  instances: 1
   # Records the K8up backup decision for PGDATA: deliberately not backed up by
   # K8up, because a file-level copy of a live PostgreSQL data directory is not
   # a valid backup; CloudNativePG's barman backup below covers it. The operator

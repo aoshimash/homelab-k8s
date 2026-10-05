@@ -404,6 +404,16 @@ and the volume backups run.
    reconnected, that WAL archiving continues
    (`ContinuousArchiving` is `True` and `pg_stat_archiver` advances on the new
    primary), and that an on-demand backup completes.
+
+   One failed archive attempt right after the promotion is expected. While the
+   Cluster status still names the old primary, the new primary's `wal-archive`
+   logs `switchover in progress, refusing archiving`, and PostgreSQL retries a
+   second later. `pg_stat_archiver.failed_count` keeps that 1.
+
+   The cluster's backup `target` is the default, `prefer-standby`, so while the
+   old instance is still a replica an on-demand backup runs on it, not on the
+   new primary. Take another backup after step 5, when the new instance is the
+   only one.
 5. **Remove the old instance.** First check that both pods are running and
    ready, that the new instance is the primary, and that the old one is a
    streaming replica. On scale-down the operator first removes an instance that
@@ -418,6 +428,37 @@ and the volume backups run.
 
    Then set `instances: 1` and merge. The operator deletes the old instance and
    its PVC. Its PV stays `Released` because of step 2.
+
+**What happened in #304 (2026-10-05, UTC).**
+
+- Steps 1–2: the drill and the backup `pre-local-path-304-20261005` ran at
+  16:13–16:16, and the Longhorn PV `pvc-a37d3284-abfb-4b6e-9887-96255f0385b6`
+  (instance `postgres-cluster-1`) was set to `Retain`.
+- Step 3: Flux applied the change at 16:33. `postgres-cluster-2` was cloned
+  onto `local-path` and was a streaming replica at the primary's LSN within
+  about a minute.
+- Step 4: the status patch at 16:34:26 promoted `postgres-cluster-2` on
+  timeline 2 about 5 seconds later. A `pg_isready` loop against
+  `postgres-cluster-rw` failed from 16:34:26 to 16:34:34 and succeeded again at
+  16:34:35, so the write endpoint was down for about 9 seconds.
+  `postgres-cluster-1` restarted once, ran `pg_rewind` (which reported
+  `no rewind required`) and was streaming from the new primary at 16:34:38. The
+  Cluster reported both instances ready at 16:34:48.
+- Applications: Home Assistant's recorder logged one `SSL connection has been
+  closed unexpectedly` error and reconnected on its own. Vikunja and
+  Paperless-ngx needed no restart: afterwards Vikunja's `/health`, which pings
+  the database, returned `OK`, and Paperless-ngx's ORM counted its 11 documents.
+- Archiving continued into the same `cnpg/postgres-cluster/` folder:
+  `00000002.history`, then `000000010000011300000013.partial` (the old
+  timeline's last segment), then `000000020000011300000013` on the new
+  timeline. The on-demand backup `post-switchover-304-20261005` completed,
+  taken on `postgres-cluster-1` because of `prefer-standby`.
+- Step 5 removed `postgres-cluster-1` and its PVC. Its Longhorn PV,
+  `pvc-a37d3284-abfb-4b6e-9887-96255f0385b6`, was deliberately left `Released`
+  (reclaim policy `Retain`) as the last copy of the pre-move PGDATA. A
+  `Retain` PV is never deleted automatically: delete it, and its Longhorn
+  volume, when Longhorn is removed
+  ([#305](https://github.com/aoshimash/homelab-k8s/issues/305)).
 
 ## Troubleshooting
 
@@ -582,7 +623,7 @@ kubectl get pods -n postgres -l cnpg.io/cluster=postgres-cluster
 CloudNativePG operator and PostgreSQL instances expose Prometheus metrics:
 
 - **Operator**: `cnpg-controller-manager:8080/metrics`
-- **PostgreSQL**: `postgres-cluster-1:9187/metrics` (exporter)
+- **PostgreSQL**: `<instance>:9187/metrics` on each instance pod, e.g. `postgres-cluster-2` (exporter)
 
 Configure Grafana Alloy to scrape these endpoints for monitoring dashboards.
 
