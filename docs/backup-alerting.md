@@ -211,8 +211,8 @@ treats `"false"` as an exclusion: it reads the annotation with Go's
 acts on also carries the decision, and the exclusion still holds if
 `skipWithoutAnnotation` is ever turned off.
 
-**CloudNativePG volumes.** The operator creates the instance PVCs (`postgres-cluster-<serial>`), so the
-marking lives in the `clusters.postgresql.cnpg.io` manifest as `spec.inheritedMetadata.annotations`.
+**CloudNativePG volumes.** The operator creates the instance PVCs
+(`postgres-cluster-<serial>`), so the marking lives in the `clusters.postgresql.cnpg.io` manifest as `spec.inheritedMetadata.annotations`.
 In CloudNativePG 1.30.1 the PVC builder applies the Cluster's inherited
 metadata when creating a PVC, and the Cluster reconcile loop patches it onto
 existing PVCs (`pkg/reconciler/persistentvolumeclaim/metadata.go`), so a
@@ -387,7 +387,7 @@ This is a post-merge, live-cluster step — it cannot be done from the PR alone.
      -o jsonpath='{.status.currentPrimary}')
    kubectl -n postgres delete pod "$PRIMARY"   # reload credential (brief restart)
    # wait for recovery — need Ready=True and ContinuousArchiving=True:
-   kubectl -n postgres get cluster postgres-cluster \
+   kubectl -n postgres get clusters.postgresql.cnpg.io postgres-cluster \
      -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}'
    ```
 5. **Trigger a fresh, successful backup** to resolve the alert (delete any stuck
