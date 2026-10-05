@@ -7,7 +7,8 @@
 # The provisioner serves any StorageClass that names it: with `nodePathMap`
 # set and no `storageClassConfigs`, every class uses the same config
 # (`pickConfig` in provisioner.go, v0.0.37). The chart creates only one class,
-# so this one is a plain manifest. Every field except metadata is immutable.
+# so this one is a plain manifest. provisioner, parameters, reclaimPolicy and
+# volumeBindingMode are immutable: changing them means replacing the class.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

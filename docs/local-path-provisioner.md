@@ -19,7 +19,7 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | Namespace | `local-path-storage` (Pod Security `privileged`) |
 | StorageClasses | `local-path` (from the chart) and `local-path-ephemeral` (`storageclass-ephemeral.yaml`), both provisioner `cluster.local/local-path-provisioner`. See [Two classes](#two-classes) |
 | Default class | `local-path`, since Longhorn was removed |
-| Reclaim policy | `local-path`: `Retain`, set for the migration and not yet changed (see [Change the reclaim policy](#change-the-reclaim-policy-after-the-migration)). `local-path-ephemeral`: `Delete` |
+| Reclaim policy | `local-path`: `Retain`, set for the migration and kept on purpose (see [Why these settings](#why-these-settings)). `local-path-ephemeral`: `Delete` |
 | Binding mode | `WaitForFirstConsumer` |
 | Root on the node | `/var/mnt/local-path-provisioner`, a Talos user volume of type `directory` |
 | On-disk layout | `<namespace>/<claim>/<pv-name>/` under the root |
@@ -99,7 +99,10 @@ that node's disk is lost. Recovery comes from the R2 backups taken by K8up
 | `local-path-ephemeral` | `Delete` | no | Claims that live and die with a pod, such as the Actions Runner Controller work volume (`k8s/configs/arc-runners/helmrelease.yaml`) |
 
 Both classes are served by the same provisioner, from the same root and with the
-same on-disk layout. They differ only in what happens when a claim is deleted.
+same on-disk layout. What matters is the difference in what happens when a
+claim is deleted. (The chart's class also sets `allowVolumeExpansion: true` and a
+`defaultVolumeType: hostPath` annotation. Neither changes anything here: capacity
+is not enforced, and `hostPath` is the provisioner's default volume type.)
 With `Delete`, Kubernetes deletes the PV, and the provisioner runs its helper
 pod with the teardown script, which removes the directory (`rm -rf "$VOL_DIR"`
 in the chart's default `configmap.teardown`). Without the second class every
