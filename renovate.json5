@@ -246,7 +246,7 @@
       "matchPackageNames": ["ghcr.io/paperless-ngx/paperless-ngx"],
       "prBodyNotes": [
         "**Back up before merging** — `paperless-ngx` runs Django migrations against the `paperless` database one way on first start, and may rewrite document metadata (3.0.0 recomputed every checksum as SHA-256).",
-        "Back up both halves before merging, and pair them correctly: the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days), and the `paperless-data` / `paperless-media` volumes via [docs/longhorn.md — Create an On-Demand Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/longhorn.md#create-an-on-demand-backup). A restore must not pair a database backup newer than the volume backup — see [Backup Configuration Notes](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#backup-configuration-notes)."
+        "Back up both halves before merging, and pair them correctly: the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days), and the `paperless-data` / `paperless-media` volumes via [docs/k8up.md — Trigger an on-demand backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/k8up.md#trigger-an-on-demand-backup). A restore must not pair a database backup newer than the volume backup — see [Backup Configuration Notes](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#backup-configuration-notes)."
       ]
     },
     {
