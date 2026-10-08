@@ -5,9 +5,9 @@
     "helpers:pinGitHubActionDigests"
   ],
 
-  // Friday-evening cadence — keeps weekday CI/build machines free of routine update noise.
+  // Friday-afternoon cadence — PRs are open before the weekly 19:00 JST merge session picks them up.
   "timezone": "Asia/Tokyo",
-  "schedule": ["after 6pm on friday"],
+  "schedule": ["after 3pm on friday"],
 
   // PR limits
   "prConcurrentLimit": 10,

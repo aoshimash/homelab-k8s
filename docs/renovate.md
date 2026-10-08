@@ -85,7 +85,7 @@ The Renovate configuration is stored in `renovate.json5` at the repository root.
 | `automerge` | false | All PRs require manual review |
 | `pinDigests` | true | Container images are pinned to an immutable digest |
 | `minimumReleaseAge` | 3 days | A release must age before it is proposed |
-| `schedule` | after 6pm on friday | Routine updates land off the working week |
+| `schedule` | after 3pm on friday | PRs are open before the weekly Friday 19:00 JST merge session |
 | `labels` | `dependencies`, `renovate` | Labels applied to PRs |
 
 Helm chart updates are grouped into a single `Helm charts` PR and container image
