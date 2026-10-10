@@ -216,9 +216,10 @@ Before merging a Renovate PR, verify:
 > the node comes back on the new Talos version still running the config it
 > already had — which it still accepts, per the note above. Only once
 > `kubectl get nodes` reports the new Talos version is it safe to push the
-> regenerated config — and the flow does push it, as its last step ([Apply the
-> regenerated config](#apply-the-regenerated-config)), because the stored config
-> still names the old install image until then. This bites hardest across
+> regenerated config — and the flow does push it, as its last step, after the
+> workload verification ([Apply the regenerated
+> config](#apply-the-regenerated-config)), because the stored config still names
+> the old install image until then. This bites hardest across
 > the v1.13 → v1.14 boundary, where Talos moved Kubernetes settings into separate
 > documents (see #315).
 
@@ -399,8 +400,8 @@ leaves the node's stored machine config untouched, so it still carries the
 **previous** `machine.install.image` tag while the node already runs the new
 version — after the v1.14.1 → v1.14.2 upgrade on 2026-10-10 (#367),
 `talosctl get machineconfig` still reported `…:v1.14.1`. Nothing in the checks
-above notices. The drift surfaces later: a reinstall from the stored config would
-install the old version, and the next unrelated `apply-config` would carry the
+above notices. The drift surfaces later: a reinstall from the stored config is
+pointed at the old installer image, and the next unrelated `apply-config` would carry the
 image bump inside its diff.
 
 Run this only after `kubectl get nodes` reports the new Talos version **and**
@@ -408,11 +409,10 @@ the [workload verification](#verify-all-workloads-recovered) has passed — the
 node cannot decode config generated for a newer Talos (see the ordering warning
 at the top of this section), and verifying first keeps any failure attributable
 to the upgrade alone. It uses the config `talhelper genconfig` already
-regenerated at the start of the flow; the commands start from the repository
-root.
+regenerated at the start of the flow, and continues in `infra/talos` in the same
+shell as the upgrade block (from a fresh shell, `cd infra/talos` first).
 
 ```bash
-cd infra/talos
 NODE=192.168.0.10   # over the tailnet: the node's tailnet IP (see Prerequisites)
 
 # 1. etcd encryption key names must match, or the apply breaks kube-apiserver
@@ -440,20 +440,22 @@ and rotate first.
 diff is exactly one changed line, the `machine.install.image` tag, and the
 summary reads `Applied configuration without a reboot (skipped in dry-run)`.
 That is what the 2026-10-10 run showed (key names `key1`/`key1`). **Stop and
-investigate instead of applying** if the diff touches anything else, or if the
-summary indicates anything other than an apply without a reboot. The bump
+investigate instead of applying** if the diff touches anything else. The bump
 changed one line of `talconfig.yaml`, so a larger diff means the node and Git
 had already drifted on something else, and that needs a reviewed change of its
 own rather than riding along with the version bump.
 
 `--mode=no-reboot` is passed explicitly so the command states its intent: the
-only expected change is the install image, so nothing should need restarting. On Talos v1.14 the default `auto` mode is resolved
-to `no-reboot` by the node itself, so neither mode reboots the node during the
-apply — the dry-run diff review above, not the mode, is what catches an
-unexpected change.
+only expected change is the install image, so nothing should need restarting.
+On Talos v1.14 the default `auto` mode is resolved to `no-reboot` by the node
+itself, so neither mode reboots the node during the apply, and the summary line
+reads the same whatever the diff contains — the dry-run diff review above, not
+the mode or the summary, is what catches an unexpected change. If a later Talos
+version reports that the change needs a reboot, treat that as a larger diff:
+stop and investigate.
 
-Afterwards, confirm the stored config caught up and the control plane is still
-healthy:
+Afterwards, in the same shell, confirm the stored config caught up and the
+control plane is still healthy:
 
 ```bash
 talosctl --talosconfig clusterconfig/talosconfig --endpoints "$NODE" --nodes "$NODE" \
