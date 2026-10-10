@@ -215,8 +215,11 @@ Before merging a Renovate PR, verify:
 > config: it replaces the OS and leaves the node's stored config untouched, so
 > the node comes back on the new Talos version still running the config it
 > already had — which it still accepts, per the note above. Only once
-> `kubectl get nodes` reports the new Talos version is `task talos:apply-config`
-> the right tool for pushing the regenerated config. This bites hardest across
+> `kubectl get nodes` reports the new Talos version is it safe to push the
+> regenerated config — and the flow does push it, as its last step, after the
+> workload verification ([Apply the regenerated
+> config](#apply-the-regenerated-config)), because the stored config still names
+> the old install image until then. This bites hardest across
 > the v1.13 → v1.14 boundary, where Talos moved Kubernetes settings into separate
 > documents (see #315).
 
@@ -389,6 +392,77 @@ it (the ready count above never reaches full). In that case:
 > drain cannot succeed and stalls on blocking PodDisruptionBudgets. Do **not**
 > pass the legacy `--preserve` flag; it was removed in `talosctl` 1.13.0+ and now
 > errors out. See [Perform the Upgrade](#3-perform-the-upgrade) for the rationale.
+
+#### Apply the regenerated config
+
+The upgrade is not finished when the workloads are back. `talosctl upgrade`
+leaves the node's stored machine config untouched, so it still carries the
+**previous** `machine.install.image` tag while the node already runs the new
+version — after the v1.14.1 → v1.14.2 upgrade on 2026-10-10 (#367),
+`talosctl get machineconfig` still reported `…:v1.14.1`. Nothing in the checks
+above notices. The drift surfaces later: a reinstall from the stored config is
+pointed at the old installer image, and the next unrelated `apply-config` would carry the
+image bump inside its diff.
+
+Run this only after `kubectl get nodes` reports the new Talos version **and**
+the [workload verification](#verify-all-workloads-recovered) has passed — the
+node cannot decode config generated for a newer Talos (see the ordering warning
+at the top of this section), and verifying first keeps any failure attributable
+to the upgrade alone. It uses the config `talhelper genconfig` already
+regenerated at the start of the flow, and continues in `infra/talos` in the same
+shell as the upgrade block (from a fresh shell, `cd infra/talos` first).
+
+```bash
+NODE=192.168.0.10   # over the tailnet: the node's tailnet IP (see Prerequisites)
+
+# 1. etcd encryption key names must match, or the apply breaks kube-apiserver
+#    (see Troubleshooting below). Both lines must show the same name.
+talosctl --talosconfig clusterconfig/talosconfig --endpoints "$NODE" --nodes "$NODE" \
+  read /system/secrets/kubernetes/kube-apiserver/encryptionconfig.yaml | grep 'name:'
+grep -A6 'kind: KubeEtcdEncryptionConfig' clusterconfig/*.yaml | grep 'name:'
+
+# 2. Dry run: review the diff before anything changes on the node.
+talosctl --talosconfig clusterconfig/talosconfig --endpoints "$NODE" --nodes "$NODE" \
+  apply-config --dry-run --mode=no-reboot \
+  -f clusterconfig/homelab-cluster-homelab-node-01.yaml
+
+# 3. Apply, without a reboot.
+talosctl --talosconfig clusterconfig/talosconfig --endpoints "$NODE" --nodes "$NODE" \
+  apply-config --mode=no-reboot \
+  -f clusterconfig/homelab-cluster-homelab-node-01.yaml
+```
+
+If the key names disagree, do not apply — follow [kube-apiserver stuck 0/1 after
+`apply-config`](#kube-apiserver-stuck-01-after-apply-config-etcd-encryption-key-name)
+and rotate first.
+
+**What a normal run looks like.** After a plain `talosVersion` bump the dry-run
+diff is exactly one changed line, the `machine.install.image` tag, and the
+summary reads `Applied configuration without a reboot (skipped in dry-run)`.
+That is what the 2026-10-10 run showed (key names `key1`/`key1`). **Stop and
+investigate instead of applying** if the diff touches anything else. The bump
+changed one line of `talconfig.yaml`, so a larger diff means the node and Git
+had already drifted on something else, and that needs a reviewed change of its
+own rather than riding along with the version bump.
+
+`--mode=no-reboot` is passed explicitly so the command states its intent: the
+only expected change is the install image, so nothing should need restarting.
+On Talos v1.14 the default `auto` mode is resolved to `no-reboot` by the node
+itself, so neither mode reboots the node during the apply, and the summary line
+reads the same whatever the diff contains — the dry-run diff review above, not
+the mode or the summary, is what catches an unexpected change. If a later Talos
+version reports that the change needs a reboot, treat that as a larger diff:
+stop and investigate.
+
+Afterwards, in the same shell, confirm the stored config caught up and the
+control plane is still healthy:
+
+```bash
+talosctl --talosconfig clusterconfig/talosconfig --endpoints "$NODE" --nodes "$NODE" \
+  get machineconfig -o yaml | grep 'installer/'    # should end in the new version tag
+kubectl get --raw='/readyz'                        # ok
+kubectl get secrets -A > /dev/null && echo 'Secrets readable'
+```
 
 ### Manual operation after merge — Kubernetes bump
 
