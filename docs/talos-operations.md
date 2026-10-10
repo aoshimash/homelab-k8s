@@ -603,12 +603,11 @@ talosctl logs ext-tailscale --nodes 192.168.0.10
 > The Talos version is not part of the schematic. Every version shown in this
 > section (the version line, the `version=` parameter of the Image Factory
 > link, and the `v<version>` part of both image URLs) follows `talosVersion` in
-> `infra/talos/talconfig.yaml`, and was last synced to it at v1.14.2. If they
-> differ, `talosVersion` wins: substitute it into the URLs below rather than
-> copying the written version.
+> `infra/talos/talconfig.yaml`. If they differ, `talosVersion` wins: substitute
+> it into the URLs below rather than copying the written version.
 
 - **Schematic ID**: `e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b`
-- **Talos Version**: v1.14.2 (follows `talosVersion`)
+- **Talos Version**: v1.14.2
 - **Extensions**:
   - `siderolabs/iscsi-tools`
   - `siderolabs/tailscale`
@@ -616,8 +615,8 @@ talosctl logs ext-tailscale --nodes 192.168.0.10
 
 ### Image URLs
 
-Both URLs are `<schematic-id>` plus `talosVersion`; replace `v1.14.2` with the
-current `talosVersion` if they differ.
+Both URLs combine the schematic ID with `talosVersion`; replace `v1.14.2` with
+the current `talosVersion` if they differ.
 
 | Type | URL |
 |------|-----|
