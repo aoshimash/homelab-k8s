@@ -674,19 +674,28 @@ talosctl logs ext-tailscale --nodes 192.168.0.10
 
 ### Current Schematic
 
+> The Talos version is not part of the schematic. Every version shown in this
+> section (the version line, the `version=` parameter of the Image Factory
+> link, and the `v<version>` part of both image URLs) follows `talosVersion` in
+> `infra/talos/talconfig.yaml`. If they differ, `talosVersion` wins: substitute
+> it into the URLs below rather than copying the written version.
+
 - **Schematic ID**: `e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b`
-- **Talos Version**: v1.13.4
+- **Talos Version**: v1.14.2
 - **Extensions**:
   - `siderolabs/iscsi-tools`
   - `siderolabs/tailscale`
-- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.13.4)
+- **Image Factory URL**: [View/Edit Schematic](https://factory.talos.dev/?arch=amd64&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Ftailscale&platform=metal&target=metal&version=1.14.2)
 
 ### Image URLs
 
+Both URLs combine the schematic ID with `talosVersion`; replace `v1.14.2` with
+the current `talosVersion` if they differ.
+
 | Type | URL |
 |------|-----|
-| Installer | `factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b:v1.13.4` |
-| ISO | `https://factory.talos.dev/image/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b/v1.13.4/metal-amd64.iso` |
+| Installer | `factory.talos.dev/installer/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b:v1.14.2` |
+| ISO | `https://factory.talos.dev/image/e2e3b54334c85fdef4d78e88f880d185e0ce0ba0c9b5861bb5daa1cd6574db9b/v1.14.2/metal-amd64.iso` |
 
 ## Troubleshooting
 
