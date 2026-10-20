@@ -31,6 +31,7 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 | audiobookshelf | `audiobookshelf-metadata` | |
 | audiobookshelf | `audiobookshelf-podcasts` | Most feeds have ended, so re-fetching is not possible |
 | home-assistant | `home-assistant-config` | |
+| outline | `outline-data` | Attachments and images; documents are in the CNPG database |
 | paperless-ngx | `paperless-data` | |
 | paperless-ngx | `paperless-media` | Scanned originals |
 | tsidp | `tsidp-data` | Tailnet node identity, OIDC signing key, registered OIDC clients |
@@ -69,7 +70,7 @@ PVC" below.
   (18:00 UTC): a volume backup is then never older than the database backup it
   pairs with (see [cloudnative-pg.md](cloudnative-pg.md#backup-configuration-notes)).
 - **Root job pods.** The applications run as different users (audiobookshelf
-  99, paperless-ngx and vikunja 1000, tsidp 1001, Home Assistant root). Running backups as
+  99, paperless-ngx and vikunja 1000, Outline and tsidp 1001, Home Assistant root). Running backups as
   root lets restic read every file whatever its owner and mode, and running
   restores as root is what lets restic write files back with their original
   ownership. The cluster's PodSecurity enforce level is baseline, which permits

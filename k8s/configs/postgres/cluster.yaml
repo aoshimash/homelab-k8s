@@ -63,3 +63,9 @@ spec:
         superuser: false
         passwordSecret:
           name: postgres-paperless-user
+      - name: outline
+        ensure: present
+        login: true
+        superuser: false
+        passwordSecret:
+          name: postgres-outline-user
