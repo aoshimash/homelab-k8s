@@ -69,7 +69,7 @@ PVC" below.
   (18:00 UTC): a volume backup is then never older than the database backup it
   pairs with (see [cloudnative-pg.md](cloudnative-pg.md#backup-configuration-notes)).
 - **Root job pods.** The applications run as different users (audiobookshelf
-  99, paperless-ngx and vikunja 1000, Home Assistant root). Running backups as
+  99, paperless-ngx and vikunja 1000, tsidp 1001, Home Assistant root). Running backups as
   root lets restic read every file whatever its owner and mode, and running
   restores as root is what lets restic write files back with their original
   ownership. The cluster's PodSecurity enforce level is baseline, which permits
@@ -95,6 +95,11 @@ k8s/apps/<app>/app/
 ├── k8up-schedule.yaml        # Schedule "backup": backend, schedule, retention
 └── secret-k8up-backup.sops.yaml  # Secret "k8up-backup" (SOPS)
 
+k8s/configs/tsidp/            # same three files, for a component in the configs layer
+├── pvc.yaml
+├── k8up-schedule.yaml
+└── secret-k8up-backup.sops.yaml
+
 k8s/configs/postgres/
 └── cluster.yaml              # spec.inheritedMetadata: k8up.io/backup: "false" on PGDATA
 ```
@@ -102,6 +107,13 @@ k8s/configs/postgres/
 `k8s/flux/configs-kustomization.yaml` health-checks the `k8up` HelmRelease, so
 the Schedule CRD exists before the `apps` layer (which depends on `configs`)
 applies the per-app Schedules.
+
+A Schedule in the `configs` layer itself (tsidp's) has no such guarantee:
+`configs` depends only on `infrastructure`, and its own health check runs after
+it applies. On a fresh bootstrap the `configs` apply can therefore fail with
+"no matches for kind Schedule" until the K8up chart has installed its CRDs.
+Flux retries it on the next interval and it then succeeds — the same as the
+CloudNativePG resources that `configs` also applies.
 
 ### Credentials
 

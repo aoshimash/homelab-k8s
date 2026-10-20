@@ -9,9 +9,9 @@ Outline ([#376](https://github.com/aoshimash/homelab-k8s/issues/376)), which
 has no built-in password login.
 
 **tsidp is experimental.** Its README marks it as a community project under
-active development that may ship breaking changes, and it only runs with
-`TAILSCALE_USE_WIP_CODE=1` while below v1.0.0. Read the release notes before
-merging a Renovate bump.
+active development that may ship breaking changes, and requires
+`TAILSCALE_USE_WIP_CODE=1` while tsidp is below v1.0.0. Read the release notes
+before merging a Renovate bump.
 
 ## Current Configuration
 
@@ -59,6 +59,13 @@ policy changes.
     "tag:tsidp": ["autogroup:admin"],
   },
   "grants": [
+    // Who can sign in: tsidp issues a token to any tailnet identity that
+    // reaches it on 443 (see below), so this grant is the login boundary.
+    {
+      "src": ["autogroup:admin"],
+      "dst": ["tag:tsidp"],
+      "ip": ["tcp:443"],
+    },
     // Admin UI, used to register OIDC clients. Dynamic client registration
     // (allow_dcr) is not granted: clients are registered by hand.
     {
@@ -75,13 +82,22 @@ policy changes.
 Both the admin UI and dynamic client registration are denied unless a grant
 allows them. Capability grants take effect immediately, with no restart.
 
-**Network access is also the login boundary.** Signing in needs no capability:
-tsidp issues a token to whichever tailnet identity reaches its `/authorize`
-endpoint over HTTPS. So who can log in to an app behind tsidp is decided by who
-can reach `tag:tsidp` on TCP 443. If the policy is not allow-all, add a grant
-with `"ip": ["tcp:443"]` from the users who should be able to log in to
-`tag:tsidp`. A relying party that calls the token and userinfo endpoints from
-its own server needs the same reach.
+**Network access is the login boundary.** Signing in needs no capability:
+tsidp issues a token to whichever user identity reaches its `/authorize`
+endpoint over HTTPS (tagged devices are refused). So who can log in to an app
+behind tsidp is decided by who can reach `tag:tsidp` on TCP 443, and the first
+grant above limits that to tailnet admins — the owner.
+
+That limit only holds if nothing broader also reaches `tag:tsidp`. Tailscale
+initializes a tailnet with an allow-all policy (any source to any destination),
+and access rules are additive, so with that rule in place every tailnet member can sign
+in. When applying the policy, check for such a rule. Remove or narrow it, or,
+if keeping it is a deliberate choice (e.g. the owner is the only member),
+record that here.
+
+A relying party that calls the token and userinfo endpoints from its own
+server needs reach to `tag:tsidp:443` as well. Add it with the relying party
+that needs it.
 
 ## First Start
 
@@ -111,15 +127,27 @@ registered from then on.
    curl -fsS https://idp.<tailnet>.ts.net/.well-known/openid-configuration
    ```
 
-### Check that the identity survives a restart
+### Check that the state survives a restart
+
+Do this after at least one client exists ([Registering an OIDC
+Client](#registering-an-oidc-client)), so the check covers clients as well as
+the node identity.
 
 ```bash
 kubectl -n tsidp delete pod -l app=tsidp
-kubectl -n tsidp logs deploy/tsidp | grep -i login   # expect no new login URL
+kubectl -n tsidp wait --for=condition=Ready pod -l app=tsidp --timeout=2m
+# The new pod logs this only after it has joined the tailnet
+kubectl -n tsidp logs deploy/tsidp | grep 'tsidp server started'
+# Expect no output: a login URL here means the node identity was lost
+kubectl -n tsidp logs deploy/tsidp | grep -i 'login.tailscale.com'
 ```
 
-The admin console must still show a single `idp` machine. A second one
-(`idp-1`) means the state was not persisted.
+Then check:
+
+- The admin console still shows a single `idp` machine. A second one
+  (`idp-1`) means the state was not persisted.
+- The admin UI at `https://idp.<tailnet>.ts.net/` still lists the client,
+  with the same client ID.
 
 ## Registering an OIDC Client
 
@@ -143,6 +171,35 @@ that key users on email, such as Outline, see exactly this value.
 
 Extra claims can be added per grant with `extraClaims` (and exposed in
 `/userinfo` with `includeInUserInfo`). None are configured.
+
+### Check the claims for a user
+
+To see what an app will receive before configuring one, run the
+authorization-code flow by hand from a tailnet device with a throwaway client:
+
+1. In the admin UI, create a client named `claims-check` with redirect URI
+   `http://localhost:8765/callback`. Nothing has to listen on that port.
+2. Open this URL in a browser on a tailnet device, signed in to Tailscale as
+   the user to check:
+
+   ```
+   https://idp.<tailnet>.ts.net/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=http://localhost:8765/callback&scope=openid%20email%20profile&state=x
+   ```
+
+   The browser is redirected to `localhost` and shows a connection error. Copy
+   the `code` parameter from the address bar.
+3. Exchange the code and read `/userinfo`:
+
+   ```bash
+   IDP=https://idp.<tailnet>.ts.net
+   TOKEN=$(curl -fsS -u "<CLIENT_ID>:<CLIENT_SECRET>" "$IDP/token" \
+     -d grant_type=authorization_code -d code=<CODE> \
+     -d redirect_uri=http://localhost:8765/callback | jq -r .access_token)
+   curl -fsS -H "Authorization: Bearer $TOKEN" "$IDP/userinfo" | jq
+   ```
+
+4. Note the `email` value an app will see (record it in the issue or PR that
+   configures the app), then delete the `claims-check` client in the admin UI.
 
 ## Backup and Recovery
 
