@@ -102,9 +102,15 @@ spec:
           # as paperless-ngx's sidecar.
           image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
           imagePullPolicy: IfNotPresent
+          # Loopback only: the official image turns protected mode off at
+          # build time, and there is no password, so on the default bind any
+          # pod could reach it on the pod IP. Outline connects via localhost.
           # Queues and caches only; nothing here needs to survive a restart,
           # so no snapshots or AOF are written.
           args:
+            - --bind
+            - 127.0.0.1
+            - -::1
             - --save
             - ""
             - --appendonly
