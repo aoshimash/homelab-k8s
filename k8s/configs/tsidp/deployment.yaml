@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tsidp
+  namespace: tsidp
+spec:
+  replicas: 1
+  # Two pods sharing one state directory would be the same tailnet node twice.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tsidp
+  template:
+    metadata:
+      labels:
+        app: tsidp
+    spec:
+      # Nothing in the pod talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      # tsidp joins the tailnet itself (tsnet) and serves only there, so it has
+      # no Service, Ingress or container port.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        # The image's `app` user (Dockerfile: adduser -u 1001).
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tsidp
+          image: ghcr.io/tailscale/tsidp:v0.0.17@sha256:7a30d56cb1a33fd72ea44b12ab3659b5c7a8a3afe3cf4ada76a700f19b96185b
+          imagePullPolicy: IfNotPresent
+          env:
+            # Required while tsidp is below v1.0.0.
+            - name: TAILSCALE_USE_WIP_CODE
+              value: "1"
+            # tsnet node state, OIDC signing key and registered clients.
+            - name: TS_STATE_DIR
+              value: /data
+            - name: TS_HOSTNAME
+              value: idp
+            # No auth key: the first start prints a login URL to the log, and
+            # authenticating it once registers the node with this tag
+            # (docs/tsidp.md#first-start). The state on /data keeps it
+            # registered from then on.
+            - name: TS_ADVERTISE_TAGS
+              value: tag:tsidp
+          # No probes: tsidp listens only on the tailnet. Its -local-port
+          # listener would make one reachable, but tsidp grants loopback
+          # requests full admin-UI and client-registration rights, so it stays
+          # off.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tsidp-data
+        - name: tmp
+          emptyDir: {}

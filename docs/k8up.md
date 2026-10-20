@@ -33,6 +33,7 @@ backups to R2 (see [cloudnative-pg.md](cloudnative-pg.md)).
 | home-assistant | `home-assistant-config` | |
 | paperless-ngx | `paperless-data` | |
 | paperless-ngx | `paperless-media` | Scanned originals |
+| tsidp | `tsidp-data` | Tailnet node identity, OIDC signing key, registered OIDC clients |
 | vikunja | `vikunja-files` | Task attachments |
 
 Deliberately not backed up:

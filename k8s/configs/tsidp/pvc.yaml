@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tsidp-data
+  namespace: tsidp
+  annotations:
+    # Opt-in K8up backup (docs/k8up.md). Holds the tailnet node identity, the
+    # OIDC signing key and the registered OIDC clients; losing it re-registers
+    # tsidp as a new node and invalidates every client's credentials.
+    k8up.io/backup: "true"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      # local-path does not enforce capacity; this records the expected size
+      # (docs/local-path-provisioner.md#capacity).
+      storage: 1Gi
