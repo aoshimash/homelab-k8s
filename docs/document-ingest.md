@@ -28,7 +28,8 @@ ScanSnap ──> Google Drive "00_受信箱"
 | Schedule | Daily at 21:00 local time (`0 21 * * *`) |
 | Input | PDFs directly in Drive folder `00_受信箱` (ID `11_RuOPedK3r8koOu519nULsmTR5WDCFu`, My Drive root) |
 | Drive access | Claude's Google Drive connector (`claude.ai Google Drive`) for listing, renaming and moving |
-| Reading PDFs | The local copy synced by Google Drive for desktop, rendered to page images with `pdftoppm` (poppler) |
+| Reading PDFs | The local copy synced by Google Drive for desktop, rendered to page images with `pdftoppm` (poppler), read by the model |
+| Cross-check | macOS Vision OCR of the same pages; values the OCR does not contain are re-checked and marked |
 | Outline access | MCP server `outline` (`https://outline.tail19032f.ts.net/mcp`, see [outline.md](outline.md#connecting-claude-code-over-mcp)) |
 | Output | Outline collection `書類`; the PDF renamed and moved within Drive |
 | Max files per run | 20 |
@@ -60,6 +61,29 @@ is deleted as soon as the file is done.
 
 A PDF that is not in the synced folder yet (sync lag) is skipped for that run
 and reported as `未同期`. It is still in the inbox, so the next run picks it up.
+
+### Why the model reads, and OCR only cross-checks
+
+On 2026-10-20, three methods were compared on 7 pages from 3 documents: a
+motorcycle-school price list, a scholarship repayment notice, and a driver's
+licence renewal notice. They were scored on 70 values (amounts, dates,
+deadlines, business phone numbers) checked by hand at 300 dpi. Personal
+identifiers were left out of the scoring.
+
+| Method | Values found | Time | Tables | Flags doubt |
+|--------|-------------:|------|--------|-------------|
+| Model (Sonnet) reading 150 dpi page images | 70/70 | 27–44 s per document | Kept: 9 × 12 price table correct cell by cell | Yes |
+| macOS Vision OCR, 300 dpi | 68/70 | ~1–2 s per page (first call ~30 s) | Lost (flat lines) | No |
+| Tesseract 5.5 `jpn+eng`, 300 dpi | 47/70 | ~2–6 s per page | Lost | No |
+
+The model is the only method that keeps tables and can say it is unsure, so it
+writes the page. Vision OCR is cheap, reads digits reliably, and fails in
+different ways from the model. So each value the model writes is looked up in
+the OCR text. A value the OCR does not contain is re-read from the image and
+either corrected or marked `（要確認: OCR不一致）`. This catches confident
+misreadings, the failure that doubt-flagging alone cannot catch. Tesseract
+missed most amounts and both deadline dates on the licence notice, and is not
+used.
 
 ## Contract
 
@@ -137,7 +161,8 @@ driver's licence and passport numbers. The original in Drive is unmasked.
 is written as `（判読不能）`. A value read with doubt is written followed by
 `（要確認）`, e.g. `30,690円（要確認）`. Every such item is also listed in the
 `要確認` row and in the run report, so the owner can go through them later with
-the original.
+the original. A value the model reads confidently but the OCR does not contain
+is marked `（要確認: OCR不一致）` after a second look at the image.
 
 ### Processed files, retries, and duplicates
 
@@ -168,14 +193,99 @@ To recreate it, ask Claude Code in the desktop app to create a scheduled task
 with task ID `document-ingest`, title `書類の取り込み（ScanSnap → Outline）`,
 cron `0 21 * * *`, and exactly the prompt below. The runs need the `outline`
 MCP server (user scope) and the Google Drive connector to be connected, Google
-Drive for desktop syncing My Drive, and `pdftoppm` (`brew install poppler`).
+Drive for desktop syncing My Drive, `pdftoppm` (`brew install poppler`), and
+the two helpers below in `~/.claude/scheduled-tasks/document-ingest/`.
 
-Prompt (version 2, 2026-10-20: reads page images from the local sync; version 1 read the connector's OCR text):
+### Helpers
+
+Both live next to the task's `SKILL.md`, outside this repository; the sources
+are recorded here.
+
+`vision-ocr.swift` — build with
+`swiftc -O vision-ocr.swift -o vision-ocr` (Xcode Command Line Tools):
+
+```swift
+// OCR an image with macOS Vision (VNRecognizeTextRequest) and print the text,
+// one recognized line per output line, top to bottom.
+// Usage: swift vision-ocr.swift <image.png>
+import Foundation
+import Vision
+import AppKit
+
+guard CommandLine.arguments.count == 2 else {
+    FileHandle.standardError.write("usage: vision-ocr <image>\n".data(using: .utf8)!)
+    exit(2)
+}
+let url = URL(fileURLWithPath: CommandLine.arguments[1])
+guard let image = NSImage(contentsOf: url),
+      let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+    FileHandle.standardError.write("cannot load image\n".data(using: .utf8)!)
+    exit(1)
+}
+let request = VNRecognizeTextRequest()
+request.recognitionLevel = .accurate
+request.recognitionLanguages = ["ja-JP", "en-US"]
+request.usesLanguageCorrection = true
+let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+try handler.perform([request])
+let lines = (request.results ?? [])
+    .compactMap { obs -> (CGRect, String)? in
+        guard let s = obs.topCandidates(1).first?.string else { return nil }
+        return (obs.boundingBox, s)
+    }
+    // Vision's origin is bottom-left: sort top to bottom, then left to right.
+    .sorted { a, b in
+        abs(a.0.midY - b.0.midY) > 0.01 ? a.0.midY > b.0.midY : a.0.minX < b.0.minX
+    }
+for (_, s) in lines { print(s) }
+```
+
+`crosscheck.py`:
+
+```python
+"""Report which values do not appear in OCR text, after normalization.
+
+Usage: python3 -I crosscheck.py <ocr.txt> <value> [<value> ...]
+
+Prints one line per value that is NOT found, and nothing for values that are.
+Normalization: Unicode NFKC (full-width digits and symbols to ASCII), all
+whitespace removed, and the various wave dashes and minus signs unified.
+"""
+import re
+import sys
+import unicodedata
+
+
+def norm(s: str) -> str:
+    s = unicodedata.normalize("NFKC", s)
+    s = re.sub(r"[〜～~]", "~", s)
+    s = re.sub(r"[‐‑‒–—―−ｰ]", "-", s)
+    return re.sub(r"\s+", "", s)
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        print("usage: crosscheck.py <ocr.txt> <value> [<value> ...]", file=sys.stderr)
+        return 2
+    text = norm(open(sys.argv[1], encoding="utf-8").read())
+    for value in sys.argv[2:]:
+        if norm(value) not in text:
+            print(value)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+Prompt (version 3, 2026-10-20: reads page images and cross-checks values against macOS Vision OCR; version 2 read page images only; version 1 read the connector's OCR text):
 
 ````text
 You are the document-ingest job for the owner's scanned paperwork. Work fully autonomously; nobody is watching. Write everything you create (Outline pages, folder names, the final report) in Japanese.
 
 Tools: the Google Drive connector (claude.ai Google Drive) for listing, renaming and moving files; the Outline MCP server named "outline"; Bash and Read for reading PDFs from the local Drive sync. If the Drive connector or Outline is unavailable, or `pdftoppm` is not installed, stop immediately and report which one.
+
+Helpers in HELPERS="$HOME/.claude/scheduled-tasks/document-ingest": `vision-ocr` (macOS Vision OCR of one image, prints text) and `crosscheck.py` (prints the given values that do not occur in an OCR text file). If `vision-ocr` is missing, build it once with: swiftc -O "$HELPERS/vision-ocr.swift" -o "$HELPERS/vision-ocr". If it still cannot run, continue without the cross-check and say so in the report.
 
 Constants:
 - INBOX: Drive folder "00_受信箱", ID 11_RuOPedK3r8koOu519nULsmTR5WDCFu (in My Drive root).
@@ -194,10 +304,12 @@ Procedure:
    b. Read the PDF from its page images. Never read it only from text.
       - Find the local copy: in "$DRIVE_ROOT/00_受信箱", the *.pdf whose `xattr -p 'com.google.drivefs.item-id#S'` equals the Drive file ID. If none matches (not synced yet), skip this file, report it as "未同期", and continue; it is retried next run.
       - TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; then open every page image with the Read tool, in page order. If the PDF has more than 30 pages, read the first 30 and say so in the page and the report.
+      - Also run OCR for the cross-check: pdftoppm -r 300 -png "<local file>" "$TMP/o"; then for each "$TMP"/o-*.png in page order run "$HELPERS/vision-ocr" on it and append the output to "$TMP/ocr.txt". Do not read ocr.txt as the transcription; it is only for step c's cross-check.
       - The images are the source of truth. You may also call read_file_content on the Drive file as a hint, but never copy text from it that you cannot see in the images.
       - When this file is finished (success or failure), run rm -rf "$TMP". The images contain unmasked personal data.
    c. Extract: 書類日付 (the document's issue date; if none is printed, use the file's createdTime converted to JST and mark it "（スキャン日）"), 書類名 (short descriptive title), 種別 (通知/請求書/領収書/契約書/証明書/明細/申請書/その他), 発行元, 期限・金額 (deadlines, amounts, validity periods; "なし" if none), 要約 (2–4 sentences: what it is, from whom, required action and deadline), and a full Markdown transcription that keeps headings, lists and tables, with pages separated by "### p.N".
       Uncertain readings: write "（判読不能）" for anything you cannot read, and put "（要確認）" right after any value you read with doubt (e.g. "30,690円（要確認）"). Never present a guess as fact. Collect every such item for the 要確認 row.
+      OCR cross-check: run python3 -I "$HELPERS/crosscheck.py" "$TMP/ocr.txt" followed by every value you read for the 書類日付 and 期限・金額 rows and every amount, date, deadline, time, phone number and reference number in your transcription, each passed exactly as printed on the page (not reformatted, and before masking). Skip a 書類日付 marked "（スキャン日）". For each value it prints (not found in the OCR text), look at that spot in the page image again: if you misread it, correct it; if you still read it the same way, append "（要確認: OCR不一致）" to it and add it to the 要確認 row.
    d. Mask sensitive numbers everywhere you write them, keeping only the last 4 digits as "****1234": My Number (マイナンバー), full credit card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
    e. Decide the destination: the best-fitting existing subfolder of a CATEGORY FOLDER. If none fits, you may create one new subfolder under the best-fitting CATEGORY FOLDER, named like the existing ones (a short Japanese noun such as 税務, 保険). A document that fits a category but no specific topic may go directly in the category folder. If you cannot decide with confidence (unreadable scan, several unrelated documents in one PDF), the destination is "要振り分け": the file stays in INBOX with its original name.
       Title = "YYYYMMDD_書類名" using 書類日付 (replace "/" and other characters invalid in names with "_"). File name = title + ".pdf".
@@ -210,7 +322,7 @@ Procedure:
    g. Only after the document exists: if the destination is not "要振り分け", rename the Drive file to the new file name and move it into the destination folder (one update that sets title and parentId). Then confirm the file's parent is the destination.
    h. If any step fails for a file, record the error and continue with the next file. A file whose document was not created stays in INBOX and is retried in full next run.
 4. Safety rules: never delete or trash anything in Drive or Outline (the only thing you delete is your own $TMP directory). Never touch Drive files other than the one being filed. Never edit Outline documents except ones this job created (they contain "Drive ファイル ID") and the folder parent documents.
-5. Final report (your last message), in Japanese: a table with one row per processed file — 元のファイル名, 新しいファイル名, 振り分け先, Outline のリンク, 要確認 (count), 結果 (登録・移動済み / 移動のみ再実行 / 要振り分け / 未同期 / エラー: reason). Then list: every 要確認 item per file, new Drive folders created, files skipped because of MAX_FILES, files still needing manual filing, and non-PDF files in INBOX. If INBOX had nothing to do, say so in one line.
+5. Final report (your last message), in Japanese: a table with one row per processed file — 元のファイル名, 新しいファイル名, 振り分け先, Outline のリンク, 要確認 (count), OCR照合 (values checked / corrected / OCR不一致), 結果 (登録・移動済み / 移動のみ再実行 / 要振り分け / 未同期 / エラー: reason). Then list: every 要確認 item per file, new Drive folders created, files skipped because of MAX_FILES, files still needing manual filing, and non-PDF files in INBOX. If INBOX had nothing to do, say so in one line.
 ````
 
 ## Operations
@@ -237,7 +349,9 @@ Claude Code task, with `FILE_IDS` filled in from the documents'
 duplicated, and it renames or moves the Drive file only if the new reading
 changes its title or folder.
 
-On 2026-10-20 this re-read the eight documents created by prompt version 1.
+On 2026-10-20 this re-read the eight documents created by prompt version 1,
+first from page images (version 2) and then again with the OCR cross-check
+(version 3).
 
 ````text
 You are re-ingesting documents for the owner's document-ingest pipeline. Work fully autonomously. Write everything you create (Outline pages, the final report) in Japanese. The contract is the same as the document-ingest job; this run re-reads files that were already ingested and updates their existing Outline documents in place.
@@ -252,13 +366,13 @@ Constants:
 For each ID in FILE_IDS:
 1. Find its Outline document: the one in "書類" whose "Drive ファイル ID" row is this ID. If there is none, or more than one, skip the ID and report it. Never create a new document in this run.
 2. Get the file's Drive metadata (title, parent folder) and resolve its folder path. Find the local copy under DRIVE_ROOT in that folder whose `xattr -p 'com.google.drivefs.item-id#S'` equals the ID; if it is not there, search DRIVE_ROOT with `find` (max depth 4) for a PDF with that attribute. If no local copy exists, skip and report "未同期".
-3. TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; open every page image with the Read tool in page order (first 30 pages at most). The images are the source of truth. Afterwards always rm -rf "$TMP": the images contain unmasked personal data.
-4. Re-extract everything exactly as the document-ingest contract says: 書類日付 (issue date, or createdTime in JST marked "（スキャン日）"), 書類名, 種別, 発行元, 期限・金額, 要約, and a full Markdown transcription with "### p.N" page breaks. Write "（判読不能）" for anything unreadable and put "（要確認）" after any value read with doubt; list them all in the 要確認 row. Mask sensitive numbers to their last 4 digits ("****1234"): My Number, full card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
+3. TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; open every page image with the Read tool in page order (first 30 pages at most). The images are the source of truth. Also run pdftoppm -r 300 -png "<local file>" "$TMP/o" and append the output of "$HOME/.claude/scheduled-tasks/document-ingest/vision-ocr" for each "$TMP"/o-*.png, in page order, to "$TMP/ocr.txt". Afterwards always rm -rf "$TMP": the images contain unmasked personal data.
+4. Re-extract everything exactly as the document-ingest contract says: 書類日付 (issue date, or createdTime in JST marked "（スキャン日）"), 書類名, 種別, 発行元, 期限・金額, 要約, and a full Markdown transcription with "### p.N" page breaks. Write "（判読不能）" for anything unreadable and put "（要確認）" after any value read with doubt; list them all in the 要確認 row. Then cross-check: run python3 -I "$HOME/.claude/scheduled-tasks/document-ingest/crosscheck.py" "$TMP/ocr.txt" with every value for 書類日付 and 期限・金額 and every amount, date, deadline, time, phone number and reference number in the transcription, exactly as printed and before masking (skip a 書類日付 marked "（スキャン日）"). For each value it prints, look at the image again: correct a misreading, or append "（要確認: OCR不一致）" and add it to the 要確認 row. Mask sensitive numbers to their last 4 digits ("****1234"): My Number, full card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
 5. Keep the current Drive folder unless the new reading makes it clearly wrong; do not create folders in this run.
 6. Update the existing Outline document in place: title "YYYYMMDD_書類名", and a body in exactly the contract's shape (the blockquote; the table with rows 書類日付, 書類名, 種別, 発行元, 期限・金額, 要確認, 原本, 保管場所, Drive ファイル ID, スキャン日時, 取り込み日時 = now in JST; "## 要約"; "## 本文（書き起こし）"). If the title changed, rename the Drive file to match (title + ".pdf"). If the folder changed, move both the Drive file and the Outline document (under the parent documents that mirror the folder path).
 7. Never delete or trash anything except your own $TMP directory. Never touch other files or documents.
 
-Final report (Japanese): a table with one row per ID — 新しいタイトル, 振り分け先, Outline のリンク, 要確認 (count), 結果. Then, per file, what changed in substance compared with the previous version of the page (dates, amounts, deadlines, title, folder), and every 要確認 item.
+Final report (Japanese): a table with one row per ID — 新しいタイトル, 振り分け先, Outline のリンク, 要確認 (count), OCR照合 (values checked / corrected / OCR不一致), 結果. Then, per file, what changed in substance compared with the previous version of the page (dates, amounts, deadlines, title, folder), and every 要確認 item.
 ````
 
 ### Re-ingest a file from scratch
