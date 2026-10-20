@@ -12,8 +12,6 @@ data:
   # TLS ends at the Tailscale ProxyGroup, which forwards plain HTTP. With the
   # default `true`, Outline would redirect the kubelet's HTTP probes to https.
   FORCE_HTTPS: "false"
-  # One web process. Unset, Outline forks one per CPU the node reports.
-  WEB_CONCURRENCY: "1"
   # Same-pod Redis sidecar (see deployment.yaml).
   REDIS_URL: redis://localhost:6379
   FILE_STORAGE: local

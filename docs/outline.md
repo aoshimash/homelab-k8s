@@ -29,9 +29,12 @@ client (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`). The Secret `outline-db`
 the separate `DATABASE_HOST`/`PORT`/`NAME`/`USER`/`PASSWORD` variables, so no
 URL with an embedded password is stored.
 
-**Attachments are on a PVC, not R2.** Outline's file-storage documentation
-lists Cloudflare R2 as not compatible with its S3 mode, so the parent issue
-chose local storage (#376, Design Decisions).
+**Attachments are on a PVC, not R2.** The parent issue chose local storage
+(#376, Design Decisions) because Outline's file-storage documentation listed
+Cloudflare R2 as not compatible with its S3 mode. Outline v1.11.0 adds
+`AWS_S3_UPLOAD_METHOD=put` for providers such as R2 that lack presigned POST
+(`.env.sample`), so moving attachments to R2 would now be a new decision rather
+than a known incompatibility.
 
 ### Access flow
 
@@ -93,7 +96,8 @@ the pod would still need the FQDN to resolve to it. The operator's `DNSConfig`
 nameserver handles that only after a `ts.net` stub zone is added to CoreDNS,
 and CoreDNS's ConfigMap is a Talos-managed manifest (its field manager is
 `talos`). The proxy's and the nameserver's ClusterIPs are assigned when the
-operator creates their Services, so `hostAliases` cannot pin them either. That is two new moving parts plus a CoreDNS change, for a path the node
+operator creates their Services, so `hostAliases` cannot pin them either.
+That is two new moving parts plus a CoreDNS change, for a path the node
 already provides. Revisit if a second node joins without the Tailscale
 extension ([#307](https://github.com/aoshimash/homelab-k8s/issues/307)) or if
 the egress source must be distinguishable from the node.
@@ -112,9 +116,11 @@ In the tsidp admin UI (`https://idp.tail19032f.ts.net/`, see
 
 ### 2. Put the client into the Secret
 
-The committed `secret-outline.sops.yaml` holds placeholders for the client.
-Replace them on the PR branch, from the repository root, without the values
-reaching the shell history or the process list:
+The PR that introduced Outline (#378) committed placeholder values for
+`OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`. Set the real ones from the
+repository root, without the values reaching the shell history or the process
+list. The same commands replace the client later, e.g. after a tsidp
+recovery:
 
 ```bash
 export SOPS_AGE_KEY_FILE=age.agekey
@@ -154,20 +160,26 @@ tsidp, which signs in whoever reaches it over the tailnet, and returns to
 Outline. The first user to sign in creates the workspace and becomes its
 admin.
 
-- **Email** is the Tailscale login name (the Google address for the owner),
-  as described in [tsidp.md](tsidp.md#claims). Outline keys users on it.
+- **Identity.** Outline matches a returning user on the OIDC `sub` claim
+  (tsidp's `userid:<number>`), not on the email. The email is the Tailscale
+  login name (the Google address for the owner), as described in
+  [tsidp.md](tsidp.md#claims).
 - **Logout** works because `OIDC_DISABLE_REDIRECT=true`. tsidp has no
   `end_session_endpoint`, so logging out of Outline cannot end the tsidp
   session. Without this setting the login page would send the browser straight
   back to tsidp, which would sign it in again at once.
 
 **Who can sign in.** Any tailnet identity that reaches tsidp gets a token, and
-Outline then creates an account for it. "Require invites" exists only in
-Outline's cloud-hosted edition, and the workspace's allowed-domains list is
-empty by default, which allows every domain. So the boundary is the tailnet
-policy ([tsidp.md](tsidp.md#tailnet-policy)). With today's allow-all rule,
-every tailnet member can create an Outline account. Revisit this before
-another person joins the tailnet.
+Outline then creates an account for it. Outline's own restrictions do not help
+here. "Require invites" exists only in Outline's cloud-hosted edition. The
+other two, an invitation and the workspace's allowed-domains list, accept a
+login only when the provider marks the email as verified. tsidp sends no
+`email_verified` claim, so an invited person could not sign in, and once any
+allowed domain is set, no new user could (`server/commands/userProvisioner.ts`,
+as of v1.11.0). Leave the allowed-domains list empty. The boundary is
+therefore the tailnet policy ([tsidp.md](tsidp.md#tailnet-policy)). With
+today's allow-all rule, every tailnet member can create an Outline account.
+Revisit this before another person joins the tailnet.
 
 ## Connecting Claude Code over MCP
 
@@ -252,11 +264,16 @@ backup before merging. A revert restores the image but not the old schema.
 
 ## Troubleshooting
 
-### The pod restarts right after start
+### Outline does not become Ready
 
-`kubectl -n outline logs deploy/outline -c outline --previous`:
+Read the current log (`kubectl -n outline logs deploy/outline -c outline`).
+Outline's master process supervises a forked web process and forks it again
+when it exits. A failure inside that process therefore shows up as a repeating
+error in the current log, while the container keeps running.
 
-- `Failed to discover OIDC configuration`: the pod cannot reach tsidp. Check
+- `Failed to discover OIDC configuration`: the pod cannot reach tsidp. The web
+  process exits and is forked again, so the error repeats and readiness flaps.
+  The container is restarted only once the liveness probe gives up. Check
   from a throwaway pod:
 
   ```bash
@@ -269,16 +286,23 @@ backup before merging. A revert restores the image but not the old schema.
   Expect `200`. If it fails, check that tsidp is up ([tsidp.md](tsidp.md)),
   that its IP is still the one in `hostAliases` (`tailscale ip -4 idp`), and
   that the node is online in the tailnet.
-- `Could not connect to the database`: check the `outline` role and database
-  (`kubectl -n postgres get databases.postgresql.cnpg.io`) and that the
-  password in `outline-db` matches `postgres-outline-user`.
+- Database errors at startup stop the container itself, because the
+  migration check runs from the master process. Read the previous log with
+  `--previous`:
+  - `Could not connect to the database`: the host or Service is unreachable.
+    Check the cluster (`kubectl -n postgres get clusters.postgresql.cnpg.io`).
+  - `password authentication failed for user "outline"`: the password in
+    `outline-db` does not match `postgres-outline-user`, or the role does not
+    exist yet (`kubectl -n postgres get databases.postgresql.cnpg.io`).
 
-### Login fails after tsidp
+### Login fails
 
-- `invalid_client` or a 401 from the token endpoint: the client ID or secret in
-  the `outline` Secret does not match the tsidp client.
-- `redirect_uri mismatch`: the client's redirect URI must be exactly
-  `https://outline.tail19032f.ts.net/auth/oidc.callback`.
+- tsidp shows an error instead of returning to Outline: the client ID in the
+  `outline` Secret is unknown to tsidp, or the client's redirect URI is not
+  exactly `https://outline.tail19032f.ts.net/auth/oidc.callback`.
+- tsidp returns to Outline, which then reports an authentication error, and the
+  log shows a 401 or `invalid_client` from the token endpoint: the client
+  secret does not match.
 
 ## References
 
