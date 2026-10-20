@@ -4,3 +4,4 @@ resources:
   - tailscale/
   - postgres/
   - arc-runners/
+  - tsidp/
