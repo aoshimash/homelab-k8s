@@ -102,8 +102,18 @@ joins the tailnet: either replace the allow-all rule with specific rules, or
 accept that they can sign in to every app behind tsidp.
 
 A relying party that calls the token and userinfo endpoints from its own
-server needs reach to `tag:tsidp:443` as well. Add it with the relying party
-that needs it.
+server needs reach to `tag:tsidp:443` as well. Outline's server does, and its
+requests arrive from the node, whose tailnet identity is `tag:homelab` (see
+[outline.md](outline.md#reaching-tsidp-from-the-pod)). The allow-all rule covers
+it today; without that rule it needs:
+
+```hujson
+{
+  "src": ["tag:homelab"],
+  "dst": ["tag:tsidp"],
+  "ip": ["tcp:443"],
+},
+```
 
 ## First Start
 
@@ -224,14 +234,18 @@ If the state is lost and cannot be restored:
 2. Restart tsidp and authenticate the new login URL ([First Start](#first-start)).
 3. Re-register every client and update each app's secret. The client IDs,
    secrets, and signing key are all new.
+4. The new node usually gets a new tailnet IP. Outline reaches tsidp at a
+   fixed IP through `hostAliases`, so update it in
+   `k8s/apps/outline/app/deployment.yaml` (`tailscale ip -4 idp`).
 
-## Not Yet Covered
+## Pods Reaching tsidp
 
-- **Pods reaching tsidp.** Cluster workloads are not on the tailnet and cannot
-  resolve `*.ts.net` names, so an app running in the cluster cannot reach
-  `https://idp.<tailnet>.ts.net` by default. The first such app is Outline;
-  giving it a path to the tailnet is part of
-  [#378](https://github.com/aoshimash/homelab-k8s/issues/378).
+Cluster workloads are not on the tailnet and cannot resolve `*.ts.net` names.
+The node is on the tailnet, though, and routes pod traffic to tailnet IPs, so
+an app reaches tsidp by mapping `idp.<tailnet>.ts.net` to tsidp's tailnet IP
+with `hostAliases`. Outline does this; the design, what it depends on, and the
+alternatives considered are in
+[outline.md](outline.md#reaching-tsidp-from-the-pod).
 
 ## References
 

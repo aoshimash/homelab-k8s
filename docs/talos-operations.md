@@ -294,11 +294,19 @@ kubectl run snat-check --rm -i --restart=Never --image=curlimages/curl:latest --
 #    Expect 200. A hang or connection failure means pod egress is broken.
 
 # 2. Tailscale ingress reachability, from a machine on the tailnet.
-for h in audiobookshelf home-assistant vikunja paperless; do
+for h in audiobookshelf home-assistant vikunja paperless outline; do
   printf '%s -> ' "$h"
   curl -sS -o /dev/null -w '%{http_code}\n' --max-time 15 "https://${h}.tail19032f.ts.net"
 done
-#    Expect 2xx/3xx for all four (paperless answers 302).
+#    Expect 2xx/3xx for all five (paperless answers 302).
+
+# 3. Pod -> tailnet through the node's tailscaled. Outline's logins depend on
+#    it (docs/outline.md, "Reaching tsidp from the pod").
+kubectl run tailnet-check --rm -i --restart=Never --image=curlimages/curl:latest --command -- \
+  curl -sS -o /dev/null -w '%{http_code}\n' --max-time 15 \
+  --resolve idp.tail19032f.ts.net:443:100.89.177.82 \
+  https://idp.tail19032f.ts.net/.well-known/openid-configuration
+#    Expect 200.
 ```
 
 Cilium's own view of the datapath is worth a look on any reboot or CNI change:

@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outline
+  namespace: outline
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  # Recreate, not the default RollingUpdate: outline-data is a single RWO
+  # volume, and a rolling update would briefly run two pods on it. Matches the
+  # other apps.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: outline
+  template:
+    metadata:
+      labels:
+        app: outline
+    spec:
+      # Nothing in the pod talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        # The image's `nodejs` user (Dockerfile: adduser --uid 1001).
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      # Outline's server calls tsidp itself (discovery, token, userinfo), but
+      # pods are not on the tailnet and cannot resolve *.ts.net. The node is:
+      # its tailscaled (Talos extension) routes 100.64.0.0/10, and pod traffic
+      # to tsidp's tailnet IP reaches it through the node, with tsidp's own
+      # certificate for this hostname. So only the name needs mapping.
+      # The IP is tsidp's node address; it changes only if tsidp's state is
+      # lost and it re-registers (docs/tsidp.md, "Backup and Recovery").
+      # See docs/outline.md, "Reaching tsidp from the pod".
+      hostAliases:
+        - ip: 100.89.177.82
+          hostnames:
+            - idp.tail19032f.ts.net
+      containers:
+        - name: outline
+          image: outlinewiki/outline:1.11.0@sha256:08ee9ffdb847e1bd35ded30ee832090dd06a7f93f67422687db59e70bc7f5393
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: outline-config
+            - secretRef:
+                name: outline
+            - secretRef:
+                name: outline-db
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/outline/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          # /_health runs `SELECT 1` and pings Redis, so a brief PostgreSQL
+          # restart (CNPG operator upgrade, node reboot — ~2-3m observed) fails
+          # it too. failureThreshold outlasts that without a needless restart;
+          # readiness still takes the pod out of the Service meanwhile. Same
+          # reasoning as paperless-ngx (#247).
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: redis
+          # NOTE: the entrypoint starts as root, chowns /data and drops to the
+          # redis user itself, so runAsNonRoot cannot be set here. Same image
+          # as paperless-ngx's sidecar.
+          image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+          imagePullPolicy: IfNotPresent
+          # Queues and caches only; nothing here needs to survive a restart,
+          # so no snapshots or AOF are written.
+          args:
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: outline-data

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: outline-config
+  namespace: outline
+data:
+  # The URL users actually open: the Tailscale Ingress hostname. Outline builds
+  # the OIDC callback (<URL>/auth/oidc.callback) and its MCP OAuth metadata
+  # from it.
+  URL: https://outline.tail19032f.ts.net
+  PORT: "3000"
+  # TLS ends at the Tailscale ProxyGroup, which forwards plain HTTP. With the
+  # default `true`, Outline would redirect the kubelet's HTTP probes to https.
+  FORCE_HTTPS: "false"
+  # One web process. Unset, Outline forks one per CPU the node reports.
+  WEB_CONCURRENCY: "1"
+  # Same-pod Redis sidecar (see deployment.yaml).
+  REDIS_URL: redis://localhost:6379
+  FILE_STORAGE: local
+  FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+  # Login is tsidp only. Outline fetches the discovery document from here at
+  # startup; the pod resolves this host through hostAliases (deployment.yaml).
+  OIDC_ISSUER_URL: https://idp.tail19032f.ts.net
+  OIDC_DISPLAY_NAME: Tailscale
+  # tsidp has no end_session_endpoint, so logging out of Outline cannot end the
+  # tsidp session. Without this, the login page would redirect straight back
+  # to tsidp, which signs the user in again silently: logout would not stick.
+  OIDC_DISABLE_REDIRECT: "true"

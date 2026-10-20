@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: postgres-cluster-outline
+  namespace: postgres
+spec:
+  name: outline
+  owner: outline
+  cluster:
+    name: postgres-cluster

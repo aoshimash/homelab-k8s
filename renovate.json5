@@ -250,6 +250,13 @@
       ]
     },
     {
+      "matchPackageNames": ["outlinewiki/outline"],
+      "prBodyNotes": [
+        "**Back up before merging** — `outline` runs its database migrations one way on first start.",
+        "Back up both halves before merging, and pair them correctly: the database via [docs/cloudnative-pg.md — Create Manual Backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#create-manual-backup) (kept 7 days), and the `outline-data` attachment volume via [docs/k8up.md — Trigger an on-demand backup](https://github.com/aoshimash/homelab-k8s/blob/main/docs/k8up.md#trigger-an-on-demand-backup). A restore must not pair a database backup newer than the volume backup — see [Backup Configuration Notes](https://github.com/aoshimash/homelab-k8s/blob/main/docs/cloudnative-pg.md#backup-configuration-notes). After merging, re-check the MCP connection ([docs/outline.md](https://github.com/aoshimash/homelab-k8s/blob/main/docs/outline.md#check-the-mcp-connection))."
+      ]
+    },
+    {
       "matchPackageNames": ["ghcr.io/home-assistant/home-assistant"],
       "prBodyNotes": [
         "**Back up before merging** — Home Assistant migrates the recorder schema in the `homeassistant` database one way. Because the tag is CalVer, Renovate reports a new year as a major and a new month as a minor: both run recorder migrations, so this note applies to either.",
