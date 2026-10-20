@@ -27,7 +27,8 @@ ScanSnap ──> Google Drive "00_受信箱"
 | Runtime | Scheduled task `document-ingest` in the Claude desktop app (Code), on the owner's Mac |
 | Schedule | Daily at 21:00 local time (`0 21 * * *`) |
 | Input | PDFs directly in Drive folder `00_受信箱` (ID `11_RuOPedK3r8koOu519nULsmTR5WDCFu`, My Drive root) |
-| Drive access | Claude's Google Drive connector (`claude.ai Google Drive`) |
+| Drive access | Claude's Google Drive connector (`claude.ai Google Drive`) for listing, renaming and moving |
+| Reading PDFs | The local copy synced by Google Drive for desktop, rendered to page images with `pdftoppm` (poppler) |
 | Outline access | MCP server `outline` (`https://outline.tail19032f.ts.net/mcp`, see [outline.md](outline.md#connecting-claude-code-over-mcp)) |
 | Output | Outline collection `書類`; the PDF renamed and moved within Drive |
 | Max files per run | 20 |
@@ -39,6 +40,26 @@ launch.
 
 PDF contents are sent to Claude for reading. That privacy trade-off was
 accepted in [#376](https://github.com/aoshimash/homelab-k8s/issues/376).
+
+### Why PDFs are read from the synced copy
+
+The Google Drive connector returns a PDF either as text from Google's own OCR
+or as a base64 string. The OCR text is incomplete for many scans (photos,
+small print, tables). The base64 of even a 1 MB PDF is far too large for the
+model to read as an image. The first runs on 2026-10-20 went this way and
+produced two transcriptions with missing parts and one guessed amount.
+
+Google Drive for desktop already syncs My Drive to
+`~/Library/CloudStorage/GoogleDrive-aoshimash@gmail.com/マイドライブ/`. Every
+synced file carries its Drive file ID in the extended attribute
+`com.google.drivefs.item-id#S`. So the task finds the local file by ID, renders
+each page with `pdftoppm -r 150 -png`, and reads the page images. The images
+are the source of truth; the connector's OCR text is only a hint. The page
+images contain unmasked data, so they go in a fresh temporary directory that
+is deleted as soon as the file is done.
+
+A PDF that is not in the synced folder yet (sync lag) is skipped for that run
+and reported as `未同期`. It is still in the inbox, so the next run picks it up.
 
 ## Contract
 
@@ -90,6 +111,7 @@ Body, in Japanese:
 | 種別 | 通知 / 請求書 / 領収書 / 契約書 / 証明書 / 明細 / 申請書 / その他 |
 | 発行元 | 〇〇県公安委員会 |
 | 期限・金額 | 期限・支払額・有効期間などがあれば。なければ「なし」 |
+| 要確認 | 判読に自信のない項目の一覧。なければ「なし」 |
 | 原本 | [20261004_運転免許証更新のお知らせ.pdf](https://drive.google.com/file/d/<FILE_ID>/view) |
 | 保管場所 | Drive: 06_諸手続き/身分（または「要振り分け」） |
 | Drive ファイル ID | `<FILE_ID>` |
@@ -110,6 +132,12 @@ PDF の全文を Markdown で書き起こしたもの。見出し・箇条書き
 card numbers, bank account numbers, passwords and PINs, and identifiers that
 alone allow access or impersonation: 基礎年金番号, health insurance 記号・番号,
 driver's licence and passport numbers. The original in Drive is unmasked.
+
+**Uncertain readings are marked, never guessed.** A value that cannot be read
+is written as `（判読不能）`. A value read with doubt is written followed by
+`（要確認）`, e.g. `30,690円（要確認）`. Every such item is also listed in the
+`要確認` row and in the run report, so the owner can go through them later with
+the original.
 
 ### Processed files, retries, and duplicates
 
@@ -139,17 +167,19 @@ together.**
 To recreate it, ask Claude Code in the desktop app to create a scheduled task
 with task ID `document-ingest`, title `書類の取り込み（ScanSnap → Outline）`,
 cron `0 21 * * *`, and exactly the prompt below. The runs need the `outline`
-MCP server (user scope) and the Google Drive connector to be connected.
+MCP server (user scope) and the Google Drive connector to be connected, Google
+Drive for desktop syncing My Drive, and `pdftoppm` (`brew install poppler`).
 
-Prompt (`MAX_FILES` was 1 for the first trial run, then 20):
+Prompt (version 2, 2026-10-20: reads page images from the local sync; version 1 read the connector's OCR text):
 
 ````text
 You are the document-ingest job for the owner's scanned paperwork. Work fully autonomously; nobody is watching. Write everything you create (Outline pages, folder names, the final report) in Japanese.
 
-Tools: the Google Drive connector (claude.ai Google Drive) and the Outline MCP server named "outline". If either is unavailable, stop immediately and report which one.
+Tools: the Google Drive connector (claude.ai Google Drive) for listing, renaming and moving files; the Outline MCP server named "outline"; Bash and Read for reading PDFs from the local Drive sync. If the Drive connector or Outline is unavailable, or `pdftoppm` is not installed, stop immediately and report which one.
 
 Constants:
 - INBOX: Drive folder "00_受信箱", ID 11_RuOPedK3r8koOu519nULsmTR5WDCFu (in My Drive root).
+- DRIVE_ROOT (local sync by Google Drive for desktop): "$HOME/Library/CloudStorage/GoogleDrive-aoshimash@gmail.com/マイドライブ". Each synced file has its Drive file ID in the extended attribute "com.google.drivefs.item-id#S".
 - CATEGORY FOLDERS: the folders directly in My Drive root whose names start with 01_ to 07_ (e.g. 01_仕事, 06_諸手続き, 07_生活). Never use 00_受信箱, 98_共有, 99_アーカイブ, or any non-numbered folder as a destination. Never create a new top-level folder.
 - OUTLINE COLLECTION: "書類" (create it if missing).
 - MAX_FILES: 20 (process at most this many files per run; the rest wait for the next run).
@@ -161,21 +191,26 @@ Procedure:
    a. Duplicate check: search the Outline collection "書類" for the file's Drive ID. If a document created by this job contains "Drive ファイル ID" with this ID:
       - If its 保管場所 is "要振り分け": skip the file (list it in the report as still needing manual filing).
       - Otherwise: the document exists but the file was not moved. Rename and move the file as the document's title and 保管場所 say (step g), and do nothing else.
-   b. Read the PDF. Use read_file_content first. If the text is missing or clearly incomplete (scanned images), download the file and read the pages visually. Never guess content you cannot read.
-   c. Extract: 書類日付 (the document's issue date; if unreadable, use the file's createdTime converted to JST and mark it "（スキャン日）"), 書類名 (short descriptive title), 種別 (通知/請求書/領収書/契約書/証明書/明細/申請書/その他), 発行元, 期限・金額 (deadlines, amounts, validity periods; "なし" if none), 要約 (2–4 sentences: what it is, from whom, required action and deadline), and a full Markdown transcription that keeps headings, lists and tables, with pages separated by "### p.N".
+   b. Read the PDF from its page images. Never read it only from text.
+      - Find the local copy: in "$DRIVE_ROOT/00_受信箱", the *.pdf whose `xattr -p 'com.google.drivefs.item-id#S'` equals the Drive file ID. If none matches (not synced yet), skip this file, report it as "未同期", and continue; it is retried next run.
+      - TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; then open every page image with the Read tool, in page order. If the PDF has more than 30 pages, read the first 30 and say so in the page and the report.
+      - The images are the source of truth. You may also call read_file_content on the Drive file as a hint, but never copy text from it that you cannot see in the images.
+      - When this file is finished (success or failure), run rm -rf "$TMP". The images contain unmasked personal data.
+   c. Extract: 書類日付 (the document's issue date; if none is printed, use the file's createdTime converted to JST and mark it "（スキャン日）"), 書類名 (short descriptive title), 種別 (通知/請求書/領収書/契約書/証明書/明細/申請書/その他), 発行元, 期限・金額 (deadlines, amounts, validity periods; "なし" if none), 要約 (2–4 sentences: what it is, from whom, required action and deadline), and a full Markdown transcription that keeps headings, lists and tables, with pages separated by "### p.N".
+      Uncertain readings: write "（判読不能）" for anything you cannot read, and put "（要確認）" right after any value you read with doubt (e.g. "30,690円（要確認）"). Never present a guess as fact. Collect every such item for the 要確認 row.
    d. Mask sensitive numbers everywhere you write them, keeping only the last 4 digits as "****1234": My Number (マイナンバー), full credit card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
    e. Decide the destination: the best-fitting existing subfolder of a CATEGORY FOLDER. If none fits, you may create one new subfolder under the best-fitting CATEGORY FOLDER, named like the existing ones (a short Japanese noun such as 税務, 保険). A document that fits a category but no specific topic may go directly in the category folder. If you cannot decide with confidence (unreadable scan, several unrelated documents in one PDF), the destination is "要振り分け": the file stays in INBOX with its original name.
       Title = "YYYYMMDD_書類名" using 書類日付 (replace "/" and other characters invalid in names with "_"). File name = title + ".pdf".
    f. Create the Outline document FIRST, in collection "書類", nested under parent documents that mirror the Drive path (e.g. 書類 / 06_諸手続き / 税務). A parent document's title is exactly the folder name and its body is a link to that Drive folder; create missing parents. Put "要振り分け" documents under a parent titled "00_受信箱（要振り分け）". If the Outline tools cannot nest documents, create it directly in the collection and say so in the report.
       Document title: the title from step e. Body, exactly in this shape:
         > このページは自動取り込みで作成されました。機微な番号は伏せ字にしています。原本は下の Drive リンクを参照してください。
-        a two-column table "| 項目 | 値 |" with rows: 書類日付, 書類名, 種別, 発行元, 期限・金額, 原本 (a Markdown link whose text is the new file name and whose URL is https://drive.google.com/file/d/<FILE_ID>/view), 保管場所 ("Drive: <category>/<subfolder>" or "要振り分け"), Drive ファイル ID (the ID in backticks), スキャン日時 (createdTime in JST), 取り込み日時 (now, JST)
+        a two-column table "| 項目 | 値 |" with rows: 書類日付, 書類名, 種別, 発行元, 期限・金額, 要確認 (the uncertain items, or "なし"), 原本 (a Markdown link whose text is the new file name and whose URL is https://drive.google.com/file/d/<FILE_ID>/view), 保管場所 ("Drive: <category>/<subfolder>" or "要振り分け"), Drive ファイル ID (the ID in backticks), スキャン日時 (createdTime in JST), 取り込み日時 (now, JST)
         "## 要約" followed by the summary
         "## 本文（書き起こし）" followed by the transcription
    g. Only after the document exists: if the destination is not "要振り分け", rename the Drive file to the new file name and move it into the destination folder (one update that sets title and parentId). Then confirm the file's parent is the destination.
    h. If any step fails for a file, record the error and continue with the next file. A file whose document was not created stays in INBOX and is retried in full next run.
-4. Safety rules: never delete or trash anything in Drive or Outline. Never touch Drive files other than the one being filed. Never edit Outline documents except ones this job created (they contain "Drive ファイル ID") and the folder parent documents.
-5. Final report (your last message), in Japanese: a table with one row per processed file — 元のファイル名, 新しいファイル名, 振り分け先, Outline のリンク, 結果 (登録・移動済み / 移動のみ再実行 / 要振り分け / エラー: reason). Then list: new Drive folders created, files skipped because of MAX_FILES, files still needing manual filing, and non-PDF files in INBOX. If INBOX had nothing to do, say so in one line.
+4. Safety rules: never delete or trash anything in Drive or Outline (the only thing you delete is your own $TMP directory). Never touch Drive files other than the one being filed. Never edit Outline documents except ones this job created (they contain "Drive ファイル ID") and the folder parent documents.
+5. Final report (your last message), in Japanese: a table with one row per processed file — 元のファイル名, 新しいファイル名, 振り分け先, Outline のリンク, 要確認 (count), 結果 (登録・移動済み / 移動のみ再実行 / 要振り分け / 未同期 / エラー: reason). Then list: every 要確認 item per file, new Drive folders created, files skipped because of MAX_FILES, files still needing manual filing, and non-PDF files in INBOX. If INBOX had nothing to do, say so in one line.
 ````
 
 ## Operations
@@ -193,7 +228,40 @@ Each run's last message is the report described above.
 
 The task does not touch a file once it has left `00_受信箱`.
 
-### Re-ingest a file
+### Re-ingest documents that are already filed
+
+To re-read files whose Outline documents already exist (after a contract
+change, or when a page looks wrong), run the prompt below once as an ad-hoc
+Claude Code task, with `FILE_IDS` filled in from the documents'
+`Drive ファイル ID` rows. It updates each document in place, so nothing is
+duplicated, and it renames or moves the Drive file only if the new reading
+changes its title or folder.
+
+On 2026-10-20 this re-read the eight documents created by prompt version 1.
+
+````text
+You are re-ingesting documents for the owner's document-ingest pipeline. Work fully autonomously. Write everything you create (Outline pages, the final report) in Japanese. The contract is the same as the document-ingest job; this run re-reads files that were already ingested and updates their existing Outline documents in place.
+
+Tools: the Google Drive connector (claude.ai Google Drive); the Outline MCP server named "outline"; Bash and Read. Stop and report if any is unavailable or `pdftoppm` is missing.
+
+Constants:
+- DRIVE_ROOT (local sync by Google Drive for desktop): "$HOME/Library/CloudStorage/GoogleDrive-aoshimash@gmail.com/マイドライブ". Each synced file has its Drive file ID in the extended attribute "com.google.drivefs.item-id#S".
+- OUTLINE COLLECTION: "書類".
+- FILE_IDS: <one Drive file ID per line>
+
+For each ID in FILE_IDS:
+1. Find its Outline document: the one in "書類" whose "Drive ファイル ID" row is this ID. If there is none, or more than one, skip the ID and report it. Never create a new document in this run.
+2. Get the file's Drive metadata (title, parent folder) and resolve its folder path. Find the local copy under DRIVE_ROOT in that folder whose `xattr -p 'com.google.drivefs.item-id#S'` equals the ID; if it is not there, search DRIVE_ROOT with `find` (max depth 4) for a PDF with that attribute. If no local copy exists, skip and report "未同期".
+3. TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; open every page image with the Read tool in page order (first 30 pages at most). The images are the source of truth. Afterwards always rm -rf "$TMP": the images contain unmasked personal data.
+4. Re-extract everything exactly as the document-ingest contract says: 書類日付 (issue date, or createdTime in JST marked "（スキャン日）"), 書類名, 種別, 発行元, 期限・金額, 要約, and a full Markdown transcription with "### p.N" page breaks. Write "（判読不能）" for anything unreadable and put "（要確認）" after any value read with doubt; list them all in the 要確認 row. Mask sensitive numbers to their last 4 digits ("****1234"): My Number, full card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
+5. Keep the current Drive folder unless the new reading makes it clearly wrong; do not create folders in this run.
+6. Update the existing Outline document in place: title "YYYYMMDD_書類名", and a body in exactly the contract's shape (the blockquote; the table with rows 書類日付, 書類名, 種別, 発行元, 期限・金額, 要確認, 原本, 保管場所, Drive ファイル ID, スキャン日時, 取り込み日時 = now in JST; "## 要約"; "## 本文（書き起こし）"). If the title changed, rename the Drive file to match (title + ".pdf"). If the folder changed, move both the Drive file and the Outline document (under the parent documents that mirror the folder path).
+7. Never delete or trash anything except your own $TMP directory. Never touch other files or documents.
+
+Final report (Japanese): a table with one row per ID — 新しいタイトル, 振り分け先, Outline のリンク, 要確認 (count), 結果. Then, per file, what changed in substance compared with the previous version of the page (dates, amounts, deadlines, title, folder), and every 要確認 item.
+````
+
+### Re-ingest a file from scratch
 
 Delete (or archive) its Outline document, and move the PDF back into
 `00_受信箱`. The next run treats it as new.
