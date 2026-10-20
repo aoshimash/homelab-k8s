@@ -31,10 +31,10 @@ URL with an embedded password is stored.
 
 **Attachments are on a PVC, not R2.** The parent issue chose local storage
 (#376, Design Decisions) because Outline's file-storage documentation listed
-Cloudflare R2 as not compatible with its S3 mode. Outline v1.11.0 adds
-`AWS_S3_UPLOAD_METHOD=put` for providers such as R2 that lack presigned POST
-(`.env.sample`), so moving attachments to R2 would now be a new decision rather
-than a known incompatibility.
+Cloudflare R2 as not compatible with its S3 mode. Outline (v1.11.0 included)
+has `AWS_S3_UPLOAD_METHOD=put` for providers such as R2 that lack presigned
+POST (`.env.sample`), so moving attachments to R2 would now be a new decision
+rather than a known incompatibility.
 
 ### Access flow
 
@@ -273,7 +273,8 @@ error in the current log, while the container keeps running.
 
 - `Failed to discover OIDC configuration`: the pod cannot reach tsidp. The web
   process exits and is forked again, so the error repeats and readiness flaps.
-  The container is restarted only once the liveness probe gives up. Check
+  The liveness probe may never restart the container, because `/_health` can
+  answer between re-forks, so delete the pod once the cause is fixed. Check
   from a throwaway pod:
 
   ```bash
