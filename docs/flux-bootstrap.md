@@ -60,12 +60,60 @@ For security, we use a fine-grained PAT which allows repository-specific permiss
 
    > **Note**: If you want to use SSH deploy keys instead of token auth, set `Administration` to `Read and write`.
 
+   These permissions are what `flux bootstrap` needs: it pushes the Flux
+   manifests to the repository. The controllers only ever read, so once
+   bootstrap is done, replace the stored token with a read-only one (see
+   [Rotating the Flux token](#rotating-the-flux-token)).
+
 5. Click **Generate token** and copy the token
 
 6. Export the token as an environment variable:
 
    ```bash
    export GITHUB_TOKEN=<your-fine-grained-pat>
+   ```
+
+### Rotating the Flux token
+
+Flux reads both `homelab-k8s` and `homelab-k8s-private` with the token in the
+`flux-system` Secret (`username: git`, `password: <PAT>`). When that token stops
+working, both GitRepositories turn not ready with
+`authentication required: Invalid username or token`. Flux then **keeps
+applying the last revision it fetched**, so merged changes stop reaching the
+cluster without any other visible failure. This happened from 2026-10-19 to
+2026-10-20, when the PAT was deleted: nothing merged after `f3eed02` was
+applied until the token was replaced.
+
+1. Create a fine-grained PAT:
+
+   | Setting | Value |
+   |---------|-------|
+   | Repository access | **Only select repositories** → `homelab-k8s`, `homelab-k8s-private` |
+   | Repository permissions | `Contents`: Read-only, `Metadata`: Read-only |
+   | Expiration | Your preference. Personal accounts may choose no expiration |
+
+2. Put it into the Secret from an interactive terminal (`read` waits for the
+   token to be pasted, and does not echo it or record it in shell history):
+
+   ```bash
+   read -rs GITHUB_TOKEN && kubectl -n flux-system create secret generic flux-system --from-literal=username=git --from-literal=password="$GITHUB_TOKEN" --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f - ; unset GITHUB_TOKEN
+   ```
+
+   Use `--server-side`. Client-side `kubectl apply` (and `kubectl replace` on
+   an object that already has one) also writes the whole Secret, token
+   included, into the `kubectl.kubernetes.io/last-applied-configuration`
+   annotation, where any `-o yaml`/`-o json` dump of the Secret's metadata
+   prints it. If that annotation is present, remove it:
+
+   ```bash
+   kubectl -n flux-system annotate secret flux-system kubectl.kubernetes.io/last-applied-configuration-
+   ```
+
+3. Confirm both sources fetch again:
+
+   ```bash
+   flux reconcile source git flux-system
+   flux reconcile source git homelab-k8s-private
    ```
 
 ## Project Structure
@@ -349,19 +397,9 @@ If the PAT was originally created with access only to `homelab-k8s`, update it:
 3. Under **Repository access**, add `homelab-k8s-private` to the selected repositories
 4. Save the token
 
-If the token value changes, update the `flux-system` secret in the cluster:
-
-```bash
-# Re-bootstrap Flux with the updated token
-export GITHUB_TOKEN=<updated-pat>
-flux bootstrap github \
-  --token-auth \
-  --owner=aoshimash \
-  --repository=homelab-k8s \
-  --branch=main \
-  --path=k8s/flux \
-  --personal
-```
+If the token value changes, update the `flux-system` secret in the cluster as
+described in [Rotating the Flux token](#rotating-the-flux-token). Re-running
+`flux bootstrap` is not needed for a token change.
 
 ### Verify Private Repository Reconciliation
 
@@ -427,7 +465,8 @@ kubectl -n flux-system describe gitrepository flux-system
 ```
 
 Common causes:
-- Invalid GitHub token
+- Invalid GitHub token (`authentication required: Invalid username or token`) —
+  see [Rotating the Flux token](#rotating-the-flux-token)
 - Repository not accessible
 - Branch doesn't exist
 

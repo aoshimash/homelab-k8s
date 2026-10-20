@@ -90,10 +90,16 @@ grant above limits that to tailnet admins — the owner.
 
 That limit only holds if nothing broader also reaches `tag:tsidp`. Tailscale
 initializes a tailnet with an allow-all policy (any source to any destination),
-and access rules are additive, so with that rule in place every tailnet member can sign
-in. When applying the policy, check for such a rule. Remove or narrow it, or,
-if keeping it is a deliberate choice (e.g. the owner is the only member),
-record that here.
+and access rules are additive, so with that rule in place every tailnet member
+can sign in.
+
+**Current state (2026-10-20): the allow-all rule is kept deliberately.** The
+tailnet's `acls` still has the default `"src": ["*"]` → `"dst": ["*:*"]` accept
+rule. The existing apps' Ingresses rely on that rule, and the owner chose to
+keep it when the grants above were added. In effect, every tailnet member can
+sign in through tsidp, not only admins. Revisit this before another person
+joins the tailnet: either replace the allow-all rule with specific rules, or
+accept that they can sign in to every app behind tsidp.
 
 A relying party that calls the token and userinfo endpoints from its own
 server needs reach to `tag:tsidp:443` as well. Add it with the relying party
@@ -111,7 +117,7 @@ registered from then on.
 2. After Flux reconciles, read the login URL:
 
    ```bash
-   kubectl -n tsidp logs deploy/tsidp | grep -i login
+   kubectl -n tsidp logs deploy/tsidp | grep login.tailscale.com
    ```
 
 3. Open the URL and authenticate as a tailnet admin.
@@ -166,8 +172,12 @@ login name, e.g. the Google address for a Google login. GitHub and passkey
 logins have login names that are not real addresses (`user@github`,
 `user@passkey`); for those tsidp appends its own DNS name, giving e.g.
 `user@github.idp.<tailnet>.ts.net` (`realishEmail` in `server/server.go`, as
-of v0.0.17). Apps
-that key users on email, such as Outline, see exactly this value.
+of v0.0.17). Apps that key users on email, such as Outline, see exactly this
+value.
+
+Observed on 2026-10-20 for the owner (a Google login), with the procedure
+below: `/userinfo` returned `email` (the Google address), `name`, `username`,
+`picture`, and `sub` in the form `userid:<number>`.
 
 Extra claims can be added per grant with `extraClaims` (and exposed in
 `/userinfo` with `includeInUserInfo`). None are configured.
