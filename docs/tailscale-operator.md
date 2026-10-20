@@ -62,9 +62,10 @@ The listed tag is the tag of the **device that advertises** the Service. For a
 ProxyGroup Ingress that is each ProxyGroup replica (`ingress-proxies-0`), which
 the operator tags `tag:k8s` by default. The operator itself (`tag:k8s-operator`)
 creates the Service but does not advertise it, so listing `tag:k8s-operator`
-here has no effect. Tailscale's own example uses the same form: in the Kubernetes
-operator RBAC reference, `"tag:monitoring": ["tag:eu-cluster"]` lets ProxyGroup
-devices tagged `tag:eu-cluster` advertise Services tagged `tag:monitoring`.
+here has no effect. Tailscale's operator guide for the API server proxy uses this exact entry, and
+its RBAC reference explains the form: `"tag:monitoring": ["tag:eu-cluster"]`
+lets ProxyGroup devices tagged `tag:eu-cluster` advertise Services tagged
+`tag:monitoring`.
 
 Check the replica's tag with `tailscale status --json` (the `Tags` field of the
 `ingress-proxies-0` peer).
@@ -373,8 +374,7 @@ curl https://my-service.<tailnet>.ts.net
 2. Make sure `autoApprovers.services` lists the ProxyGroup replica's tag
    (`tag:k8s`), not `tag:k8s-operator` (see [Configure Auto-Approvers](#3-configure-auto-approvers-for-services)).
    An entry with the wrong tag looks configured but approves nothing; this
-   left the Trilium (#249) and Outline (#378) Ingresses waiting for a manual
-   approval.
+   left the Trilium (#249) Ingress waiting for a manual approval.
 
 ### ProxyGroup Pod Fails to Start
 
@@ -430,3 +430,4 @@ kubectl exec -n kube-system ds/cilium -- cilium-dbg status --verbose | grep -i m
 - [Cilium Compatibility](https://tailscale.com/kb/1236/kubernetes-operator#cilium-in-kube-proxy-replacement-mode)
 - [ACL Auto-Approvers](https://tailscale.com/kb/1541/kubernetes-operator-multi-cluster-ingress)
 - [Kubernetes operator: permissions and RBAC](https://tailscale.com/docs/kubernetes-operator/reference/rbac) — `autoApprovers.services` example for ProxyGroup devices
+- [Kubernetes operator: API server over Tailscale](https://tailscale.com/docs/kubernetes-operator/api-server-access/setup-api-over-tailscale) — `"svc:*": ["tag:k8s"]`
