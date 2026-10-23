@@ -108,14 +108,17 @@
     // https://docs.renovatebot.com/key-concepts/minimum-release-age/
     // https://github.com/renovatebot/renovate/issues/45236
 
-    // digest: Renovate ages a digest bump against the newest version matching the
-    // current tag. Docker Hub (tag_last_pushed) and github-tags expose that
-    // timestamp, so those keep the full 3-day window; GHCR does not, and most of
-    // our images live there. timestamp-optional raises the timestamp-less ones
-    // instead of holding them forever, which is what the docs prescribe.
+    // digest: Renovate ages a digest bump against the release timestamp of the
+    // newest version matching the current tag, and Docker Hub digests such as
+    // redis's come back without one (seen 2026-10-23 on Renovate 44.180.0).
+    // timestamp-optional proceeds anyway, but logs a WARN on every run that the
+    // Mend dashboard pins as "Repository problems"; turning the age check off
+    // gives the same outcome without the permanent warning. A digest bump is a
+    // re-push of a tag already adopted, so the 3-day window adds little here.
     {
       "matchUpdateTypes": ["digest"],
-      "minimumReleaseAgeBehaviour": "timestamp-optional"
+      "minimumReleaseAge": null,
+      "prBodyNotes": ["⚠️ Digest update: the 3-day minimumReleaseAge was **not** applied (no release timestamp available), so check the release age manually before merging."]
     },
     // pinDigest: freezing a tag at what it already resolves to is not an upgrade,
     // so it should not wait out the stabilization window — a fast-releasing
@@ -160,13 +163,17 @@
     // while their status is yellow — the update never surfaces at all. Seen here
     // on 2026-09-21: home-assistant v2025/v2026 and paperless-ngx v3 (all ghcr.io)
     // sat in the dashboard's "Pending Status Checks" section, while the Docker
-    // Hub-hosted vikunja majors reached review as #294/#295. timestamp-optional
-    // raises what cannot be aged; docker.io, github-tags and Helm charts are
-    // unaffected and keep the full 3-day window.
+    // Hub-hosted vikunja majors reached review as #294/#295. Turning the age
+    // check off for them is what timestamp-optional already amounted to (nothing
+    // to age against, so proceed) — but timestamp-optional logs a WARN on every
+    // run, which the Mend dashboard shows permanently as "Repository problems".
+    // docker.io, github-tags and Helm charts are unaffected and keep the full
+    // 3-day window.
     {
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/**"],
-      "minimumReleaseAgeBehaviour": "timestamp-optional"
+      "minimumReleaseAge": null,
+      "prBodyNotes": ["⚠️ ghcr.io image: the 3-day minimumReleaseAge was **not** applied (GHCR provides no release timestamp), so check the release age manually before merging."]
     },
     // Group Helm chart updates into one PR instead of one per HelmRelease file.
     // separateMajorMinor above still splits major/minor updates into their own
