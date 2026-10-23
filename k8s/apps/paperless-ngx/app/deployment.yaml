@@ -39,7 +39,7 @@ spec:
         - name: paperless-ngx
           # NOTE: paperless-ngx entrypoint requires root for chown and user switching,
           # so allowPrivilegeEscalation and capabilities cannot be restricted here.
-          image: ghcr.io/paperless-ngx/paperless-ngx:3.3.2@sha256:d232cba37cc0bab0d6c6581ecd320383b7a6f49f33e0fd16adda4d009eb600dd
+          image: ghcr.io/paperless-ngx/paperless-ngx:3.3.4@sha256:9bc6e8248891bcfa6f52fffe8b81e4ea8cae75790c3ec1b9906961a7ba55c969
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -98,7 +98,7 @@ spec:
               type: RuntimeDefault
         - name: redis
           # NOTE: redis-alpine entrypoint uses su-exec requiring root
-          image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+          image: redis:8-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
@@ -132,7 +132,7 @@ spec:
               drop:
                 - ALL
         - name: gotenberg
-          image: gotenberg/gotenberg:8@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
+          image: gotenberg/gotenberg:8@sha256:aa552cc115db488e0f0bcb07446aac13071ad51505b642c84bb894500907b42b
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
