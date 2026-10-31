@@ -42,7 +42,7 @@ spec:
             - idp.tail19032f.ts.net
       containers:
         - name: outline
-          image: outlinewiki/outline:1.11.0@sha256:08ee9ffdb847e1bd35ded30ee832090dd06a7f93f67422687db59e70bc7f5393
+          image: outlinewiki/outline:1.12.0@sha256:25d6a2ced2f1f0cf03c09abd776d87ba31941ed96d3a99992aa84b3bd0afc074
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -100,7 +100,7 @@ spec:
           # NOTE: the entrypoint starts as root, chowns /data and drops to the
           # redis user itself, so runAsNonRoot cannot be set here. Same image
           # as paperless-ngx's sidecar.
-          image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+          image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
           imagePullPolicy: IfNotPresent
           # Loopback only: the official image turns protected mode off at
           # build time, and there is no password, so on the default bind any
