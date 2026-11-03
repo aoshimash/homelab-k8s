@@ -168,9 +168,18 @@ PDF の全文を Markdown で書き起こしたもの。見出し・箇条書き
 
 **Sensitive numbers are masked** in every part of the page, with only the last
 4 digits kept (`****1234`). This covers My Number (マイナンバー), full credit
-card numbers, bank account numbers, passwords and PINs, and identifiers that
-alone allow access or impersonation: 基礎年金番号, health insurance 記号・番号,
-driver's licence and passport numbers. The original in Drive is unmasked.
+card numbers, bank account numbers, and identifiers that alone allow access or
+impersonation: 基礎年金番号, health insurance 記号・番号, driver's licence and
+passport numbers.
+
+**Login credentials are masked in full** as `****`, with no characters kept.
+This covers passwords, PINs, and login IDs. A printed statement that reveals a
+credential or lets a reader derive it, such as a note that the password is the
+postal code, becomes `（認証情報の説明は伏せ字）`. Keeping the last 4 digits is
+not enough here, because a credential can be short or predictable, and another
+page may hold the value that completes it.
+
+The original in Drive is unmasked.
 
 **Uncertain readings are marked, never guessed.** A value that cannot be read
 is written as `（判読不能）`. A value read with doubt is written followed by
@@ -325,7 +334,8 @@ Procedure:
    c. Extract: 書類日付 (the document's issue date; if no full date with a day is printed, use the file's createdTime converted to JST, mark it "（取得日）", and record any printed year or month in 期限・金額), 書類名 (short descriptive title), 種別 (通知/請求書/領収書/契約書/証明書/明細/申請書/その他), 発行元, 期限・金額 (deadlines, amounts, validity periods; "なし" if none), 要約 (2–4 sentences: what it is, from whom, required action and deadline), and a full Markdown transcription that keeps headings, lists and tables, with pages separated by "### p.N".
       Uncertain readings: write "（判読不能）" for anything you cannot read, and put "（要確認）" right after any value you read with doubt (e.g. "1,234円（要確認）"). Never present a guess as fact. Collect every such item for the 要確認 row.
       OCR cross-check: run python3 -I "$HELPERS/crosscheck.py" "$TMP/ocr.txt" followed by every value you read for the 書類日付 and 期限・金額 rows and every amount, date, deadline, time, phone number and reference number in your transcription, each passed exactly as printed on the page (not reformatted, and before masking). Skip a 書類日付 marked "（取得日）". For each value it prints (not found in the OCR text), look at that spot in the page image again: if you misread it, correct it; if you still read it the same way, append "（要確認: OCR不一致）" to it and add it to the 要確認 row.
-   d. Mask sensitive numbers everywhere you write them, keeping only the last 4 digits as "****1234": My Number (マイナンバー), full credit card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
+   d. Mask sensitive numbers everywhere you write them, keeping only the last 4 digits as "****1234": My Number (マイナンバー), full credit card numbers, bank account numbers, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
+      Replace login credentials entirely with "****", keeping no characters: passwords, PINs, and login IDs (ログインID, ユーザーID and the like). Also replace any printed statement that reveals or lets a reader derive a credential (for example, that the password is the postal code) with "（認証情報の説明は伏せ字）".
    e. Decide the destination: the folder in FILED ROOT named after the year of the file's createdTime in JST (e.g. 2026); create it if missing. Decide the category: the best-fitting existing category in Outline. If none fits, you may create one new category, a short Japanese noun. If you cannot process the file with confidence (unreadable scan, several unrelated documents in one PDF), the destination is "要振り分け": the file stays in INBOX with its original name.
       Title = "YYYYMMDD_書類名" using 書類日付 (replace "/" and other characters invalid in names with "_"). File name = title + ".pdf".
    f. Create the Outline document FIRST, in collection "書類", directly under its category document. A category document's title is exactly the category name, without a number, and its body is one sentence describing the category, without a Drive link; create it if missing. Put "要振り分け" documents under a category titled "要振り分け". If the Outline tools cannot nest documents, create it directly in the collection and say so in the report.
@@ -381,7 +391,7 @@ For each ID in FILE_IDS:
 1. Find its Outline document: the one in "書類" whose "Drive ファイル ID" row is this ID. If there is none, or more than one, skip the ID and report it. Never create a new document in this run.
 2. Get the file's Drive metadata (title, parent folder) and resolve its folder path. Find the local copy under DRIVE_ROOT in that folder whose `xattr -p 'com.google.drivefs.item-id#S'` equals the ID; if it is not there, search DRIVE_ROOT with `find` (max depth 4) for a PDF with that attribute. If no local copy exists, skip and report "未同期".
 3. TMP=$(mktemp -d); pdftoppm -r 150 -png "<local file>" "$TMP/p"; open every page image with the Read tool in page order (first 30 pages at most). The images are the source of truth. Also run pdftoppm -r 300 -png "<local file>" "$TMP/o" and append the output of "$HOME/.claude/scheduled-tasks/document-ingest/vision-ocr" for each "$TMP"/o-*.png, in page order, to "$TMP/ocr.txt". Afterwards always rm -rf "$TMP": the images contain unmasked personal data.
-4. Re-extract everything exactly as the document-ingest contract says: 書類日付 (issue date, or createdTime in JST marked "（取得日）"), 書類名, 種別, 発行元, 期限・金額, 要約, and a full Markdown transcription with "### p.N" page breaks. Write "（判読不能）" for anything unreadable and put "（要確認）" after any value read with doubt; list them all in the 要確認 row. Then cross-check: run python3 -I "$HOME/.claude/scheduled-tasks/document-ingest/crosscheck.py" "$TMP/ocr.txt" with every value for 書類日付 and 期限・金額 and every amount, date, deadline, time, phone number and reference number in the transcription, exactly as printed and before masking (skip a 書類日付 marked "（取得日）"). For each value it prints, look at the image again: correct a misreading, or append "（要確認: OCR不一致）" and add it to the 要確認 row. Mask sensitive numbers to their last 4 digits ("****1234"): My Number, full card numbers, bank account numbers, passwords and PINs, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers.
+4. Re-extract everything exactly as the document-ingest contract says: 書類日付 (issue date, or createdTime in JST marked "（取得日）"), 書類名, 種別, 発行元, 期限・金額, 要約, and a full Markdown transcription with "### p.N" page breaks. Write "（判読不能）" for anything unreadable and put "（要確認）" after any value read with doubt; list them all in the 要確認 row. Then cross-check: run python3 -I "$HOME/.claude/scheduled-tasks/document-ingest/crosscheck.py" "$TMP/ocr.txt" with every value for 書類日付 and 期限・金額 and every amount, date, deadline, time, phone number and reference number in the transcription, exactly as printed and before masking (skip a 書類日付 marked "（取得日）"). For each value it prints, look at the image again: correct a misreading, or append "（要確認: OCR不一致）" and add it to the 要確認 row. Mask sensitive numbers to their last 4 digits ("****1234"): My Number, full card numbers, bank account numbers, 基礎年金番号, health insurance 記号・番号, driver's licence numbers, passport numbers. Replace passwords, PINs, and login IDs entirely with "****", and any printed statement that reveals or lets a reader derive one with "（認証情報の説明は伏せ字）".
 5. Keep the current Drive folder and Outline category; do not create folders in this run.
 6. Update the existing Outline document in place: title "YYYYMMDD_書類名", and a body in exactly the contract's shape (the blockquote; the table with rows 書類日付, 書類名, 種別, 発行元, 期限・金額, 要確認, 原本, 保管場所, Drive ファイル ID, 取得日時, 取り込み日時 = now in JST; "## 要約"; "## 本文（書き起こし）"). If the title changed, rename the Drive file to match (title + ".pdf").
 7. Never delete or trash anything except your own $TMP directory. Never touch other files or documents.
