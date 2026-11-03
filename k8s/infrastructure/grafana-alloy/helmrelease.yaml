@@ -263,11 +263,38 @@ spec:
           // the Mimir Alertmanager config (see grafana-cloud/alertmanager.yaml).
           // GRAFANA_CLOUD_RULER_URL is optional: if unset, this component is
           // inactive and the rest of Alloy (metrics/logs) keeps running.
+          // PrometheusRule resources labeled ruler=loki hold LogQL, so they are
+          // excluded here and synced by loki.rules.kubernetes below.
           mimir.rules.kubernetes "grafana_cloud" {
             address = env("GRAFANA_CLOUD_RULER_URL")
 
+            rule_selector {
+              match_expression {
+                key      = "ruler"
+                operator = "DoesNotExist"
+              }
+            }
+
             basic_auth {
               username = env("GRAFANA_CLOUD_USER")
+              password = env("GRAFANA_CLOUD_API_KEY")
+            }
+          }
+
+          // Sync LogQL rules (PrometheusRule resources labeled ruler=loki) to the
+          // Grafana Cloud Loki ruler, for alerts that need a value only present
+          // in a log line. The ruler API is on the same host as the push API.
+          loki.rules.kubernetes "grafana_cloud" {
+            address = string.replace(env("GRAFANA_CLOUD_LOKI_URL"), "/loki/api/v1/push", "")
+
+            rule_selector {
+              match_labels = {
+                ruler = "loki",
+              }
+            }
+
+            basic_auth {
+              username = env("GRAFANA_CLOUD_LOKI_USER")
               password = env("GRAFANA_CLOUD_API_KEY")
             }
           }
