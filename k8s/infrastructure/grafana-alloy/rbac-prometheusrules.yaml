@@ -1,6 +1,6 @@
 # Grant Grafana Alloy read access to PrometheusRule resources so the
-# mimir.rules.kubernetes component can discover them and sync them to the
-# Grafana Cloud ruler. The grafana/alloy chart's default ClusterRole only
+# mimir.rules.kubernetes and loki.rules.kubernetes components can discover them
+# and sync them to the Grafana Cloud rulers. The grafana/alloy chart's default ClusterRole only
 # covers node/pod/service discovery, not the prometheus-operator CRDs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
