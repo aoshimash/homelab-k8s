@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: tsidp
-          image: ghcr.io/tailscale/tsidp:v0.0.17@sha256:7a30d56cb1a33fd72ea44b12ab3659b5c7a8a3afe3cf4ada76a700f19b96185b
+          image: ghcr.io/tailscale/tsidp:v0.0.18@sha256:3b39de93c1dd1a6bd6923b8871957ab938d049128035634b2b7204a900fb4661
           imagePullPolicy: IfNotPresent
           env:
             # Required while tsidp is below v1.0.0.
