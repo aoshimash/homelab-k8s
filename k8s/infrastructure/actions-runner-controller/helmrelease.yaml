@@ -20,7 +20,7 @@ spec:
       # before the scale sets. Once the new controller is Ready, run
       # `flux reconcile hr <scale-set> -n arc-runners --force` for each scale set
       # so Helm recreates any that were deleted mid-rollout.
-      version: 0.15.0
+      version: 0.15.1
   releaseName: arc-controller
   # The chart ships its CRDs in crds/, which Helm installs once and never
   # upgrades. CreateReplace makes a Renovate chart bump carry the matching CRDs;
