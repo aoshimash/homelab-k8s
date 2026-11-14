@@ -13,7 +13,7 @@ spec:
         name: k8up
         namespace: flux-system
       # Pinned to avoid automatic upgrades; managed by Renovate.
-      version: 4.10.0
+      version: 4.10.1
   releaseName: k8up
   # The chart ships its CRDs in crds/, which Helm installs once and never
   # upgrades. CreateReplace makes a Renovate chart bump carry the matching CRDs.
