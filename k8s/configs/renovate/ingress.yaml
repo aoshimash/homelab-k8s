@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: renovate-operator-ui
+  namespace: renovate-operator
+  annotations:
+    tailscale.com/proxy-group: ingress-proxies
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: renovate-operator
+      port:
+        number: 8081
+  tls:
+    - hosts:
+        - renovate
