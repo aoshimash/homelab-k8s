@@ -234,17 +234,22 @@ If the state is lost and cannot be restored:
 2. Restart tsidp and authenticate the new login URL ([First Start](#first-start)).
 3. Re-register every client and update each app's secret. The client IDs,
    secrets, and signing key are all new.
-4. The new node usually gets a new tailnet IP. Outline reaches tsidp at a
-   fixed IP through `hostAliases`, so update it in
-   `k8s/apps/outline/app/deployment.yaml` (`tailscale ip -4 idp`).
+4. The new node usually gets a new tailnet IP. Every app that reaches tsidp at
+   a fixed IP through `hostAliases` needs the new one (`tailscale ip -4 idp`):
+   - Outline: `k8s/apps/outline/app/deployment.yaml`
+   - Renovate Operator: the `postRenderers` patch in
+     `k8s/infrastructure/renovate-operator/helmrelease.yaml`
+
+   `grep -rn 'idp\..*\.ts\.net' k8s/` finds any app added later.
 
 ## Pods Reaching tsidp
 
 Cluster workloads are not on the tailnet and cannot resolve `*.ts.net` names.
 The node is on the tailnet, though, and routes pod traffic to tailnet IPs, so
 an app reaches tsidp by mapping `idp.<tailnet>.ts.net` to tsidp's tailnet IP
-with `hostAliases`. Outline does this; the design, what it depends on, and the
-alternatives considered are in
+with `hostAliases`. Outline and the Renovate Operator do this
+([renovate-operator.md](renovate-operator.md#reaching-tsidp-from-the-pod));
+the design, what it depends on, and the alternatives considered are in
 [outline.md](outline.md#reaching-tsidp-from-the-pod).
 
 ## References

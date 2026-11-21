@@ -1,0 +1,84 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: renovate-operator
+  namespace: renovate-operator
+spec:
+  interval: 10m0s
+  chart:
+    spec:
+      chart: renovate-operator
+      # Pinned; Renovate proposes upgrades (flux manager covers k8s/infrastructure).
+      # The operator image follows the chart's appVersion, so a chart bump is
+      # also the image bump. Read docs/migration/ in the upstream repository
+      # before merging a major: v5 -> v6 changed the policy engine and access
+      # control.
+      version: 6.10.0
+      sourceRef:
+        kind: HelmRepository
+        name: mogenius
+        namespace: flux-system
+  releaseName: renovate-operator
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  # The OIDC client ID is kept out of Git in plain text, like Outline's.
+  valuesFrom:
+    - kind: Secret
+      name: renovate-operator-oidc
+      valuesKey: client-id
+      targetPath: auth.oidc.clientId
+  values:
+    # Without this the chart names everything <release>-<chart>,
+    # i.e. renovate-operator-renovate-operator.
+    fullnameOverride: renovate-operator
+    crd:
+      # "template" renders the CRDs as ordinary chart resources, so a chart
+      # bump upgrades them with the release. The default "hook" mode runs a
+      # pre-install/pre-upgrade Job from a separate kubectl image instead.
+      mode: template
+    # The UI Ingress lives in k8s/configs/renovate/ (it needs the Tailscale
+    # ProxyGroup from the configs layer), so the chart's own Ingress stays off.
+    ingress:
+      enabled: false
+    auth:
+      oidc:
+        enabled: true
+        # tsidp, the tailnet OIDC provider (docs/tsidp.md). The operator calls
+        # it from the pod for discovery, token and JWKS; see the hostAliases
+        # patch below.
+        issuerUrl: https://idp.tail19032f.ts.net
+        existingSecret: renovate-operator-oidc
+        secretKey: client-secret
+        # Without a fixed session key the operator generates one per start,
+        # and every pod restart logs everyone out.
+        sessionSecretKey: session-secret
+        # Must match the redirect URI registered for this client in tsidp.
+        redirectUrl: https://renovate.tail19032f.ts.net/auth/callback
+    authorization:
+      # Per-job access rules are off: everyone who can sign in through tsidp
+      # (members of this tailnet) gets full access. Listing named users here
+      # would put login names in a public repository.
+      enabled: false
+  postRenderers:
+    # Pods are not on the tailnet and cannot resolve *.ts.net, but the node
+    # routes the tailnet range, so mapping tsidp's name to its tailnet IP is
+    # enough (same approach and same IP as Outline: docs/outline.md,
+    # "Reaching tsidp from the pod"). The chart has no hostAliases value.
+    # The IP changes only if tsidp's state is lost and it re-registers.
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: renovate-operator
+            patch: |
+              - op: add
+                path: /spec/template/spec/hostAliases
+                value:
+                  - ip: 100.89.177.82
+                    hostnames:
+                      - idp.tail19032f.ts.net
