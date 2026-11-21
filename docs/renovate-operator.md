@@ -81,7 +81,8 @@ but the node routes the tailnet range. The HelmRelease therefore adds a
 through a `postRenderers` patch, because the chart has no `hostAliases` value.
 This is the same mechanism Outline uses, and it breaks for the same reasons
 ([outline.md](outline.md#reaching-tsidp-from-the-pod)). If tsidp re-registers
-with a new IP, update both places.
+with a new IP, follow the recovery steps in
+[tsidp.md](tsidp.md#backup-and-recovery), which list every place that holds it.
 
 ### Checking It
 
