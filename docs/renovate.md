@@ -137,8 +137,9 @@ The following paths are excluded from Renovate scanning:
 
 1. Renovate detects the new version on its next run (hourly). It opens the PR
    only inside this repository's `schedule` window (Friday afternoon) and once
-   the release is older than `minimumReleaseAge`; until then the update is
-   listed under "Awaiting Schedule" on the Dependency Dashboard.
+   the release is older than `minimumReleaseAge`; until then the Dependency
+   Dashboard lists it under "Awaiting Schedule" (schedule) or "Pending Status
+   Checks" (`minimumReleaseAge`).
 2. A PR is automatically created with:
    - Version change details
    - Release notes link
@@ -184,7 +185,8 @@ Flux components are in `k8s/flux/flux-system/gotk-components.yaml`:
 
 ### PRs Not Being Created
 
-1. Check the [Dependency Dashboard issue](https://github.com/aoshimash/homelab-k8s/issues/409):
+1. Check the open issue titled "Dependency Dashboard", authored by the
+   `aoshimash-renovate` App ([#409](https://github.com/aoshimash/homelab-k8s/issues/409) as of the migration):
    updates waiting for the schedule window or `minimumReleaseAge` are listed
    there, not missing
 2. Check the last run in the Renovate Operator UI
@@ -200,7 +202,7 @@ Reduce `prConcurrentLimit` in `renovate.json5` or close stale PRs.
 ### Dependency Not Detected
 
 Check the "Detected Dependencies" section of the
-[Dependency Dashboard issue](https://github.com/aoshimash/homelab-k8s/issues/409):
+Dependency Dashboard issue:
 a file listed with no entries under it is being parsed but yields nothing, while a
 file missing from the list entirely is not being parsed at all.
 
