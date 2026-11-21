@@ -46,9 +46,9 @@ spec:
     ingress:
       enabled: false
     config:
-      # Finished Renovate Jobs (and their pods, which hold the only copy of a
-      # run's log) are kept for a day, then garbage-collected. The chart
-      # default (-1) keeps every hourly run forever.
+      # Finished Renovate Jobs and their pods are kept for a day, then
+      # garbage-collected (Alloy has already shipped the pod logs to Loki).
+      # The chart default (-1) keeps every hourly run forever.
       jobTTLSecondsAfterFinished: 86400
     webhook:
       # Adds the webhook listener (port 8082) to the Service. It is published

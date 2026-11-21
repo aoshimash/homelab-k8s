@@ -7,6 +7,7 @@ vars:
   # Cluster, Database, ScheduledBackup: CloudNativePG CRDs
   # ProxyGroup: Tailscale operator CRD
   # Schedule: K8up CRD
+  # RenovateJobTemplate, GitHubAppInstallationSet: renovate-operator CRDs
   SKIP_KINDS: HelmRelease,HelmRepository,Kustomization,GitRepository,CiliumNetworkPolicy,PrometheusRule,CustomResourceDefinition,Cluster,Database,ScheduledBackup,ProxyGroup,Schedule,RenovateJobTemplate,GitHubAppInstallationSet
   TALOS_NODE: 192.168.0.10
   TALOS_DIR: infra/talos

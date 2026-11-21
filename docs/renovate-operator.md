@@ -25,9 +25,9 @@ repository is in [renovate.md](renovate.md).
 | Renovate image | `ghcr.io/renovatebot/renovate`, `tag@sha256` in `k8s/configs/renovate/renovatejobtemplate.yaml` |
 | Schedule | Hourly (`H * * * *`, UTC, a per-job minute), plus GitHub webhooks |
 | Webhook | `https://renovate-webhook.<tailnet>.ts.net/webhook/v1/github`, the cluster's only internet-facing endpoint (Tailscale Funnel) |
-| Finished Jobs | Kept for a day (`config.jobTTLSecondsAfterFinished`), then garbage-collected with their logs |
-| Alert | `RenovateRunFailed` (`k8s/infrastructure/grafana-alloy/prometheusrule-renovate.yaml`) |
-| Valkey / S3 | Not used. Logs of past runs are not stored; the Job pods' logs are the record |
+| Finished Jobs | Kept for a day (`config.jobTTLSecondsAfterFinished`), then garbage-collected. Their pod logs stay in Grafana Cloud Loki (Alloy ships every pod's log) |
+| Alerts | `RenovateRunFailed` and its guard `RenovateOperatorMetricsAbsent` (`k8s/infrastructure/grafana-alloy/prometheusrule-renovate.yaml`) |
+| Valkey / S3 | Not used. The operator stores no run logs itself; the Job pod logs (and their copy in Loki) are the record |
 
 Why it is wired this way:
 
@@ -122,6 +122,12 @@ path from the internet into the cluster. It is limited three ways:
 3. **Requests are signed.** Webhook authentication is on for every job, so an
    unsigned or wrongly signed delivery is rejected.
 
+The chart's own webhook Ingress (`webhook.ingress`) stays off. As of chart
+6.10.0 its template hard-codes the path `/` (every route on the webhook
+listener, `/webhook/v1/schedule` included) and writes a `host` rule, which the
+Tailscale Ingress ignores in favor of `tls.hosts`. Annotations could be passed
+through, but the path cannot be narrowed, so the Ingress is written by hand.
+
 Funnel needs a standalone proxy: the Tailscale operator supports Funnel only on
 per-Ingress proxies, not on a ProxyGroup (as of v1.104.1). The proxy is tagged
 `tag:k8s-funnel` so that only it may use Funnel. The tailnet policy (edited in
@@ -148,9 +154,15 @@ With the hosted Mend app, failed runs showed up in its portal. Here,
 gauge is 1 for a project, i.e. its last run failed. Grafana Alloy scrapes the
 operator pod's metrics port (8080) directly and forwards only that metric.
 
+The cluster-wide `FailedPodResidue` alert does also catch a failed Renovate
+job pod, but only after 6 hours, per pod rather than per repository, and only
+while the one-day Job TTL still keeps the pod. It is a backstop, not the
+Renovate alert.
+
 To see why a run failed: open the project in the UI, or
 `kubectl -n renovate-operator get jobs` and read the job pod's log. Finished
-Jobs are kept for a day.
+Jobs are kept for a day; older runs' logs are in Grafana Cloud Loki under
+`namespace="renovate-operator"`.
 
 ## UI Login Through tsidp
 

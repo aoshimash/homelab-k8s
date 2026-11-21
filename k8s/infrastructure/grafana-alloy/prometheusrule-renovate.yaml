@@ -31,4 +31,22 @@ spec:
               The last Renovate run for {{ $labels.project }} (job
               {{ $labels.renovate_job }}) failed. Check the run's log in the
               Renovate Operator UI, or `kubectl -n renovate-operator get jobs`
-              and the job pod's log (finished jobs are kept for a day).
+              and the job pod's log (finished jobs are kept for a day; older
+              logs are in Loki under namespace="renovate-operator").
+        - alert: RenovateOperatorMetricsAbsent
+          # RenovateRunFailed over a missing metric returns nothing and never
+          # fires. This fires when Alloy stops scraping the operator (pod
+          # down, label or port changed by a chart upgrade, relabel broken).
+          expr: absent(up{job="renovate-operator"} == 1)
+          for: 30m
+          labels:
+            severity: warning
+            component: renovate
+          annotations:
+            summary: "Renovate Operator metrics absent"
+            description: >-
+              No successful scrape of the renovate-operator has reached
+              Grafana Cloud for 30m, so RenovateRunFailed cannot fire. Check
+              `kubectl -n renovate-operator get pods` and that the pod still
+              has label app=renovate-operator and container port 8080
+              (the renovate_operator scrape in grafana-alloy/helmrelease.yaml).
