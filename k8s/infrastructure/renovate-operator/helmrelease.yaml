@@ -45,6 +45,21 @@ spec:
     # ProxyGroup from the configs layer), so the chart's own Ingress stays off.
     ingress:
       enabled: false
+    config:
+      # Finished Renovate Jobs (and their pods, which hold the only copy of a
+      # run's log) are kept for a day, then garbage-collected. The chart
+      # default (-1) keeps every hourly run forever.
+      jobTTLSecondsAfterFinished: 86400
+    webhook:
+      # Adds the webhook listener (port 8082) to the Service. It is published
+      # to the internet only by the Funnel Ingress in k8s/configs/renovate/,
+      # and only for /webhook/v1/github.
+      enabled: true
+      # Must stay false: true would serve webhooks on the UI's host and undo
+      # the UI/webhook separation (the UI is tailnet-only).
+      unifiedWebhookHost: false
+      ingress:
+        enabled: false
     auth:
       oidc:
         enabled: true

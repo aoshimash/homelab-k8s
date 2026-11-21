@@ -1,0 +1,34 @@
+# Self-hosted Renovate alerts. Synced to the Grafana Cloud ruler by Grafana
+# Alloy (mimir.rules.kubernetes) and evaluated there against the
+# renovate-operator's own metrics (renovate_operator scrape job).
+#
+# With the hosted Mend app, failed runs showed up in its Developer Portal.
+# Self-hosted, nothing surfaces them unless this fires: a repository whose
+# runs keep failing simply stops getting update PRs.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: renovate-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: renovate-operator
+    role: renovate-alerts
+spec:
+  groups:
+    - name: renovate
+      rules:
+        - alert: RenovateRunFailed
+          # The operator sets this gauge per project after every run (1 =
+          # the last run failed). It clears on the next successful run.
+          expr: renovate_operator_run_failed == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: renovate
+          annotations:
+            summary: "Renovate run failed for {{ $labels.project }}"
+            description: >-
+              The last Renovate run for {{ $labels.project }} (job
+              {{ $labels.renovate_job }}) failed. Check the run's log in the
+              Renovate Operator UI, or `kubectl -n renovate-operator get jobs`
+              and the job pod's log (finished jobs are kept for a day).

@@ -112,6 +112,31 @@ spec:
             }
           }
 
+          // Discover the renovate-operator pod. Its metrics listener (:8080)
+          // is always on; the chart adds it to the Service only when
+          // metrics.enabled is set, so the pod is scraped directly.
+          discovery.kubernetes "renovate_operator" {
+            role = "pod"
+            namespaces {
+              names = ["renovate-operator"]
+            }
+            selectors {
+              role  = "pod"
+              label = "app=renovate-operator"
+            }
+          }
+
+          // Keep only the :8080 metrics port
+          discovery.relabel "renovate_operator" {
+            targets = discovery.kubernetes.renovate_operator.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_port_number"]
+              regex         = "8080"
+              action        = "keep"
+            }
+          }
+
           // =============================================================================
           // METRICS COLLECTION
           // =============================================================================
@@ -223,6 +248,26 @@ spec:
             rule {
               source_labels = ["__name__"]
               regex  = "k8up_jobs_failed_counter|up"
+              action = "keep"
+            }
+          }
+
+          // Scrape the renovate-operator (per-project run outcome).
+          // The metrics carry their own renovate_namespace/renovate_job/project
+          // labels, so no target labels are added.
+          prometheus.scrape "renovate_operator" {
+            targets    = discovery.relabel.renovate_operator.output
+            job_name   = "renovate-operator"
+            forward_to = [prometheus.relabel.renovate_operator_filter.receiver]
+          }
+
+          // Keep only the metrics the Renovate alert rules use
+          prometheus.relabel "renovate_operator_filter" {
+            forward_to = [prometheus.relabel.add_cluster.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex  = "renovate_operator_run_failed|up"
               action = "keep"
             }
           }
