@@ -123,10 +123,10 @@ path from the internet into the cluster. It is limited three ways:
    unsigned or wrongly signed delivery is rejected.
 
 The chart's own webhook Ingress (`webhook.ingress`) stays off. As of chart
-6.10.0 its template hard-codes the path `/` (every route on the webhook
-listener, `/webhook/v1/schedule` included) and writes a `host` rule, which the
-Tailscale Ingress ignores in favor of `tls.hosts`. Annotations could be passed
-through, but the path cannot be narrowed, so the Ingress is written by hand.
+6.10.0 its template hard-codes the path `/`, which would publish every route on
+the webhook listener, `/webhook/v1/schedule` included. Annotations could be
+passed through, but the path cannot be narrowed, so the Ingress is written by
+hand.
 
 Funnel needs a standalone proxy: the Tailscale operator supports Funnel only on
 per-Ingress proxies, not on a ProxyGroup (as of v1.104.1). The proxy is tagged
