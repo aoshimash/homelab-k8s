@@ -15,3 +15,4 @@ resources:
   - cloudnative-pg/
   - actions-runner-controller/
   - reloader/
+  - renovate-operator/
