@@ -20,7 +20,14 @@ repository is in [renovate.md](renovate.md).
 | UI | `https://renovate.<tailnet>.ts.net`, tailnet-only (`k8s/configs/renovate/ingress.yaml`) |
 | UI login | OIDC through [tsidp](tsidp.md). Client ID, client secret and session key in `secret-oidc.sops.yaml` |
 | Access control | Off (`authorization.enabled: false`): anyone who signs in through tsidp has full access |
-| Valkey / S3 | Not used. Logs of past runs are not stored; the Job pods' logs are the record |
+| GitHub identity | A private GitHub App owned by the personal account. App ID and private key in `k8s/configs/renovate/secret-github-app.sops.yaml` |
+| Jobs | `githubappinstallationsets.renovate-operator.mogenius.com` `personal` generates one `RenovateJob` per installation from the template `installation-defaults` |
+| Renovate image | `ghcr.io/renovatebot/renovate`, `tag@sha256` in `k8s/configs/renovate/renovatejobtemplate.yaml` |
+| Schedule | Hourly (`H * * * *`, UTC, a per-job minute), plus GitHub webhooks |
+| Webhook | `https://renovate-webhook.<tailnet>.ts.net/webhook/v1/github`, the cluster's only internet-facing endpoint (Tailscale Funnel) |
+| Finished Jobs | Kept for a day (`config.jobTTLSecondsAfterFinished`), then garbage-collected. Their pod logs stay in Grafana Cloud Loki (Alloy ships every pod's log) |
+| Alerts | `RenovateRunFailed` and its guard `RenovateOperatorMetricsAbsent` (`k8s/infrastructure/grafana-alloy/prometheusrule-renovate.yaml`) |
+| Valkey / S3 | Not used. The operator stores no run logs itself; the Job pod logs (and their copy in Loki) are the record |
 
 Why it is wired this way:
 
@@ -49,12 +56,113 @@ short kind names are generic:
 | `githubappinstallationsets.renovate-operator.mogenius.com` | Generates one `RenovateJob` per installation of a GitHub App |
 | `renovateprojects.renovate-operator.mogenius.com` | The operator's per-repository status records |
 
-None of them is instantiated yet. The GitHub App, the jobs and the webhook come
-with [#405](https://github.com/aoshimash/homelab-k8s/issues/405).
-
 ```bash
 kubectl get crd | grep renovate-operator.mogenius.com
+kubectl -n renovate-operator get githubappinstallationsets.renovate-operator.mogenius.com
+kubectl -n renovate-operator get renovatejobs.renovate-operator.mogenius.com
 ```
+
+## Which Repositories Renovate Runs On
+
+Only the GitHub App's repository selection decides it. The App is installed on
+the personal account with **Only select repositories**, and nothing in this
+repository filters further.
+
+- **Add a repository:** GitHub → Settings → Applications → the App →
+  Configure → add the repository. GitHub sends an `installation_repositories`
+  event to the operator's webhook, and the installation set starts discovery at
+  once, so the repository appears in the UI within minutes. A repository with
+  no Renovate config gets an onboarding PR when Renovate finds dependencies in
+  it; with none, nothing happens (Renovate's default for discovered
+  repositories).
+- **Remove a repository:** deselect it the same way. It drops out at the next
+  discovery.
+- **Never select a repository in both this App and the hosted Mend app.** Two
+  bots on one repository open duplicate PRs.
+
+Only an installation set reacts to `installation_repositories` with an
+immediate discovery; a hand-written `RenovateJob` would wait for its next
+scheduled discovery. That is why the jobs are generated rather than written.
+
+## GitHub App
+
+A private App can only be installed on the account that owns it, which keeps
+Renovate to the personal account.
+
+| Setting | Value |
+|---------|-------|
+| Visibility | Private ("Only on this account") |
+| Webhook URL | `https://renovate-webhook.<tailnet>.ts.net/webhook/v1/github` |
+| Webhook secret | `secret` in `k8s/configs/renovate/secret-github-app-webhook.sops.yaml` |
+| Events | Issues, Pull request (`installation` and `installation_repositories` arrive without a subscription) |
+| Repository permissions | The table in Renovate's GitHub platform docs, "Running as a GitHub App": Administration read; Checks, Commit statuses, Contents, Issues, Merge queues, Pull requests, Workflows read and write; Dependabot alerts and Metadata read |
+
+The private key and App ID live in `secret-github-app.sops.yaml` as `PEM` and
+`APP_ID`. The operator mints short-lived installation tokens from them; no
+long-lived token exists. To rotate the key, generate a new one in the App
+settings, re-encrypt the Secret, merge, then delete the old key on GitHub.
+
+The same webhook secret serves two checks: the installation set verifies
+GitHub's `X-Hub-Signature-256` on installation events, and every generated job
+verifies it on PR and issue events (`webhook.authentication` in the template).
+
+## Webhook Exposure
+
+The webhook Ingress (`k8s/configs/renovate/ingress-webhook.yaml`) is the only
+path from the internet into the cluster. It is limited three ways:
+
+1. **Only `/webhook/v1/github` is routed.** The Ingress has no default
+   backend, so the public hostname serves nothing else. The operator's
+   `/webhook/v1/schedule` API (which can start runs) and the UI are not
+   reachable from the internet.
+2. **Only the webhook listener is behind it.** It points at the Service's
+   port 8082. The UI (8081) has its own tailnet-only Ingress, and
+   `webhook.unifiedWebhookHost` stays `false` so the operator does not serve
+   webhooks on the UI's host either.
+3. **Requests are signed.** Webhook authentication is on for every job, so an
+   unsigned or wrongly signed delivery is rejected.
+
+The chart's own webhook Ingress (`webhook.ingress`) stays off. As of chart
+6.10.0 its template hard-codes the path `/`, which would publish every route on
+the webhook listener, `/webhook/v1/schedule` included. Annotations could be
+passed through, but the path cannot be narrowed, so the Ingress is written by
+hand.
+
+Funnel needs a standalone proxy: the Tailscale operator supports Funnel only on
+per-Ingress proxies, not on a ProxyGroup (as of v1.104.1). The proxy is tagged
+`tag:k8s-funnel` so that only it may use Funnel. The tailnet policy (edited in
+the Tailscale admin console, not in Git) needs:
+
+```jsonc
+{
+  "tagOwners": {
+    // The operator creates the proxy device with this tag.
+    "tag:k8s-funnel": ["tag:k8s-operator"]
+  },
+  "nodeAttrs": [
+    // Funnel for the webhook proxy only. autogroup:member does not cover
+    // tagged devices, so this grant is required.
+    { "target": ["tag:k8s-funnel"], "attr": ["funnel"] }
+  ]
+}
+```
+
+## Alerting
+
+With the hosted Mend app, failed runs showed up in its portal. Here,
+`RenovateRunFailed` fires when the operator's `renovate_operator_run_failed`
+gauge is 1 for a project, i.e. its last run failed. Grafana Alloy scrapes the
+operator pod's metrics port (8080) directly and forwards only that metric.
+
+The cluster-wide `FailedPodResidue` alert does also catch a failed Renovate
+job pod, but only after 6 hours, per pod rather than per repository, and only
+while the one-day Job TTL still keeps the pod. It is a backstop, not the
+Renovate alert.
+
+To see why a run failed: open the project in the UI, or
+`kubectl -n renovate-operator get jobs` and read the job pod's log. Finished
+Jobs are kept for a day; older runs' logs are in Grafana Cloud Loki under
+`namespace="renovate-operator"`.
 
 ## UI Login Through tsidp
 
@@ -100,7 +208,8 @@ Then, from a tailnet device:
 
 ## Upgrading
 
-Renovate proposes chart bumps. The operator image is the chart's `appVersion`,
-so the chart PR is the image PR too. Before merging a major version, read the
+Renovate proposes chart bumps and bumps of the Renovate image in the template
+(the `kubernetes` manager reads its `image:` line). The operator image is the
+chart's `appVersion`, so the chart PR is the image PR too. Before merging a major version, read the
 upstream migration notes (`docs/migration/` in the operator repository): v5 to
 v6 changed the policy engine and access control.

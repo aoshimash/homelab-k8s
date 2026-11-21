@@ -1,0 +1,36 @@
+# The cluster's only internet-facing entry point: GitHub App webhook
+# deliveries to the renovate-operator. Everything else stays tailnet-only.
+#
+# - Funnel works only on a standalone (per-Ingress) proxy, not on the shared
+#   ingress-proxies ProxyGroup: the operator's ProxyGroup Ingress code has no
+#   Funnel support (tailscale/tailscale v1.104.1, cmd/k8s-operator). So this
+#   Ingress has no tailscale.com/proxy-group annotation and gets its own proxy.
+# - The proxy runs under its own tag, tag:k8s-funnel, so the tailnet policy can
+#   grant the "funnel" node attribute to it alone instead of to every proxy
+#   tagged tag:k8s. See docs/renovate-operator.md for the policy entries.
+# - Only the /webhook/v1/github prefix is routed. With no defaultBackend, the
+#   proxy serves nothing else: the operator's /webhook/v1/schedule API and the
+#   UI on port 8081 are unreachable from the internet.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: renovate-operator-webhook
+  namespace: renovate-operator
+  annotations:
+    tailscale.com/funnel: "true"
+    tailscale.com/tags: tag:k8s-funnel
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /webhook/v1/github
+            pathType: Prefix
+            backend:
+              service:
+                name: renovate-operator
+                port:
+                  number: 8082
+  tls:
+    - hosts:
+        - renovate-webhook

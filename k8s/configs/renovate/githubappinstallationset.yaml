@@ -1,0 +1,26 @@
+# One generated RenovateJob per installation of the private GitHub App.
+# Which repositories Renovate runs on is decided only by the App's repository
+# selection on GitHub ("Only select repositories"); nothing here filters them.
+apiVersion: renovate-operator.mogenius.com/v1alpha1
+kind: GitHubAppInstallationSet
+metadata:
+  name: personal
+  namespace: renovate-operator
+spec:
+  app:
+    secretName: renovate-github-app
+    appIdSecretKey: APP_ID
+    pemSecretKey: PEM
+  templateRef:
+    name: installation-defaults
+  installations:
+    include:
+      - aoshimash
+  # Resync on the App's installation and installation_repositories events, so
+  # a repository added to the App's selection is discovered at once instead
+  # of at the next scheduled discovery.
+  webhook:
+    enabled: true
+    secretRef:
+      name: renovate-github-app-webhook
+      key: secret
