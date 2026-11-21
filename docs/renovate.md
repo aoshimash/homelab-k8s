@@ -6,6 +6,13 @@ This document describes the Renovate configuration and operational procedures fo
 
 [Renovate](https://github.com/renovatebot/renovate) is a dependency update tool that automatically creates pull requests when new versions of dependencies are available.
 
+Renovate runs self-hosted on this cluster through the renovate-operator, as the
+private GitHub App `aoshimash-renovate` (it replaced the hosted Mend app in
+[#406](https://github.com/aoshimash/homelab-k8s/issues/406)). How it runs —
+the UI, run logs, alerts, and how to add or remove a repository — is in
+[renovate-operator.md](renovate-operator.md). This page covers what Renovate
+manages in this repository and how its PRs are handled.
+
 ## Pinning Policy
 
 Every version this repository controls is pinned in Git, and every change to a
@@ -128,7 +135,10 @@ The following paths are excluded from Renovate scanning:
 
 ### When a New Version is Available
 
-1. Renovate detects the new version (within 24 hours)
+1. Renovate detects the new version on its next run (hourly). It opens the PR
+   only inside this repository's `schedule` window (Friday afternoon) and once
+   the release is older than `minimumReleaseAge`; until then the update is
+   listed under "Awaiting Schedule" on the Dependency Dashboard.
 2. A PR is automatically created with:
    - Version change details
    - Release notes link
@@ -174,9 +184,14 @@ Flux components are in `k8s/flux/flux-system/gotk-components.yaml`:
 
 ### PRs Not Being Created
 
-1. Check the [Renovate Dashboard](https://developer.mend.io/github/aoshimash/homelab-k8s) for status
-2. Verify `renovate.json5` syntax is valid
-3. Check if the component is in `ignorePaths`
+1. Check the [Dependency Dashboard issue](https://github.com/aoshimash/homelab-k8s/issues/409):
+   updates waiting for the schedule window or `minimumReleaseAge` are listed
+   there, not missing
+2. Check the last run in the Renovate Operator UI
+   (`https://renovate.<tailnet>.ts.net`) or its job log
+   ([renovate-operator.md — Alerting](renovate-operator.md#alerting))
+3. Verify `renovate.json5` syntax is valid
+4. Check if the component is in `ignorePaths`
 
 ### Too Many PRs
 
@@ -185,7 +200,7 @@ Reduce `prConcurrentLimit` in `renovate.json5` or close stale PRs.
 ### Dependency Not Detected
 
 Check the "Detected Dependencies" section of the
-[Dependency Dashboard issue](https://github.com/aoshimash/homelab-k8s/issues/120):
+[Dependency Dashboard issue](https://github.com/aoshimash/homelab-k8s/issues/409):
 a file listed with no entries under it is being parsed but yields nothing, while a
 file missing from the list entirely is not being parsed at all.
 

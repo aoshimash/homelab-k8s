@@ -77,8 +77,11 @@ repository filters further.
   repositories).
 - **Remove a repository:** deselect it the same way. It drops out at the next
   discovery.
-- **Never select a repository in both this App and the hosted Mend app.** Two
-  bots on one repository open duplicate PRs.
+- **Stop any other Renovate on a repository before adding it.** Two bots on
+  one repository open duplicate PRs, and this App skips branches another bot
+  created (`Ignoring upgrade collision`). Close the other bot's PRs and delete
+  its `renovate/*` branches first, as the migration from the Mend app did
+  ([#406](https://github.com/aoshimash/homelab-k8s/issues/406)).
 
 Only an installation set reacts to `installation_repositories` with an
 immediate discovery; a hand-written `RenovateJob` would wait for its next
