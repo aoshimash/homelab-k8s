@@ -13,7 +13,7 @@ spec:
       # also the image bump. Read docs/migration/ in the upstream repository
       # before merging a major: v5 -> v6 changed the policy engine and access
       # control.
-      version: 6.10.0
+      version: 7.0.0
       sourceRef:
         kind: HelmRepository
         name: mogenius
