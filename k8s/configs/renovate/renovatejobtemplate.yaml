@@ -7,7 +7,7 @@ metadata:
   name: installation-defaults
   namespace: renovate-operator
 spec:
-  image: ghcr.io/renovatebot/renovate:44.251.0@sha256:64adaabe8ee3e34820c2b044b5f87e281aa278bf53e5d76df2ce800f9cc9407a
+  image: ghcr.io/renovatebot/renovate:44.264.1@sha256:35777dd4aa87beee05ba64c7728a2c5e3c70687fdb654909710bac93c697efd1
   # Hourly, at a minute derived from each generated job's name. Webhooks
   # cover interactive triggers; each repository's own `schedule` still
   # decides when PRs may be opened. Cron is evaluated in UTC.
